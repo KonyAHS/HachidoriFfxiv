@@ -7,3 +7,4 @@
 *.zip binary
 *.png binary
 *.jpg binary
+*.tsv whitespace=-blank-at-eol
