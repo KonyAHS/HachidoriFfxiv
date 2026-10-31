@@ -1,0 +1,1373 @@
+[
+  {
+    "page": "Y'shtola",
+    "category": "character",
+    "expressions": [
+      "ヤ・シュトラ"
+    ],
+    "image_pattern": "^Y'shtola\\.(png|jpg)$"
+  },
+  {
+    "page": "Alphinaud",
+    "category": "character",
+    "expressions": [
+      "アルフィノ"
+    ],
+    "image_pattern": "^Alphinaud\\.(png|jpg)$"
+  },
+  {
+    "page": "Alisaie",
+    "category": "character",
+    "expressions": [
+      "アリゼー"
+    ],
+    "image_pattern": "^Alisaie\\.(png|jpg)$"
+  },
+  {
+    "page": "Thancred",
+    "category": "character",
+    "expressions": [
+      "サンクレッド"
+    ],
+    "image_pattern": "^Thancred\\.(png|jpg)$"
+  },
+  {
+    "page": "Urianger",
+    "category": "character",
+    "expressions": [
+      "ウリエンジェ"
+    ],
+    "image_pattern": "^Urianger\\.(png|jpg)$"
+  },
+  {
+    "page": "Tataru",
+    "category": "character",
+    "expressions": [
+      "タタル"
+    ],
+    "image_pattern": "^Tataru\\.(png|jpg)$"
+  },
+  {
+    "page": "Minfilia",
+    "category": "character",
+    "expressions": [
+      "ミンフィリア"
+    ],
+    "image_pattern": "^Minfilia\\.(png|jpg)$"
+  },
+  {
+    "page": "Krile",
+    "category": "character",
+    "expressions": [
+      "クルル"
+    ],
+    "image_pattern": "^Krile\\.(png|jpg)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Estinien",
+    "category": "character",
+    "expressions": [
+      "エスティニアン"
+    ],
+    "image_pattern": "^Estinien\\.(png|jpg)$"
+  },
+  {
+    "page": "G'raha Tia",
+    "category": "character",
+    "expressions": [
+      "グ・ラハ・ティア"
+    ],
+    "image_pattern": "^G'raha Tia\\.(png|jpg)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Lyse",
+    "category": "character",
+    "expressions": [
+      "リセ"
+    ],
+    "image_pattern": "^Lyse\\.(png|jpg)$"
+  },
+  {
+    "page": "Hien",
+    "category": "character",
+    "expressions": [
+      "ヒエン"
+    ],
+    "image_pattern": "^Hien\\.(png|jpg)$"
+  },
+  {
+    "page": "Yugiri",
+    "category": "character",
+    "expressions": [
+      "ユウギリ"
+    ],
+    "image_pattern": "^Yugiri\\.(png|jpg)$"
+  },
+  {
+    "page": "Aymeric",
+    "category": "character",
+    "expressions": [
+      "アイメリク"
+    ],
+    "image_pattern": "^Aymeric\\.(png|jpg)$"
+  },
+  {
+    "page": "Haurchefant",
+    "category": "character",
+    "expressions": [
+      "オルシュファン"
+    ],
+    "image_pattern": "^Haurchefant\\.(png|jpg)$"
+  },
+  {
+    "page": "Cid",
+    "category": "character",
+    "expressions": [
+      "シド"
+    ],
+    "image_pattern": "^Cid\\.(png|jpg)$"
+  },
+  {
+    "page": "Raubahn",
+    "category": "character",
+    "expressions": [
+      "ラウバーン"
+    ],
+    "image_pattern": "^Raubahn\\.(png|jpg)$"
+  },
+  {
+    "page": "Merlwyb",
+    "category": "character",
+    "expressions": [
+      "メルウィブ"
+    ],
+    "image_pattern": "^Merlwyb\\.(png|jpg)$"
+  },
+  {
+    "page": "Kan-E-Senna",
+    "category": "character",
+    "expressions": [
+      "カヌ・エ・センナ"
+    ],
+    "image_pattern": "^Kan-E-Senna\\.(png|jpg)$"
+  },
+  {
+    "page": "Nanamo Ul Namo",
+    "category": "character",
+    "expressions": [
+      "ナナモ・ウル・ナモ",
+      "ナナモ"
+    ],
+    "image_pattern": "^Nanamo Ul Namo\\.(png|jpg)$"
+  },
+  {
+    "page": "Wuk Lamat",
+    "category": "character",
+    "expressions": [
+      "ウクラマト"
+    ],
+    "image_pattern": "^Wuk Lamat\\.(png|jpg)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Erenville",
+    "category": "character",
+    "expressions": [
+      "エレンヴィル"
+    ],
+    "image_pattern": "^Erenville\\.(png|jpg)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Limsa Lominsa",
+    "category": "location",
+    "expressions": [
+      "リムサ・ロミンサ"
+    ],
+    "image_pattern": "^Limsa Lominsa.*(Artwork|Concept)"
+  },
+  {
+    "page": "Gridania",
+    "category": "location",
+    "expressions": [
+      "グリダニア"
+    ],
+    "image_pattern": "^Gridania.*(Artwork|Concept)"
+  },
+  {
+    "page": "Ul'dah",
+    "category": "location",
+    "expressions": [
+      "ウルダハ"
+    ],
+    "image_pattern": "^Ul'dah.*(Artwork|Concept)"
+  },
+  {
+    "page": "Ishgard",
+    "category": "location",
+    "expressions": [
+      "イシュガルド"
+    ],
+    "image_pattern": "^Ishgard.*(Artwork|Concept)"
+  },
+  {
+    "page": "Kugane",
+    "category": "location",
+    "expressions": [
+      "クガネ"
+    ],
+    "image_pattern": "^Kugane Banner\\.jpg$"
+  },
+  {
+    "page": "The Crystarium",
+    "category": "location",
+    "expressions": [
+      "クリスタリウム"
+    ],
+    "image_pattern": "^The Crystarium-Map\\.png$"
+  },
+  {
+    "page": "Eulmore",
+    "category": "location",
+    "expressions": [
+      "ユールモア"
+    ],
+    "image_pattern": "^Eulmore-Map\\.png$"
+  },
+  {
+    "page": "Old Sharlayan",
+    "category": "location",
+    "expressions": [
+      "オールド・シャーレアン"
+    ],
+    "image_pattern": "^Old Sharlayan.*(Artwork|Concept)"
+  },
+  {
+    "page": "Radz-at-Han",
+    "category": "location",
+    "expressions": [
+      "ラザハン"
+    ],
+    "image_pattern": "^Radz-at-Han.*(Artwork|Concept)"
+  },
+  {
+    "page": "Tuliyollal (Zone)",
+    "category": "location",
+    "expressions": [
+      "トライヨラ"
+    ],
+    "image_pattern": "(Artwork|Concept|Banner|[Mm]ap)"
+  },
+  {
+    "page": "Solution Nine (Zone)",
+    "category": "location",
+    "expressions": [
+      "ソリューション・ナイン"
+    ],
+    "image_pattern": "(Artwork|Concept|Banner|[Mm]ap)"
+  },
+  {
+    "page": "Mor Dhona",
+    "category": "location",
+    "expressions": [
+      "モードゥナ"
+    ],
+    "image_pattern": "^Mor Dhona cropped\\.png$"
+  },
+  {
+    "page": "Coerthas Central Highlands",
+    "category": "location",
+    "expressions": [
+      "クルザス中央高地"
+    ],
+    "image_pattern": "^Coerthas Central Highlands cropped\\.png$"
+  },
+  {
+    "page": "The Azim Steppe",
+    "category": "location",
+    "expressions": [
+      "アジムステップ"
+    ],
+    "image_pattern": "^The Azim Steppe-Map\\.jpg$"
+  },
+  {
+    "page": "Koana",
+    "category": "character",
+    "expressions": [
+      "コーナ"
+    ],
+    "image_pattern": "^Koana\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Zoraal Ja",
+    "category": "character",
+    "expressions": [
+      "ゾラージャ"
+    ],
+    "image_pattern": "^Zoraal\\ Ja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Gulool Ja Ja",
+    "category": "character",
+    "expressions": [
+      "グルージャジャ"
+    ],
+    "image_pattern": "^Gulool\\ Ja\\ Ja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://lds-img.finalfantasyxiv.com/promo/h/w/q2hcRi8No1f5SzfxGuHzlE8r3A.png",
+    "source_page": "https://na.finalfantasyxiv.com/dawntrail/story/",
+    "source_name": "SQUARE ENIX official Dawntrail site"
+  },
+  {
+    "page": "Gulool Ja",
+    "category": "character",
+    "expressions": [
+      "グルージャ"
+    ],
+    "image_pattern": "^Gulool\\ Ja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Sphene",
+    "category": "character",
+    "expressions": [
+      "スフェーン"
+    ],
+    "image_pattern": "^Sphene \\(NPC\\)\\.png$",
+    "expansion": "Dawntrail",
+    "source_page": "https://ffxiv.gamerescape.com/wiki/Sphene_(NPC)"
+  },
+  {
+    "page": "Cahciua",
+    "category": "character",
+    "expressions": [
+      "カフキワ"
+    ],
+    "image_pattern": "^Cahciua\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Namikka",
+    "category": "character",
+    "expressions": [
+      "ナミーカ"
+    ],
+    "image_pattern": "^Namikka\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Bakool Ja Ja",
+    "category": "character",
+    "expressions": [
+      "バクージャジャ"
+    ],
+    "image_pattern": "^Bakool\\ Ja\\ Ja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://lds-img.finalfantasyxiv.com/promo/h/0/Uf880IO1qCOeXRLFdzsZ00ByKQ.png",
+    "source_page": "https://na.finalfantasyxiv.com/dawntrail/story/",
+    "source_name": "SQUARE ENIX official Dawntrail site"
+  },
+  {
+    "page": "Ketenramm",
+    "category": "character",
+    "expressions": [
+      "ケテンラム"
+    ],
+    "image_pattern": "^Ketenramm\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Otis",
+    "category": "character",
+    "expressions": [
+      "オーティス"
+    ],
+    "image_pattern": "^Otis\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Hunmu Rruk",
+    "category": "character",
+    "expressions": [
+      "フンムルク"
+    ],
+    "image_pattern": "^Hunmu\\ Rruk\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Mablu",
+    "category": "character",
+    "expressions": [
+      "マーブル"
+    ],
+    "image_pattern": "^Mablu\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Wuk Evu",
+    "category": "character",
+    "expressions": [
+      "ウケブ"
+    ],
+    "image_pattern": "^Wuk\\ Evu\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Shale",
+    "category": "character",
+    "expressions": [
+      "シェール"
+    ],
+    "image_pattern": "^Shale\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Gurfurlur",
+    "category": "character",
+    "expressions": [
+      "グーフールー"
+    ],
+    "image_pattern": "^Gurfurlur\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Sareel Ja",
+    "category": "character",
+    "expressions": [
+      "サレージャ"
+    ],
+    "image_pattern": "^Sareel\\ Ja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Zereel Ja",
+    "category": "character",
+    "expressions": [
+      "ゼレージャ"
+    ],
+    "image_pattern": "^Zereel\\ Ja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Kemakka",
+    "category": "character",
+    "expressions": [
+      "ケマッカ"
+    ],
+    "image_pattern": "^Kemakka\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Zanuhali",
+    "category": "character",
+    "expressions": [
+      "ザヌハリ"
+    ],
+    "image_pattern": "^Zanuhali\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Alxaal",
+    "category": "character",
+    "expressions": [
+      "アルシャール"
+    ],
+    "image_pattern": "^Alxaal\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Teeshal Ja",
+    "category": "character",
+    "expressions": [
+      "テーシャジャ"
+    ],
+    "image_pattern": "^Teeshal\\ Ja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Geode",
+    "category": "character",
+    "expressions": [
+      "ジオード"
+    ],
+    "image_pattern": "^Geode\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Nostalgia",
+    "category": "character",
+    "expressions": [
+      "ノスタルジア"
+    ],
+    "image_pattern": "^Nostalgia\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Yaana",
+    "category": "character",
+    "expressions": [
+      "ヤーナ"
+    ],
+    "image_pattern": "^Yaana\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Neyuni",
+    "category": "character",
+    "expressions": [
+      "ネユニ"
+    ],
+    "image_pattern": "^Neyuni\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://huiji-public.huijistatic.com/ff14/uploads/c/c6/%E6%B6%85%E4%BD%99%E5%B0%BC.png",
+    "source_page": "https://ff14.huijiwiki.com/wiki/%E6%B6%85%E4%BD%99%E5%B0%BC",
+    "source_name": "Huiji FFXIV wiki"
+  },
+  {
+    "page": "Eutrope",
+    "category": "character",
+    "expressions": [
+      "ユトロープ"
+    ],
+    "image_pattern": "^Eutrope\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Metem",
+    "category": "character",
+    "expressions": [
+      "メテム"
+    ],
+    "image_pattern": "^Metem\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://mudae.net/uploads/8408157/mI28Dne~How01spfV.png",
+    "source_page": "https://mudae.net/character/8408157/Metem",
+    "source_name": "Mudae character database"
+  },
+  {
+    "page": "Black Cat",
+    "category": "character",
+    "expressions": [
+      "ブラックキャット"
+    ],
+    "image_pattern": "^Black\\ Cat\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m1/black-cat-transparent.png",
+    "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m1-normal-raid-guide",
+    "source_name": "Icy Veins"
+  },
+  {
+    "page": "Honey B. Lovely",
+    "category": "character",
+    "expressions": [
+      "ハニー・Ｂ・ラブリー"
+    ],
+    "image_pattern": "^Honey\\ B\\.\\ Lovely\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m2/honey-b-lovely-transparent.png",
+    "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m2-normal-raid-guide",
+    "source_name": "Icy Veins"
+  },
+  {
+    "page": "Brute Bomber",
+    "category": "character",
+    "expressions": [
+      "ブルートボンバー"
+    ],
+    "image_pattern": "^Brute\\ Bomber\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m3/brute-bomber-transparent-small.png",
+    "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m3-normal-raid-guide",
+    "source_name": "Icy Veins"
+  },
+  {
+    "page": "Wicked Thunder",
+    "category": "character",
+    "expressions": [
+      "ウィケッドサンダー"
+    ],
+    "image_pattern": "^Wicked\\ Thunder\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m4/wicked-thunder-transparent.png",
+    "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m4-savage-raid-guide",
+    "source_name": "Icy Veins"
+  },
+  {
+    "page": "Dancing Green",
+    "category": "character",
+    "expressions": [
+      "ダンシング・グリーン"
+    ],
+    "image_pattern": "^Dancing\\ Green\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://www.creativeuncut.com/gallery-45/art/ff14dt-dancing-green-render.jpg",
+    "source_page": "https://www.creativeuncut.com/gallery-45/ff14dt-dancing-green-render.html",
+    "source_name": "Creative Uncut official-art gallery"
+  },
+  {
+    "page": "Sugar Riot",
+    "category": "character",
+    "expressions": [
+      "シュガーライオット"
+    ],
+    "image_pattern": "^Sugar\\ Riot\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://lds-img.finalfantasyxiv.com/blog_image/na_blog/assets_c/2025/07/FFXIV_PUB_Patch7.2_41_SugarRiot-thumb-1920x1080-19163.png",
+    "source_page": "https://na.finalfantasyxiv.com/blog/003754.html",
+    "source_name": "SQUARE ENIX official blog"
+  },
+  {
+    "page": "Howling Blade",
+    "category": "character",
+    "expressions": [
+      "ハウリングブレード"
+    ],
+    "image_pattern": "^Howling\\ Blade\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m8/howling-blade.jpg",
+    "source_page": "https://www.icy-veins.com/ffxiv/aac-cruiserweight-m4-savage-raid-guide",
+    "source_name": "Icy Veins"
+  },
+  {
+    "page": "Vamp Fatale",
+    "category": "character",
+    "expressions": [
+      "ヴァンプ・ファタール"
+    ],
+    "image_pattern": "^Vamp\\ Fatale\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m9/vamp-fatale.jpg",
+    "source_page": "https://www.icy-veins.com/ffxiv/aac-heavyweight-m1-savage-raid-guide",
+    "source_name": "Icy Veins"
+  },
+  {
+    "page": "The Tyrant",
+    "category": "character",
+    "expressions": [
+      "ザ・タイラント"
+    ],
+    "image_pattern": "^The\\ Tyrant\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail",
+    "image_url": "https://huiji-public.huijistatic.com/ff14/uploads/8/8e/%E9%9C%B8%E7%8E%8B.png",
+    "source_page": "https://ff14.huijiwiki.com/wiki/%E9%9C%B8%E7%8E%8B",
+    "source_name": "Huiji FFXIV wiki"
+  },
+  {
+    "page": "Prishe",
+    "category": "character",
+    "expressions": [
+      "プリッシュ"
+    ],
+    "image_pattern": "^Prishe\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Rral Soj",
+    "category": "character",
+    "expressions": [
+      "ラルソジ"
+    ],
+    "image_pattern": "^Rral\\ Soj\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Rral Ty'ukuk",
+    "category": "character",
+    "expressions": [
+      "ラルチュクク"
+    ],
+    "image_pattern": "^Rral\\ Ty'ukuk\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Rral Vaw",
+    "category": "character",
+    "expressions": [
+      "ラルバー"
+    ],
+    "image_pattern": "^Rral\\ Vaw\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Rral Br'aax",
+    "category": "character",
+    "expressions": [
+      "ラルブラーシャ"
+    ],
+    "image_pattern": "^Rral\\ Br'aax\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Rral Wuruq",
+    "category": "character",
+    "expressions": [
+      "広域交易商 ラルルック"
+    ],
+    "image_pattern": "^Rral\\ Wuruq\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Rral Majun",
+    "category": "character",
+    "expressions": [
+      "ラマジュン"
+    ],
+    "image_pattern": "^Rral\\ Majun\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Zeycihan",
+    "category": "character",
+    "expressions": [
+      "ゼイキハン"
+    ],
+    "image_pattern": "^Zeycihan\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Uvlo",
+    "category": "character",
+    "expressions": [
+      "ウヴロ"
+    ],
+    "image_pattern": "^Uvlo\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Fourchenault",
+    "category": "character",
+    "expressions": [
+      "フルシュノ"
+    ],
+    "image_pattern": "^Fourchenault\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Ameliance",
+    "category": "character",
+    "expressions": [
+      "アメリアンス"
+    ],
+    "image_pattern": "^Ameliance\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Jullus",
+    "category": "character",
+    "expressions": [
+      "ユルス"
+    ],
+    "image_pattern": "^Jullus\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Matsya",
+    "category": "character",
+    "expressions": [
+      "マトシャ"
+    ],
+    "image_pattern": "^Matsya\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Nidhana",
+    "category": "character",
+    "expressions": [
+      "ニッダーナ"
+    ],
+    "image_pattern": "^Nidhana\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Vrtra",
+    "category": "character",
+    "expressions": [
+      "ヴリトラ"
+    ],
+    "image_pattern": "^Vrtra\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://i.imgur.com/5By2CNJ.jpg",
+    "source_page": "https://ff14wiki.info/?%E3%83%B4%E3%83%AA%E3%83%88%E3%83%A9",
+    "source_name": "FF14 Online Wiki"
+  },
+  {
+    "page": "Varshahn",
+    "category": "character",
+    "expressions": [
+      "ヴァルシャン"
+    ],
+    "image_pattern": "^Varshahn\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Zero",
+    "category": "character",
+    "expressions": [
+      "ゼロ"
+    ],
+    "image_pattern": "^Zero\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Golbez",
+    "category": "character",
+    "expressions": [
+      "ゴルベーザ"
+    ],
+    "image_pattern": "^Golbez\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/golbez-final-fantasy-xiv-endwalker-2.76_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Durante",
+    "category": "character",
+    "expressions": [
+      "ドゥランテ"
+    ],
+    "image_pattern": "^Durante\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/durante-final-fantasy-xiv-endwalker-3.75_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Azdaja",
+    "category": "character",
+    "expressions": [
+      "アジュダヤ"
+    ],
+    "image_pattern": "^Azdaja\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/azdaja-final-fantasy-xiv-endwalker-24_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Venat",
+    "category": "character",
+    "expressions": [
+      "ヴェーネス",
+      "ヴェーネスと呼ばれた古代人"
+    ],
+    "image_pattern": "^Venat\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Hermes",
+    "category": "character",
+    "expressions": [
+      "ヘルメス"
+    ],
+    "image_pattern": "^Hermes\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://huiji-public.huijistatic.com/ff14/uploads/5/51/Hermes_from_FFXIV.png",
+    "source_page": "https://ff14.huijiwiki.com/wiki/%E8%B5%AB%E5%B0%94%E5%A2%A8%E6%96%AF",
+    "source_name": "Huiji FFXIV wiki"
+  },
+  {
+    "page": "Meteion",
+    "category": "character",
+    "expressions": [
+      "メーティオン"
+    ],
+    "image_pattern": "^Meteion\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Hythlodaeus",
+    "category": "character",
+    "expressions": [
+      "ヒュトロダエウス"
+    ],
+    "image_pattern": "^Hythlodaeus\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://i.imgur.com/k29cB8L.jpg",
+    "source_page": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%83%92%E3%83%A5%E3%83%88%E3%83%AD%E3%83%80%E3%82%A8%E3%82%A6%E3%82%B9",
+    "source_name": "FF14 Online Wiki"
+  },
+  {
+    "page": "Emet-Selch",
+    "category": "character",
+    "expressions": [
+      "アシエン・エメトセルク",
+      "エメトセルク",
+      "黒法衣の男"
+    ],
+    "image_pattern": "^Emet\\-Selch\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Hesperos",
+    "category": "character",
+    "expressions": [
+      "ヘスペロス"
+    ],
+    "image_pattern": "^Hesperos\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Themis",
+    "category": "character",
+    "expressions": [
+      "テミス"
+    ],
+    "image_pattern": "^Themis\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Athena",
+    "category": "character",
+    "expressions": [
+      "アテナ"
+    ],
+    "image_pattern": "^Athena\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://i.imgur.com/wTSvhrh.jpg",
+    "source_page": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%82%A2%E3%83%86%E3%83%8A",
+    "source_name": "FF14 Online Wiki"
+  },
+  {
+    "page": "Erichthonios",
+    "category": "character",
+    "expressions": [
+      "エリクトニオス"
+    ],
+    "image_pattern": "^Erichthonios\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Claudien",
+    "category": "character",
+    "expressions": [
+      "クローディエン"
+    ],
+    "image_pattern": "^Claudien\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Livingway",
+    "category": "character",
+    "expressions": [
+      "リヴィングウェイ"
+    ],
+    "image_pattern": "^Livingway\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Puddingway",
+    "category": "character",
+    "expressions": [
+      "プディングウェイ"
+    ],
+    "image_pattern": "^Puddingway\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Growingway",
+    "category": "character",
+    "expressions": [
+      "グローウィングウェイ"
+    ],
+    "image_pattern": "^Growingway\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Argos",
+    "category": "character",
+    "expressions": [
+      "アルゴス"
+    ],
+    "image_pattern": "^Argos\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Montichaigne",
+    "category": "character",
+    "expressions": [
+      "モンティシェーニュ"
+    ],
+    "image_pattern": "^Montichaigne\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Ahewann",
+    "category": "character",
+    "expressions": [
+      "アヒワーン"
+    ],
+    "image_pattern": "^Ahewann\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Quintus",
+    "category": "character",
+    "expressions": [
+      "クイントゥス"
+    ],
+    "image_pattern": "^Quintus\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Lucia",
+    "category": "character",
+    "expressions": [
+      "ルキア"
+    ],
+    "image_pattern": "^Lucia\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Fandaniel",
+    "category": "character",
+    "expressions": [
+      "ファダニエル"
+    ],
+    "image_pattern": "^Fandaniel\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/fandaniel-final-fantasy-xiv-endwalker-90.2_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Anima",
+    "category": "character",
+    "expressions": [
+      "アニマ",
+      "人造精霊"
+    ],
+    "image_pattern": "^Anima\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Barbariccia",
+    "category": "character",
+    "expressions": [
+      "バルバリシア"
+    ],
+    "image_pattern": "^Barbariccia\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/barbariccia-final-fantasy-xiv-endwalker-8.1_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Rubicante",
+    "category": "character",
+    "expressions": [
+      "ルビカンテ"
+    ],
+    "image_pattern": "^Rubicante\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/rubicante-final-fantasy-xiv-endwalker-59.7_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Scarmiglione",
+    "category": "character",
+    "expressions": [
+      "スカルミリョーネ"
+    ],
+    "image_pattern": "^Scarmiglione\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/scarmiglione-final-fantasy-xiv-endwalker-51.4_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Cagnazzo",
+    "category": "character",
+    "expressions": [
+      "カイナッツォ"
+    ],
+    "image_pattern": "^Cagnazzo\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/cagnazzo-final-fantasy-xiv-endwalker-45.3_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Nymeia",
+    "category": "character",
+    "expressions": [
+      "星神ニメーヤ"
+    ],
+    "image_pattern": "^Nymeia\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/nymeia-final-fantasy-xiv-endwalker-4.1_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Menphina",
+    "category": "character",
+    "expressions": [
+      "月神メネフィナ"
+    ],
+    "image_pattern": "^Menphina\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Deryk",
+    "category": "character",
+    "expressions": [
+      "デリック"
+    ],
+    "image_pattern": "^Deryk\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Jammingway",
+    "category": "character",
+    "expressions": [
+      "ジャミングウェイ"
+    ],
+    "image_pattern": "^Jammingway\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Ryne",
+    "category": "character",
+    "expressions": [
+      "リーン"
+    ],
+    "image_pattern": "^Ryne\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Gaia",
+    "category": "character",
+    "expressions": [
+      "ガイア"
+    ],
+    "image_pattern": "^Gaia\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Lyna",
+    "category": "character",
+    "expressions": [
+      "ライナ"
+    ],
+    "image_pattern": "^Lyna\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Beq Lugg",
+    "category": "character",
+    "expressions": [
+      "ベーク＝ラグ"
+    ],
+    "image_pattern": "^Beq\\ Lugg\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers",
+    "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/beq-lugg-final-fantasy-xiv-endwalker-79.1_thumb.jpg",
+    "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+    "source_name": "Behind The Voice Actors",
+    "minimum_dimension": 64
+  },
+  {
+    "page": "Feo Ul",
+    "category": "character",
+    "expressions": [
+      "フェオ＝ウル"
+    ],
+    "image_pattern": "^Feo\\ Ul\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Runar",
+    "category": "character",
+    "expressions": [
+      "ルナル"
+    ],
+    "image_pattern": "^Runar\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Chai-Nuzz",
+    "category": "character",
+    "expressions": [
+      "チャイ・ヌズ"
+    ],
+    "image_pattern": "^Chai\\-Nuzz\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Dulia-Chai",
+    "category": "character",
+    "expressions": [
+      "ドゥリア・チャイ"
+    ],
+    "image_pattern": "^Dulia\\-Chai\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Tesleen",
+    "category": "character",
+    "expressions": [
+      "テスリーン"
+    ],
+    "image_pattern": "^Tesleen\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Ardbert",
+    "category": "character",
+    "expressions": [
+      "アルバート"
+    ],
+    "image_pattern": "^Ardbert\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Crystal Exarch",
+    "category": "character",
+    "expressions": [
+      "水晶公"
+    ],
+    "image_pattern": "^Crystal\\ Exarch\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Bismarck",
+    "category": "character",
+    "expressions": [
+      "ビスマルク"
+    ],
+    "image_pattern": "^Bismarck\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Seto",
+    "category": "character",
+    "expressions": [
+      "セト"
+    ],
+    "image_pattern": "^Seto\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Sadu",
+    "category": "character",
+    "expressions": [
+      "サドゥ"
+    ],
+    "image_pattern": "^Sadu\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Magnai",
+    "category": "character",
+    "expressions": [
+      "マグナイ"
+    ],
+    "image_pattern": "^Magnai\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Giott",
+    "category": "character",
+    "expressions": [
+      "ジオット"
+    ],
+    "image_pattern": "^Giott\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Granson",
+    "category": "character",
+    "expressions": [
+      "グランソン"
+    ],
+    "image_pattern": "^Granson\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Taynor",
+    "category": "character",
+    "expressions": [
+      "テイナー"
+    ],
+    "image_pattern": "^Taynor\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Cylva",
+    "category": "character",
+    "expressions": [
+      "シルヴァ"
+    ],
+    "image_pattern": "^Cylva\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Unukalhai",
+    "category": "character",
+    "expressions": [
+      "ウヌクアルハイ"
+    ],
+    "image_pattern": "^Unukalhai\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Gaius",
+    "category": "character",
+    "expressions": [
+      "ガイウス"
+    ],
+    "image_pattern": "^Gaius\\.(png|jpg|jpeg|webp)$",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Zenos yae Galvus",
+    "category": "character",
+    "expressions": [
+      "ゼノス・イェー・ガルヴァス",
+      "ゼノス・ヴェトル・ガルヴァス"
+    ],
+    "image_pattern": "^Zenos yae Galvus\\.png$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "N-7000",
+    "category": "character",
+    "expressions": [
+      "N-7000"
+    ],
+    "image_pattern": "^N-7000\\.png$",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Calyx",
+    "category": "character",
+    "expressions": [
+      "カリュクス"
+    ],
+    "image_pattern": "^Calyx\\.(png|jpg|jpeg)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Halmarut",
+    "category": "character",
+    "expressions": [
+      "ハルマルト"
+    ],
+    "image_pattern": "^Halmarut\\.(png|jpg|jpeg)$",
+    "expansion": "Dawntrail"
+  }
+]

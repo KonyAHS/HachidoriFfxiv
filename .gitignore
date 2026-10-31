@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+*.user
+dist/
+.dalamud/
+.cache/
+__pycache__/
+*.pyc
+.env
+.env.*
+*.tspack
+*.dmp
+*.log
+logs/

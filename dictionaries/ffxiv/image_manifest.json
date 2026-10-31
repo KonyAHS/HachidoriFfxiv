@@ -1,0 +1,2432 @@
+{
+  "images": [
+    {
+      "page": "Y'shtola",
+      "category": "character",
+      "expressions": [
+        "ヤ・シュトラ"
+      ],
+      "image_pattern": "^Y'shtola\\.(png|jpg)$",
+      "path": "images/y-shtola.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Y%27shtola",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/3/3d/Y%27shtola.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Y%27shtola.png",
+      "source_name": "Gamer Escape",
+      "width": 219,
+      "height": 400,
+      "sha256": "4b6f7be826fd891c7e91a41f767e2a9062141ded8981ce38bba881c1c454da44",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Alphinaud",
+      "category": "character",
+      "expressions": [
+        "アルフィノ"
+      ],
+      "image_pattern": "^Alphinaud\\.(png|jpg)$",
+      "path": "images/alphinaud.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Alphinaud",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/0/0c/Alphinaud.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Alphinaud.png",
+      "source_name": "Gamer Escape",
+      "width": 200,
+      "height": 400,
+      "sha256": "623ab329c353fc21147619c396c39df4d1a8807b3591a86afc4f482fba6ba473",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Alisaie",
+      "category": "character",
+      "expressions": [
+        "アリゼー"
+      ],
+      "image_pattern": "^Alisaie\\.(png|jpg)$",
+      "path": "images/alisaie.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Alisaie",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/7/7f/Alisaie.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Alisaie.png",
+      "source_name": "Gamer Escape",
+      "width": 192,
+      "height": 400,
+      "sha256": "6ce50ab7bf32f496d3dd1df2d933edc4b033cdf61d27c7721e4d746ca383c363",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Thancred",
+      "category": "character",
+      "expressions": [
+        "サンクレッド"
+      ],
+      "image_pattern": "^Thancred\\.(png|jpg)$",
+      "path": "images/thancred.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Thancred",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/bb/Thancred.png/350px-Thancred.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Thancred.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 689,
+      "sha256": "ee576e9b9c5ec0e81858ca31ba3781ee6aaed21c52f968e80742c1fd7831705c",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Urianger",
+      "category": "character",
+      "expressions": [
+        "ウリエンジェ"
+      ],
+      "image_pattern": "^Urianger\\.(png|jpg)$",
+      "path": "images/urianger.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Urianger",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/8/83/Urianger.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Urianger.png",
+      "source_name": "Gamer Escape",
+      "width": 212,
+      "height": 400,
+      "sha256": "f47633d5fff42d72a8705676197af2897e04adb5ba99e4af6dfdab35328427f6",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Tataru",
+      "category": "character",
+      "expressions": [
+        "タタル"
+      ],
+      "image_pattern": "^Tataru\\.(png|jpg)$",
+      "path": "images/tataru.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Tataru",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/0/0f/Tataru.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Tataru.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 353,
+      "sha256": "d194df503a59e182d2727f30d5d38dce972ccc7bef623ae0c577e184b342eb4c",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Minfilia",
+      "category": "character",
+      "expressions": [
+        "ミンフィリア"
+      ],
+      "image_pattern": "^Minfilia\\.(png|jpg)$",
+      "path": "images/minfilia.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Minfilia",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/1/1e/Minfilia.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Minfilia.png",
+      "source_name": "Gamer Escape",
+      "width": 314,
+      "height": 530,
+      "sha256": "034c4c4b550166ebd1daa1e09df9729dad447d1f871ce71bd6cfae763b5fb036",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Krile",
+      "category": "character",
+      "expressions": [
+        "クルル"
+      ],
+      "image_pattern": "^Krile\\.(png|jpg)$",
+      "expansion": "Endwalker",
+      "path": "images/krile.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Krile",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/8/86/Krile.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Krile.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 399,
+      "sha256": "6550c480758877ffee8333ef3ea29ff46c355cb464be1334cd58abd44afdc88a",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Estinien",
+      "category": "character",
+      "expressions": [
+        "エスティニアン"
+      ],
+      "image_pattern": "^Estinien\\.(png|jpg)$",
+      "path": "images/estinien.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Estinien",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/c/c6/Estinien.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Estinien.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 388,
+      "sha256": "19b77bfc0dc7a020c0c4b63f2f86820cc0a447080db0cbeccfe8ad229c4be663",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "G'raha Tia",
+      "category": "character",
+      "expressions": [
+        "グ・ラハ・ティア"
+      ],
+      "image_pattern": "^G'raha Tia\\.(png|jpg)$",
+      "expansion": "Endwalker",
+      "path": "images/g-raha-tia.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/G%27raha_Tia",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/e/e7/G%27raha_Tia.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:G%27raha_Tia.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 373,
+      "sha256": "490213ec228821c4311f5529001c02cd201cb7f6ab38ffa4ee62fca3c9ec75d6",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Lyse",
+      "category": "character",
+      "expressions": [
+        "リセ"
+      ],
+      "image_pattern": "^Lyse\\.(png|jpg)$",
+      "path": "images/lyse.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Lyse",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/be/Lyse.png/350px-Lyse.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Lyse.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 638,
+      "sha256": "14bb9d47aa8979ae05db09bd8169ce02bde5eb46872b883c5fded25f344c7f47",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Hien",
+      "category": "character",
+      "expressions": [
+        "ヒエン"
+      ],
+      "image_pattern": "^Hien\\.(png|jpg)$",
+      "path": "images/hien.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Hien",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/2/21/Hien.png/350px-Hien.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hien.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "76fe3998060dbbe3107610c2c17417ebe7108f98f2c8f2a90c0d61b4711d42de",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Yugiri",
+      "category": "character",
+      "expressions": [
+        "ユウギリ"
+      ],
+      "image_pattern": "^Yugiri\\.(png|jpg)$",
+      "path": "images/yugiri.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Yugiri",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/3/35/Yugiri.png/350px-Yugiri.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Yugiri.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "22b3768e2ba5747f7beee6e576cc9992ea830c8384927e96ff416199b72d848d",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Aymeric",
+      "category": "character",
+      "expressions": [
+        "アイメリク"
+      ],
+      "image_pattern": "^Aymeric\\.(png|jpg)$",
+      "path": "images/aymeric.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Aymeric",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/0/08/Aymeric.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Aymeric.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 376,
+      "sha256": "e5155b2c84b05fe5b9e0ce8ed2533b4bdcb1bb5172db0badc55c0a5a45328254",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Haurchefant",
+      "category": "character",
+      "expressions": [
+        "オルシュファン"
+      ],
+      "image_pattern": "^Haurchefant\\.(png|jpg)$",
+      "path": "images/haurchefant.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Haurchefant",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/a/ad/Haurchefant.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Haurchefant.png",
+      "source_name": "Gamer Escape",
+      "width": 250,
+      "height": 441,
+      "sha256": "87148ff829e1bd8a0d6ce4e31bc6efcd53be35f11a505aea380e736afebcd623",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Cid",
+      "category": "character",
+      "expressions": [
+        "シド"
+      ],
+      "image_pattern": "^Cid\\.(png|jpg)$",
+      "path": "images/cid.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Cid",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/c/cc/Cid.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Cid.png",
+      "source_name": "Gamer Escape",
+      "width": 200,
+      "height": 400,
+      "sha256": "7fe2d2fc462271011dc220bac7abb973187e091eccc74ca483169f54f5e3f064",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Raubahn",
+      "category": "character",
+      "expressions": [
+        "ラウバーン"
+      ],
+      "image_pattern": "^Raubahn\\.(png|jpg)$",
+      "path": "images/raubahn.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Raubahn",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/b/ba/Raubahn.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Raubahn.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 367,
+      "sha256": "78d3eada5c158bf2afd899a39c57c2d8f18ed6a68fc668e0762adb43677e23ed",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Merlwyb",
+      "category": "character",
+      "expressions": [
+        "メルウィブ"
+      ],
+      "image_pattern": "^Merlwyb\\.(png|jpg)$",
+      "path": "images/merlwyb.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Merlwyb",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/e/ed/Merlwyb.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Merlwyb.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 378,
+      "sha256": "436bea53c56c53faf9e76a1601d64e3a7021eda803adb601ec55450cbf165e5b",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Kan-E-Senna",
+      "category": "character",
+      "expressions": [
+        "カヌ・エ・センナ"
+      ],
+      "image_pattern": "^Kan-E-Senna\\.(png|jpg)$",
+      "path": "images/kan-e-senna.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Kan-E-Senna",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/e3/Kan-E-Senna.png/350px-Kan-E-Senna.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Kan-E-Senna.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "12c538c6e85833e0d209aea5f206ebf9ba09fb032b646c818d655e555fe9b8db",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Nanamo Ul Namo",
+      "category": "character",
+      "expressions": [
+        "ナナモ・ウル・ナモ",
+        "ナナモ"
+      ],
+      "image_pattern": "^Nanamo Ul Namo\\.(png|jpg)$",
+      "path": "images/nanamo-ul-namo.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Nanamo_Ul_Namo",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/7/73/Nanamo_Ul_Namo.png/350px-Nanamo_Ul_Namo.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Nanamo_Ul_Namo.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "f35df06ba40f067f3e3959a4a1b21bf921f1aae100e17f2a3fcae4fd5cb4ca66",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Wuk Lamat",
+      "category": "character",
+      "expressions": [
+        "ウクラマト"
+      ],
+      "image_pattern": "^Wuk Lamat\\.(png|jpg)$",
+      "expansion": "Endwalker",
+      "path": "images/wuk-lamat.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Wuk_Lamat",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/3/32/Wuk_Lamat.png/350px-Wuk_Lamat.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Wuk_Lamat.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "64fe40dd1abd45fcb2ec277cf21781614f3643ab1bdb2d234fa0ce4d02f2bfa2",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Erenville",
+      "category": "character",
+      "expressions": [
+        "エレンヴィル"
+      ],
+      "image_pattern": "^Erenville\\.(png|jpg)$",
+      "expansion": "Endwalker",
+      "path": "images/erenville.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Erenville",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/f/f0/Erenville.png/350px-Erenville.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Erenville.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "2c2e10e24f8dd7565381422abac9b74c94808d88058c2e0f9be9377afd9ae223",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Limsa Lominsa",
+      "category": "location",
+      "expressions": [
+        "リムサ・ロミンサ"
+      ],
+      "image_pattern": "^Limsa Lominsa.*(Artwork|Concept)",
+      "path": "images/limsa-lominsa.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Limsa_Lominsa",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/6/69/Limsa_Lominsa_Artwork_Banner.jpg/790px-Limsa_Lominsa_Artwork_Banner.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Limsa_Lominsa_Artwork_Banner.jpg",
+      "source_name": "Gamer Escape",
+      "width": 790,
+      "height": 150,
+      "sha256": "3cdef2c41aec4b1bda97bf04bfcd36b86be5cef96f865607ba99aa864517d0ab",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Gridania",
+      "category": "location",
+      "expressions": [
+        "グリダニア"
+      ],
+      "image_pattern": "^Gridania.*(Artwork|Concept)",
+      "path": "images/gridania.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Gridania",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/85/Gridania_Artwork_Banner.jpg/790px-Gridania_Artwork_Banner.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Gridania_Artwork_Banner.jpg",
+      "source_name": "Gamer Escape",
+      "width": 790,
+      "height": 150,
+      "sha256": "6bafcca228b77eb9ccf2249cc4f0480c8c83831ef59713b439bd4cb87dd2db55",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Ul'dah",
+      "category": "location",
+      "expressions": [
+        "ウルダハ"
+      ],
+      "image_pattern": "^Ul'dah.*(Artwork|Concept)",
+      "path": "images/ul-dah.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Ul%27dah",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/7/76/Ul%27dah_Artwork_Banner.jpg/790px-Ul%27dah_Artwork_Banner.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ul%27dah_Artwork_Banner.jpg",
+      "source_name": "Gamer Escape",
+      "width": 790,
+      "height": 150,
+      "sha256": "eb20157487762ad6409cc15604a5491faf8546ca5d4bf980eb1b63f21cda5038",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Ishgard",
+      "category": "location",
+      "expressions": [
+        "イシュガルド"
+      ],
+      "image_pattern": "^Ishgard.*(Artwork|Concept)",
+      "path": "images/ishgard.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Ishgard",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/a/ab/Ishgard_Artwork_Banner.jpg/790px-Ishgard_Artwork_Banner.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ishgard_Artwork_Banner.jpg",
+      "source_name": "Gamer Escape",
+      "width": 790,
+      "height": 150,
+      "sha256": "5bbf24e9b7cfdfb86dd3696d41fa26af35f18928adeb3b3be1b8be1fc3521a77",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Kugane",
+      "category": "location",
+      "expressions": [
+        "クガネ"
+      ],
+      "image_pattern": "^Kugane Banner\\.jpg$",
+      "path": "images/kugane.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Kugane",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/82/Kugane_Banner.jpg/770px-Kugane_Banner.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Kugane_Banner.jpg",
+      "source_name": "Gamer Escape",
+      "width": 770,
+      "height": 146,
+      "sha256": "b95cbc5ec5dc80aa4b08de7cd3e9428e32632f66c63a3cafcc5cc962bf536206",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "The Crystarium",
+      "category": "location",
+      "expressions": [
+        "クリスタリウム"
+      ],
+      "image_pattern": "^The Crystarium-Map\\.png$",
+      "path": "images/the-crystarium.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/The_Crystarium",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/1/17/The_Crystarium-Map.png/800px-The_Crystarium-Map.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:The_Crystarium-Map.png",
+      "source_name": "Gamer Escape",
+      "width": 800,
+      "height": 800,
+      "sha256": "74833c5c9f0e529a3a34d0bb4ef5b58f1461a48b949f7488221835e19e20937d",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Eulmore",
+      "category": "location",
+      "expressions": [
+        "ユールモア"
+      ],
+      "image_pattern": "^Eulmore-Map\\.png$",
+      "path": "images/eulmore.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Eulmore",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/be/Eulmore-Map.png/800px-Eulmore-Map.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Eulmore-Map.png",
+      "source_name": "Gamer Escape",
+      "width": 800,
+      "height": 800,
+      "sha256": "00ebd5f2781715e488864743d680e179905adb9bef273b145ac0e7c977e88e21",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Old Sharlayan",
+      "category": "location",
+      "expressions": [
+        "オールド・シャーレアン"
+      ],
+      "image_pattern": "^Old Sharlayan.*(Artwork|Concept)",
+      "path": "images/old-sharlayan.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Old_Sharlayan",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/d/d7/Old_Sharlayan_Official_Artwork.jpg/770px-Old_Sharlayan_Official_Artwork.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Old_Sharlayan_Official_Artwork.jpg",
+      "source_name": "Gamer Escape",
+      "width": 770,
+      "height": 311,
+      "sha256": "03ceec7b96fcfed300780fc5024d1f021272cf152b82b514e1153de34dc2faad",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Radz-at-Han",
+      "category": "location",
+      "expressions": [
+        "ラザハン"
+      ],
+      "image_pattern": "^Radz-at-Han.*(Artwork|Concept)",
+      "path": "images/radz-at-han.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Radz-at-Han",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/c/c6/Radz-at-Han_Official_Artwork.jpg/770px-Radz-at-Han_Official_Artwork.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Radz-at-Han_Official_Artwork.jpg",
+      "source_name": "Gamer Escape",
+      "width": 770,
+      "height": 444,
+      "sha256": "7fa47fb56e040414480877590f39dae6195a65df730b85efbdcd1171ee4830c2",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Mor Dhona",
+      "category": "location",
+      "expressions": [
+        "モードゥナ"
+      ],
+      "image_pattern": "^Mor Dhona cropped\\.png$",
+      "path": "images/mor-dhona.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Mor_Dhona",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/e0/Mor_Dhona_cropped.png/790px-Mor_Dhona_cropped.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Mor_Dhona_cropped.png",
+      "source_name": "Gamer Escape",
+      "width": 790,
+      "height": 475,
+      "sha256": "95debe171187e5b2c12f2c5e2845b53ad307c36a282bd67e8f59ed3861e3c96d",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Coerthas Central Highlands",
+      "category": "location",
+      "expressions": [
+        "クルザス中央高地"
+      ],
+      "image_pattern": "^Coerthas Central Highlands cropped\\.png$",
+      "path": "images/coerthas-central-highlands.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Coerthas_Central_Highlands",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/7/77/Coerthas_Central_Highlands_cropped.png/790px-Coerthas_Central_Highlands_cropped.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Coerthas_Central_Highlands_cropped.png",
+      "source_name": "Gamer Escape",
+      "width": 790,
+      "height": 694,
+      "sha256": "c70c38db831959069be3882c1bc4ae474cac861fb0649c0f041bb7cc0609eb21",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "The Azim Steppe",
+      "category": "location",
+      "expressions": [
+        "アジムステップ"
+      ],
+      "image_pattern": "^The Azim Steppe-Map\\.jpg$",
+      "path": "images/the-azim-steppe.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/The_Azim_Steppe",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/e6/The_Azim_Steppe-Map.jpg/790px-The_Azim_Steppe-Map.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:The_Azim_Steppe-Map.jpg",
+      "source_name": "Gamer Escape",
+      "width": 790,
+      "height": 789,
+      "sha256": "eedd5b6900eb834d177b44f0d1149721209ab351cda66a3b8d45a9c0656b65e8",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Koana",
+      "category": "character",
+      "expressions": [
+        "コーナ"
+      ],
+      "image_pattern": "^Koana\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/koana.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Koana",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/3/3b/Koana.png/350px-Koana.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Koana.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "fb5755ac4a5abbb5baa6a9cd8c346b623abced7ddc4fa19d9e51c8e1f5981996",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Zoraal Ja",
+      "category": "character",
+      "expressions": [
+        "ゾラージャ"
+      ],
+      "image_pattern": "^Zoraal\\ Ja\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/zoraal-ja.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Zoraal_Ja",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/2/24/Zoraal_Ja.png/350px-Zoraal_Ja.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Zoraal_Ja.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "3c98cc19116ffa0f979e08f307be4f9651ea98c5baead5e2c1e2977d336dda54",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Gulool Ja Ja",
+      "category": "character",
+      "expressions": [
+        "グルージャジャ"
+      ],
+      "image_pattern": "^Gulool\\ Ja\\ Ja\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://lds-img.finalfantasyxiv.com/promo/h/w/q2hcRi8No1f5SzfxGuHzlE8r3A.png",
+      "source_page": "https://na.finalfantasyxiv.com/dawntrail/story/",
+      "source_name": "SQUARE ENIX official Dawntrail site",
+      "path": "images/gulool-ja-ja.png",
+      "page_url": "https://na.finalfantasyxiv.com/dawntrail/story/",
+      "file_page_url": "https://na.finalfantasyxiv.com/dawntrail/story/",
+      "width": 1600,
+      "height": 1088,
+      "sha256": "a2fa5cbc47f541f7bde884c3cfa9e867c14d0bff788fae4002e998b33f765b47",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: SQUARE ENIX official Dawntrail site; see linked source page for contributor details."
+    },
+    {
+      "page": "Gulool Ja",
+      "category": "character",
+      "expressions": [
+        "グルージャ"
+      ],
+      "image_pattern": "^Gulool\\ Ja\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/gulool-ja.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Gulool_Ja",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/6/63/Gulool_Ja.png/350px-Gulool_Ja.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Gulool_Ja.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "d12ff9cabd0b5ecc248cf1822550469825f0bed6c71de96942405712d9b699ae",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Sphene",
+      "category": "character",
+      "expressions": [
+        "スフェーン"
+      ],
+      "image_pattern": "^Sphene \\(NPC\\)\\.png$",
+      "expansion": "Dawntrail",
+      "source_page": "https://ffxiv.gamerescape.com/wiki/Sphene_(NPC)",
+      "path": "images/sphene.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Sphene_(NPC)",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/f/f3/Sphene_%28NPC%29.png/350px-Sphene_%28NPC%29.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Sphene_%28NPC%29.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 641,
+      "sha256": "c3acf0a0bca31eb39876c504867a8eb7f63a6d47fb81d8e94b174cc22c3ef811",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Cahciua",
+      "category": "character",
+      "expressions": [
+        "カフキワ"
+      ],
+      "image_pattern": "^Cahciua\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/cahciua.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Cahciua",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/e1/Cahciua.png/350px-Cahciua.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Cahciua.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "2e308026d5a914c8a53a9c9b97a40937b830bf61f806f92f7d26c2b5bd5f00f8",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Namikka",
+      "category": "character",
+      "expressions": [
+        "ナミーカ"
+      ],
+      "image_pattern": "^Namikka\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/namikka.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Namikka",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/9/9f/Namikka.png/350px-Namikka.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Namikka.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "b0b00e1b2447edfaa27aed9de919dc15cab0bfb40e18a2d0b273fdf85ccfcbb4",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Bakool Ja Ja",
+      "category": "character",
+      "expressions": [
+        "バクージャジャ"
+      ],
+      "image_pattern": "^Bakool\\ Ja\\ Ja\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://lds-img.finalfantasyxiv.com/promo/h/0/Uf880IO1qCOeXRLFdzsZ00ByKQ.png",
+      "source_page": "https://na.finalfantasyxiv.com/dawntrail/story/",
+      "source_name": "SQUARE ENIX official Dawntrail site",
+      "path": "images/bakool-ja-ja.png",
+      "page_url": "https://na.finalfantasyxiv.com/dawntrail/story/",
+      "file_page_url": "https://na.finalfantasyxiv.com/dawntrail/story/",
+      "width": 1600,
+      "height": 1088,
+      "sha256": "08db5ea47eedbec4b630441a07544e094bdb938857cae10e8c62d66fe6b96e69",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: SQUARE ENIX official Dawntrail site; see linked source page for contributor details."
+    },
+    {
+      "page": "Ketenramm",
+      "category": "character",
+      "expressions": [
+        "ケテンラム"
+      ],
+      "image_pattern": "^Ketenramm\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/ketenramm.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Ketenramm",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/b3/Ketenramm.png/350px-Ketenramm.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ketenramm.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "eb7a516868df94f63d926ab32a8553d0d9db3f733439f609aa7e285f93316ccf",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Otis",
+      "category": "character",
+      "expressions": [
+        "オーティス"
+      ],
+      "image_pattern": "^Otis\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/otis.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Otis",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/d/d7/Otis.png/350px-Otis.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Otis.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "ecadbb0ce6b48994678c7c5ca412cfcc89f4deb1aad5abe90dcbb167e43533ac",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Hunmu Rruk",
+      "category": "character",
+      "expressions": [
+        "フンムルク"
+      ],
+      "image_pattern": "^Hunmu\\ Rruk\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/hunmu-rruk.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Hunmu_Rruk",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/5/54/Hunmu_Rruk.png/350px-Hunmu_Rruk.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hunmu_Rruk.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "62b5302f8fbf218ec10f100633bb3ba40d3b9b660c158cb0da0ce4623a97cc25",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Mablu",
+      "category": "character",
+      "expressions": [
+        "マーブル"
+      ],
+      "image_pattern": "^Mablu\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/mablu.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Mablu",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/6/63/Mablu.png/350px-Mablu.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Mablu.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "8fbeedfd997b7a8e3d7df82fa51c7c5f966aee2d628b2259a9c3da6c42e392e9",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Wuk Evu",
+      "category": "character",
+      "expressions": [
+        "ウケブ"
+      ],
+      "image_pattern": "^Wuk\\ Evu\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/wuk-evu.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Wuk_Evu",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/d/da/Wuk_Evu.png/350px-Wuk_Evu.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Wuk_Evu.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "29c75b54ed10672f0841b0cbc93db3e173355399c3ec37855e3f42a0825eb086",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Shale",
+      "category": "character",
+      "expressions": [
+        "シェール"
+      ],
+      "image_pattern": "^Shale\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/shale.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Shale",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/d/d8/Shale.png/350px-Shale.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Shale.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "2e65798aed58af148b75cfe14fa10b277aa00d50312914bcd1e643337576d90e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Gurfurlur",
+      "category": "character",
+      "expressions": [
+        "グーフールー"
+      ],
+      "image_pattern": "^Gurfurlur\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/gurfurlur.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Gurfurlur",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/8f/Gurfurlur.png/350px-Gurfurlur.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Gurfurlur.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "7232f00530c7194d8947de0f6695afe2d0770d61eb022fc2f95c2440c1d8ad31",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Sareel Ja",
+      "category": "character",
+      "expressions": [
+        "サレージャ"
+      ],
+      "image_pattern": "^Sareel\\ Ja\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/sareel-ja.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Sareel_Ja",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/80/Sareel_Ja.png/350px-Sareel_Ja.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Sareel_Ja.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "8c845d291e406e25c2b25e0d7a7104374ae270739f7622c55336a5c9149eb19e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Zereel Ja",
+      "category": "character",
+      "expressions": [
+        "ゼレージャ"
+      ],
+      "image_pattern": "^Zereel\\ Ja\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/zereel-ja.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Zereel_Ja",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/9/9a/Zereel_Ja.png/350px-Zereel_Ja.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Zereel_Ja.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "c5c4f6e87e83914b849d7d282be1f5229c468a0ba9ff0cb090f4a4b5688ffbd1",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Kemakka",
+      "category": "character",
+      "expressions": [
+        "ケマッカ"
+      ],
+      "image_pattern": "^Kemakka\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/kemakka.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Kemakka",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/0/00/Kemakka.png/350px-Kemakka.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Kemakka.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "3f309ac17b6b68e0a0c4f86e0977c6195889d887cca0c00424ae28aa89858372",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Geode",
+      "category": "character",
+      "expressions": [
+        "ジオード"
+      ],
+      "image_pattern": "^Geode\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/geode.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Geode",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/4/43/Geode.png/350px-Geode.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Geode.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "a6449014aeba5b55380dd1006385dfa0ec34e992f6bdbf2cef71b86b20586cd3",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Nostalgia",
+      "category": "character",
+      "expressions": [
+        "ノスタルジア"
+      ],
+      "image_pattern": "^Nostalgia\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/nostalgia.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Nostalgia",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/1/18/Nostalgia.png/350px-Nostalgia.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Nostalgia.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "166f491021a66a2e09b6fb0277da8b186374ccadbbed8c02af39918c64e07cd4",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Yaana",
+      "category": "character",
+      "expressions": [
+        "ヤーナ"
+      ],
+      "image_pattern": "^Yaana\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/yaana.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Yaana",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/b2/Yaana.png/350px-Yaana.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Yaana.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 699,
+      "sha256": "0b4da29d67e113852809449e5c59157e2ab413a7d8697493a8962f8012b3dfd1",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Neyuni",
+      "category": "character",
+      "expressions": [
+        "ネユニ"
+      ],
+      "image_pattern": "^Neyuni\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://huiji-public.huijistatic.com/ff14/uploads/c/c6/%E6%B6%85%E4%BD%99%E5%B0%BC.png",
+      "source_page": "https://ff14.huijiwiki.com/wiki/%E6%B6%85%E4%BD%99%E5%B0%BC",
+      "source_name": "Huiji FFXIV wiki",
+      "path": "images/neyuni.png",
+      "page_url": "https://ff14.huijiwiki.com/wiki/%E6%B6%85%E4%BD%99%E5%B0%BC",
+      "file_page_url": "https://ff14.huijiwiki.com/wiki/%E6%B6%85%E4%BD%99%E5%B0%BC",
+      "width": 714,
+      "height": 1600,
+      "sha256": "176a8455118f0de940afb9e20aa07daed30558476806f7ccedfa29138327230c",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Huiji FFXIV wiki; see linked source page for contributor details."
+    },
+    {
+      "page": "Eutrope",
+      "category": "character",
+      "expressions": [
+        "ユトロープ"
+      ],
+      "image_pattern": "^Eutrope\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/eutrope.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Eutrope",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/3/3d/Eutrope.png/350px-Eutrope.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Eutrope.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 701,
+      "sha256": "296b0fc93a4684c19fd1b49fec6a1a06f92538538ff56c188c1da5138d9faeed",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Metem",
+      "category": "character",
+      "expressions": [
+        "メテム"
+      ],
+      "image_pattern": "^Metem\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://mudae.net/uploads/8408157/mI28Dne~How01spfV.png",
+      "source_page": "https://mudae.net/character/8408157/Metem",
+      "source_name": "Mudae character database",
+      "path": "images/metem.png",
+      "page_url": "https://mudae.net/character/8408157/Metem",
+      "file_page_url": "https://mudae.net/character/8408157/Metem",
+      "width": 225,
+      "height": 350,
+      "sha256": "db0b9ae6f875707d2c7a7c3eb670716e833844524e6824b91226db5b968820b3",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Mudae character database; see linked source page for contributor details."
+    },
+    {
+      "page": "Black Cat",
+      "category": "character",
+      "expressions": [
+        "ブラックキャット"
+      ],
+      "image_pattern": "^Black\\ Cat\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m1/black-cat-transparent.png",
+      "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m1-normal-raid-guide",
+      "source_name": "Icy Veins",
+      "path": "images/black-cat.png",
+      "page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m1-normal-raid-guide",
+      "file_page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m1-normal-raid-guide",
+      "width": 743,
+      "height": 1241,
+      "sha256": "bd5a7e81fc1e56073cd669fe56877687db831a68ad3e42775c7a179cc72daf41",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Icy Veins; see linked source page for contributor details."
+    },
+    {
+      "page": "Honey B. Lovely",
+      "category": "character",
+      "expressions": [
+        "ハニー・Ｂ・ラブリー"
+      ],
+      "image_pattern": "^Honey\\ B\\.\\ Lovely\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m2/honey-b-lovely-transparent.png",
+      "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m2-normal-raid-guide",
+      "source_name": "Icy Veins",
+      "path": "images/honey-b-lovely.png",
+      "page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m2-normal-raid-guide",
+      "file_page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m2-normal-raid-guide",
+      "width": 1239,
+      "height": 821,
+      "sha256": "f0840b8b0e23aace7ef219c9a76eb2a76ddc2f8e12988b4f3da4739035ce643e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Icy Veins; see linked source page for contributor details."
+    },
+    {
+      "page": "Brute Bomber",
+      "category": "character",
+      "expressions": [
+        "ブルートボンバー"
+      ],
+      "image_pattern": "^Brute\\ Bomber\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m3/brute-bomber-transparent-small.png",
+      "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m3-normal-raid-guide",
+      "source_name": "Icy Veins",
+      "path": "images/brute-bomber.png",
+      "page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m3-normal-raid-guide",
+      "file_page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m3-normal-raid-guide",
+      "width": 244,
+      "height": 372,
+      "sha256": "c88db9d8b2a2ddb024d8526c63a0edd1dbfb8cf6755dbe264f0d54c5d0fd437b",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Icy Veins; see linked source page for contributor details."
+    },
+    {
+      "page": "Wicked Thunder",
+      "category": "character",
+      "expressions": [
+        "ウィケッドサンダー"
+      ],
+      "image_pattern": "^Wicked\\ Thunder\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m4/wicked-thunder-transparent.png",
+      "source_page": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m4-savage-raid-guide",
+      "source_name": "Icy Veins",
+      "path": "images/wicked-thunder.png",
+      "page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m4-savage-raid-guide",
+      "file_page_url": "https://www.icy-veins.com/ffxiv/aac-light-heavyweight-m4-savage-raid-guide",
+      "width": 1242,
+      "height": 795,
+      "sha256": "772d90559ea5809dc09998d8592785e809eaeb62d6173c0e5974b771ebb73535",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Icy Veins; see linked source page for contributor details."
+    },
+    {
+      "page": "Sugar Riot",
+      "category": "character",
+      "expressions": [
+        "シュガーライオット"
+      ],
+      "image_pattern": "^Sugar\\ Riot\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://lds-img.finalfantasyxiv.com/blog_image/na_blog/assets_c/2025/07/FFXIV_PUB_Patch7.2_41_SugarRiot-thumb-1920x1080-19163.png",
+      "source_page": "https://na.finalfantasyxiv.com/blog/003754.html",
+      "source_name": "SQUARE ENIX official blog",
+      "path": "images/sugar-riot.png",
+      "page_url": "https://na.finalfantasyxiv.com/blog/003754.html",
+      "file_page_url": "https://na.finalfantasyxiv.com/blog/003754.html",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "56b8b5d993ae912e9e70f1b943927bc5a637ee3f59d2c348762ebff918b469cc",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: SQUARE ENIX official blog; see linked source page for contributor details."
+    },
+    {
+      "page": "Howling Blade",
+      "category": "character",
+      "expressions": [
+        "ハウリングブレード"
+      ],
+      "image_pattern": "^Howling\\ Blade\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m8/howling-blade.jpg",
+      "source_page": "https://www.icy-veins.com/ffxiv/aac-cruiserweight-m4-savage-raid-guide",
+      "source_name": "Icy Veins",
+      "path": "images/howling-blade.jpg",
+      "page_url": "https://www.icy-veins.com/ffxiv/aac-cruiserweight-m4-savage-raid-guide",
+      "file_page_url": "https://www.icy-veins.com/ffxiv/aac-cruiserweight-m4-savage-raid-guide",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5ddd9423a48ff7652009b412487acc167367349566a16c0b807b7d673ed97610",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Icy Veins; see linked source page for contributor details."
+    },
+    {
+      "page": "Vamp Fatale",
+      "category": "character",
+      "expressions": [
+        "ヴァンプ・ファタール"
+      ],
+      "image_pattern": "^Vamp\\ Fatale\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://static.icy-veins.com/images/ffxiv/dawntrail/raids/m9/vamp-fatale.jpg",
+      "source_page": "https://www.icy-veins.com/ffxiv/aac-heavyweight-m1-savage-raid-guide",
+      "source_name": "Icy Veins",
+      "path": "images/vamp-fatale.jpg",
+      "page_url": "https://www.icy-veins.com/ffxiv/aac-heavyweight-m1-savage-raid-guide",
+      "file_page_url": "https://www.icy-veins.com/ffxiv/aac-heavyweight-m1-savage-raid-guide",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "93d42683a60b621d8966aebea6b345b0f00b878f6a0db286456165e89e711c38",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Icy Veins; see linked source page for contributor details."
+    },
+    {
+      "page": "The Tyrant",
+      "category": "character",
+      "expressions": [
+        "ザ・タイラント"
+      ],
+      "image_pattern": "^The\\ Tyrant\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "image_url": "https://huiji-public.huijistatic.com/ff14/uploads/8/8e/%E9%9C%B8%E7%8E%8B.png",
+      "source_page": "https://ff14.huijiwiki.com/wiki/%E9%9C%B8%E7%8E%8B",
+      "source_name": "Huiji FFXIV wiki",
+      "path": "images/the-tyrant.png",
+      "page_url": "https://ff14.huijiwiki.com/wiki/%E9%9C%B8%E7%8E%8B",
+      "file_page_url": "https://ff14.huijiwiki.com/wiki/%E9%9C%B8%E7%8E%8B",
+      "width": 1280,
+      "height": 1280,
+      "sha256": "4b416dc4b309fefae6d76f89c6cefec7834cbaa977b13f7e7f7b22c24c3edb9e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Huiji FFXIV wiki; see linked source page for contributor details."
+    },
+    {
+      "page": "Rral Soj",
+      "category": "character",
+      "expressions": [
+        "ラルソジ"
+      ],
+      "image_pattern": "^Rral\\ Soj\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/rral-soj.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Rral_Soj",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/2/2b/Rral_Soj.png/350px-Rral_Soj.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Rral_Soj.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "b9f91b3f134536f4c1ed823b056377a22a10851277d0fbf71c7be7b52acb3862",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Rral Ty'ukuk",
+      "category": "character",
+      "expressions": [
+        "ラルチュクク"
+      ],
+      "image_pattern": "^Rral\\ Ty'ukuk\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/rral-ty-ukuk.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Rral_Ty%27ukuk",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/3/37/Rral_Ty%27ukuk.png/350px-Rral_Ty%27ukuk.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Rral_Ty%27ukuk.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "bfa67f2c482c5f69f9dcc56206255079c8d2f890faa56bb5a07c4307875fdcfd",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Rral Vaw",
+      "category": "character",
+      "expressions": [
+        "ラルバー"
+      ],
+      "image_pattern": "^Rral\\ Vaw\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/rral-vaw.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Rral_Vaw",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/5/5f/Rral_Vaw.png/350px-Rral_Vaw.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Rral_Vaw.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "846593d203402db1b6013332ca8636f49a56b20ba22da0dd99ac09389c214d98",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Rral Br'aax",
+      "category": "character",
+      "expressions": [
+        "ラルブラーシャ"
+      ],
+      "image_pattern": "^Rral\\ Br'aax\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/rral-br-aax.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Rral_Br%27aax",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/d/dd/Rral_Br%27aax.png/350px-Rral_Br%27aax.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Rral_Br%27aax.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "3994f0d60a0ec5520a913ad98e91c56bdb81c8f9d37d182a8ce1de7baa52d351",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Rral Wuruq",
+      "category": "character",
+      "expressions": [
+        "広域交易商 ラルルック"
+      ],
+      "image_pattern": "^Rral\\ Wuruq\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/rral-wuruq.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Rral_Wuruq",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/5/5a/Rral_Wuruq.png/350px-Rral_Wuruq.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Rral_Wuruq.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "44f9c906473a1f913e552bcaf9d44bbea4e9bd693ec20298149919f6acdab3bf",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Rral Majun",
+      "category": "character",
+      "expressions": [
+        "ラマジュン"
+      ],
+      "image_pattern": "^Rral\\ Majun\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/rral-majun.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Rral_Majun",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/ba/Rral_Majun.png/350px-Rral_Majun.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Rral_Majun.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "28e6e6da00e48e18bda3c2c99475c8198f9262f7f9ee05e47323f3a4f08cbbf3",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Zeycihan",
+      "category": "character",
+      "expressions": [
+        "ゼイキハン"
+      ],
+      "image_pattern": "^Zeycihan\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/zeycihan.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Zeycihan",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/a/a0/Zeycihan.png/350px-Zeycihan.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Zeycihan.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 604,
+      "sha256": "2dd6b6d8412c0255d6bd698f73e038efd816fa3e734911f5d05a31de5e6d74e2",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Uvlo",
+      "category": "character",
+      "expressions": [
+        "ウヴロ"
+      ],
+      "image_pattern": "^Uvlo\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Dawntrail",
+      "path": "images/uvlo.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Uvlo",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/4/47/Uvlo.png/350px-Uvlo.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Uvlo.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "d2e9d2473cc3c8f9fe90d942b8851dbe31dfd36e4122035bbc169c70a2a5be34",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Fourchenault",
+      "category": "character",
+      "expressions": [
+        "フルシュノ"
+      ],
+      "image_pattern": "^Fourchenault\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/fourchenault.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Fourchenault",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/bd/Fourchenault.png/350px-Fourchenault.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Fourchenault.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "52c077bebb373ba1a078608447d3a052fda6edb277086a30cb3fd57b65040f10",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Ameliance",
+      "category": "character",
+      "expressions": [
+        "アメリアンス"
+      ],
+      "image_pattern": "^Ameliance\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/ameliance.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Ameliance",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/2/2a/Ameliance.png/350px-Ameliance.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ameliance.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "57bb1cb3f3c9b64f2f512743041d39463d6cbc40a2936068f3989133530fb7c9",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Jullus",
+      "category": "character",
+      "expressions": [
+        "ユルス"
+      ],
+      "image_pattern": "^Jullus\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/jullus.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Jullus",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/3/35/Jullus.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Jullus.png",
+      "source_name": "Gamer Escape",
+      "width": 272,
+      "height": 672,
+      "sha256": "c79aa53d094d9d6ed514ec875afb0d889683aa5331ee56b531748c1894b2a3e8",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Matsya",
+      "category": "character",
+      "expressions": [
+        "マトシャ"
+      ],
+      "image_pattern": "^Matsya\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/matsya.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Matsya",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/b8/Matsya.png/350px-Matsya.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Matsya.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "19b4e8aa8c2749a9a3ca93e4b1fd6aee47fb8c2c7e069f1d4359e2f7b18441bd",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Nidhana",
+      "category": "character",
+      "expressions": [
+        "ニッダーナ"
+      ],
+      "image_pattern": "^Nidhana\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/nidhana.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Nidhana",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/d/d9/Nidhana.png/350px-Nidhana.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Nidhana.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "e7b5566f8a2878538dcc2787ca8ed958b2e986f9cc2dfddf06c9f6d3f1fff5ce",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Vrtra",
+      "category": "character",
+      "expressions": [
+        "ヴリトラ"
+      ],
+      "image_pattern": "^Vrtra\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://i.imgur.com/5By2CNJ.jpg",
+      "source_page": "https://ff14wiki.info/?%E3%83%B4%E3%83%AA%E3%83%88%E3%83%A9",
+      "source_name": "FF14 Online Wiki",
+      "path": "images/vrtra.jpg",
+      "page_url": "https://ff14wiki.info/?%E3%83%B4%E3%83%AA%E3%83%88%E3%83%A9",
+      "file_page_url": "https://ff14wiki.info/?%E3%83%B4%E3%83%AA%E3%83%88%E3%83%A9",
+      "width": 500,
+      "height": 500,
+      "sha256": "9abfbbbc90535ed0194ca7f5d9c331f0851e02d890331345d172834556350631",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: FF14 Online Wiki; see linked source page for contributor details."
+    },
+    {
+      "page": "Varshahn",
+      "category": "character",
+      "expressions": [
+        "ヴァルシャン"
+      ],
+      "image_pattern": "^Varshahn\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/varshahn.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Varshahn",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/2/2e/Varshahn.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Varshahn.png",
+      "source_name": "Gamer Escape",
+      "width": 340,
+      "height": 620,
+      "sha256": "83a2a6e15155e6e86037186f4dcd05db1854647459a2bf9f33900bffe7dba59b",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Zero",
+      "category": "character",
+      "expressions": [
+        "ゼロ"
+      ],
+      "image_pattern": "^Zero\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/zero.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Zero",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/3/3c/Zero.png/350px-Zero.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Zero.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "2f4827e2e4ae4ea741c06c9ac81ff0943e688a697a2f25ae01d86da5d7d280a8",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Golbez",
+      "category": "character",
+      "expressions": [
+        "ゴルベーザ"
+      ],
+      "image_pattern": "^Golbez\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/golbez-final-fantasy-xiv-endwalker-2.76_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/golbez.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "9ceb9eac6d0d386bc879822b26fbb391cd0713278c4656ca34d49b360240dbc0",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Durante",
+      "category": "character",
+      "expressions": [
+        "ドゥランテ"
+      ],
+      "image_pattern": "^Durante\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/durante-final-fantasy-xiv-endwalker-3.75_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/durante.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "dedd8480f8a63d435d428c86078e4176c1cadb2e4929ea2e7ec94ec65ae5d5ce",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Azdaja",
+      "category": "character",
+      "expressions": [
+        "アジュダヤ"
+      ],
+      "image_pattern": "^Azdaja\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/azdaja-final-fantasy-xiv-endwalker-24_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/azdaja.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "3bb0cf073c4f6236d1bee6a3604afb34001b9bb41f4bf66f59ee58b26447f262",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Venat",
+      "category": "character",
+      "expressions": [
+        "ヴェーネス",
+        "ヴェーネスと呼ばれた古代人"
+      ],
+      "image_pattern": "^Venat\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/venat.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Venat",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/7/74/Venat.png/350px-Venat.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Venat.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "579f7eb4741b199df043bb5ede5445779abc4ccf30dea3f229c8c3654e1f1bc1",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Hermes",
+      "category": "character",
+      "expressions": [
+        "ヘルメス"
+      ],
+      "image_pattern": "^Hermes\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://huiji-public.huijistatic.com/ff14/uploads/5/51/Hermes_from_FFXIV.png",
+      "source_page": "https://ff14.huijiwiki.com/wiki/%E8%B5%AB%E5%B0%94%E5%A2%A8%E6%96%AF",
+      "source_name": "Huiji FFXIV wiki",
+      "path": "images/hermes.png",
+      "page_url": "https://ff14.huijiwiki.com/wiki/%E8%B5%AB%E5%B0%94%E5%A2%A8%E6%96%AF",
+      "file_page_url": "https://ff14.huijiwiki.com/wiki/%E8%B5%AB%E5%B0%94%E5%A2%A8%E6%96%AF",
+      "width": 748,
+      "height": 1806,
+      "sha256": "b242767c4ed9fec6cf1c87684e581d574e46adc527c00645bbaf05fdfe443ccf",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Huiji FFXIV wiki; see linked source page for contributor details."
+    },
+    {
+      "page": "Meteion",
+      "category": "character",
+      "expressions": [
+        "メーティオン"
+      ],
+      "image_pattern": "^Meteion\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/meteion.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Meteion",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/84/Meteion.png/350px-Meteion.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Meteion.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "d8300a7fefa4e48262c65aad6c42d28ac1bcf89efbcd9c974043dc0d9fdf254c",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Hythlodaeus",
+      "category": "character",
+      "expressions": [
+        "ヒュトロダエウス"
+      ],
+      "image_pattern": "^Hythlodaeus\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://i.imgur.com/k29cB8L.jpg",
+      "source_page": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%83%92%E3%83%A5%E3%83%88%E3%83%AD%E3%83%80%E3%82%A8%E3%82%A6%E3%82%B9",
+      "source_name": "FF14 Online Wiki",
+      "path": "images/hythlodaeus.jpg",
+      "page_url": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%83%92%E3%83%A5%E3%83%88%E3%83%AD%E3%83%80%E3%82%A8%E3%82%A6%E3%82%B9",
+      "file_page_url": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%83%92%E3%83%A5%E3%83%88%E3%83%AD%E3%83%80%E3%82%A8%E3%82%A6%E3%82%B9",
+      "width": 500,
+      "height": 500,
+      "sha256": "906019c902d2489edeca319929b00175527186395a7f718ef3c9af69a718d62e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: FF14 Online Wiki; see linked source page for contributor details."
+    },
+    {
+      "page": "Emet-Selch",
+      "category": "character",
+      "expressions": [
+        "アシエン・エメトセルク",
+        "エメトセルク",
+        "黒法衣の男"
+      ],
+      "image_pattern": "^Emet\\-Selch\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/emet-selch.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Emet-Selch",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/2/28/Emet-Selch.png/350px-Emet-Selch.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Emet-Selch.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "4329b340c5785fc75bf2917b93edebc3163a537f38ddeb1c261043d0b72295de",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Themis",
+      "category": "character",
+      "expressions": [
+        "テミス"
+      ],
+      "image_pattern": "^Themis\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/themis.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Themis",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/6/62/Themis.png/350px-Themis.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Themis.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 635,
+      "sha256": "094b3e9de703c77389764428bce13803ef6ff115092313f88b8273db149df4df",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Athena",
+      "category": "character",
+      "expressions": [
+        "アテナ"
+      ],
+      "image_pattern": "^Athena\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://i.imgur.com/wTSvhrh.jpg",
+      "source_page": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%82%A2%E3%83%86%E3%83%8A",
+      "source_name": "FF14 Online Wiki",
+      "path": "images/athena.jpg",
+      "page_url": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%82%A2%E3%83%86%E3%83%8A",
+      "file_page_url": "https://ff14wiki.info/?NPC%E3%83%BB%E7%B5%84%E7%B9%94%2F%E3%82%A2%E3%83%86%E3%83%8A",
+      "width": 500,
+      "height": 500,
+      "sha256": "a5cda6af31d52385770f68eb0848aefbab5af9639c9409bafaa2bd7d17b40cad",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: FF14 Online Wiki; see linked source page for contributor details."
+    },
+    {
+      "page": "Erichthonios",
+      "category": "character",
+      "expressions": [
+        "エリクトニオス"
+      ],
+      "image_pattern": "^Erichthonios\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/erichthonios.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Erichthonios",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/e4/Erichthonios.png/350px-Erichthonios.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Erichthonios.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 691,
+      "sha256": "6eb9fb8f87bc34f314e878b8580f3709c9a4a8a81216b2bebbb97c075196520e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Claudien",
+      "category": "character",
+      "expressions": [
+        "クローディエン"
+      ],
+      "image_pattern": "^Claudien\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/claudien.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Claudien",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/a/aa/Claudien.png/350px-Claudien.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Claudien.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "59fb60675276c1ae4a2230507d3bfd8c1a0ce339c490d9b59d56d660d63f1ce0",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Livingway",
+      "category": "character",
+      "expressions": [
+        "リヴィングウェイ"
+      ],
+      "image_pattern": "^Livingway\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/livingway.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Livingway",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/0/04/Livingway.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Livingway.png",
+      "source_name": "Gamer Escape",
+      "width": 310,
+      "height": 564,
+      "sha256": "e41f22e76fb1d1792250e3c84b4d69547ef156c97e6ccf3a2ada8fef7d9c7625",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Puddingway",
+      "category": "character",
+      "expressions": [
+        "プディングウェイ"
+      ],
+      "image_pattern": "^Puddingway\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/puddingway.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Puddingway",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/0/06/Puddingway.png/350px-Puddingway.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Puddingway.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "1d669fad562fd5caada35498e400116405817da9a0ae863f3e627ece96eba912",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Growingway",
+      "category": "character",
+      "expressions": [
+        "グローウィングウェイ"
+      ],
+      "image_pattern": "^Growingway\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/growingway.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Growingway",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/1/1b/Growingway.png/350px-Growingway.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Growingway.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 635,
+      "sha256": "4619bd90398a1d3feb60c28a6305050af2c0631ef83a8b18bfeeb78605c30866",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Montichaigne",
+      "category": "character",
+      "expressions": [
+        "モンティシェーニュ"
+      ],
+      "image_pattern": "^Montichaigne\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/montichaigne.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Montichaigne",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/d/dd/Montichaigne.png/350px-Montichaigne.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Montichaigne.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 638,
+      "sha256": "6343dd96182f95d27c15dd42d16497cb3128d72692f6a28a61c8dcca39c2fd18",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Ahewann",
+      "category": "character",
+      "expressions": [
+        "アヒワーン"
+      ],
+      "image_pattern": "^Ahewann\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/ahewann.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Ahewann",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/84/Ahewann.png/350px-Ahewann.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ahewann.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "546a184a42699c6c9fa3d7888d99273b367c147c64d6b76e5d76d7a5a3dba9dc",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Quintus",
+      "category": "character",
+      "expressions": [
+        "クイントゥス"
+      ],
+      "image_pattern": "^Quintus\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/quintus.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Quintus",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/9/9b/Quintus.png/350px-Quintus.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Quintus.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "f217034bb51204b7b730d037445f73bf2b079fc1357b41de4385b43cd36a53e7",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Lucia",
+      "category": "character",
+      "expressions": [
+        "ルキア"
+      ],
+      "image_pattern": "^Lucia\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/lucia.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Lucia",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/3/34/Lucia.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Lucia.png",
+      "source_name": "Gamer Escape",
+      "width": 218,
+      "height": 400,
+      "sha256": "d4528e5cc9b9de63a679bba81e16a89f8684f435a67086dd2d5e0f72f2d94335",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Fandaniel",
+      "category": "character",
+      "expressions": [
+        "ファダニエル"
+      ],
+      "image_pattern": "^Fandaniel\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/fandaniel-final-fantasy-xiv-endwalker-90.2_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/fandaniel.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "d9634a95abc5e99e2665797132cfb84c23844ea4f8295e593525e36be5735b66",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Barbariccia",
+      "category": "character",
+      "expressions": [
+        "バルバリシア"
+      ],
+      "image_pattern": "^Barbariccia\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/barbariccia-final-fantasy-xiv-endwalker-8.1_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/barbariccia.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "b5b9aaafc24e923dec7849fdea5f835ce9a7e6df2091a9d5c1d988665b6aba99",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Rubicante",
+      "category": "character",
+      "expressions": [
+        "ルビカンテ"
+      ],
+      "image_pattern": "^Rubicante\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/rubicante-final-fantasy-xiv-endwalker-59.7_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/rubicante.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "1f2532a5b4ebb2af40abea6576a5e4108ac114571222a06bdce738bbed7bb579",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Scarmiglione",
+      "category": "character",
+      "expressions": [
+        "スカルミリョーネ"
+      ],
+      "image_pattern": "^Scarmiglione\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/scarmiglione-final-fantasy-xiv-endwalker-51.4_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/scarmiglione.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "7ccaa5df23896e8b08a81be2826c210061462d9ce66373e3820ec63423c68989",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Cagnazzo",
+      "category": "character",
+      "expressions": [
+        "カイナッツォ"
+      ],
+      "image_pattern": "^Cagnazzo\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/cagnazzo-final-fantasy-xiv-endwalker-45.3_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/cagnazzo.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "436871c3a5d9d6199e26f21c5d80a86d9351af71a819cded2c3c2d9983109bbe",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Nymeia",
+      "category": "character",
+      "expressions": [
+        "星神ニメーヤ"
+      ],
+      "image_pattern": "^Nymeia\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/nymeia-final-fantasy-xiv-endwalker-4.1_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/nymeia.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "688c71f083343c9ce133ef8ee532a3629dbf851eac2ebb94d72d41b09fb6e1c4",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Menphina",
+      "category": "character",
+      "expressions": [
+        "月神メネフィナ"
+      ],
+      "image_pattern": "^Menphina\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/menphina.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Menphina",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/e6/Menphina.png/350px-Menphina.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Menphina.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "7d09301917501b4afbc9639c92430a437e0082b655a249aac7d5b43a10fde8c6",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Deryk",
+      "category": "character",
+      "expressions": [
+        "デリック"
+      ],
+      "image_pattern": "^Deryk\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/deryk.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Deryk",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/f/f0/Deryk.png/350px-Deryk.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Deryk.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 700,
+      "sha256": "e1143b5c734e99f4e2d1c47a55addeeb5a9abc0120777151065080417a9133bf",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Jammingway",
+      "category": "character",
+      "expressions": [
+        "ジャミングウェイ"
+      ],
+      "image_pattern": "^Jammingway\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Endwalker",
+      "path": "images/jammingway.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Jammingway",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/3/3a/Jammingway.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Jammingway.png",
+      "source_name": "Gamer Escape",
+      "width": 313,
+      "height": 567,
+      "sha256": "b39cb66efcc46f754168167a8c6d2768410909efd680391c5ed5633fddbe098f",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Ryne",
+      "category": "character",
+      "expressions": [
+        "リーン"
+      ],
+      "image_pattern": "^Ryne\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/ryne.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Ryne",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/b/bc/Ryne.png/350px-Ryne.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ryne.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 689,
+      "sha256": "2f91c67c0ebe5f785699695e383afdd77316c3dcf6f7b51ceb4934bd8cec64cd",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Gaia",
+      "category": "character",
+      "expressions": [
+        "ガイア"
+      ],
+      "image_pattern": "^Gaia\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/gaia.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Gaia",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/80/Gaia.png/350px-Gaia.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Gaia.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "84e5e52adb85bd9261f2a708c8a025a810e15b5d27ffa8fd24e5234e750d8225",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Lyna",
+      "category": "character",
+      "expressions": [
+        "ライナ"
+      ],
+      "image_pattern": "^Lyna\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/lyna.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Lyna",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/f/ff/Lyna.png/350px-Lyna.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Lyna.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "fc62ff90c61d8ddad243bcacd05ebc3bef345e37af2bb24d87bc06cbf141f43f",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Beq Lugg",
+      "category": "character",
+      "expressions": [
+        "ベーク＝ラグ"
+      ],
+      "image_pattern": "^Beq\\ Lugg\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "image_url": "https://www.behindthevoiceactors.com/_img/chars/thumbs/beq-lugg-final-fantasy-xiv-endwalker-79.1_thumb.jpg",
+      "source_page": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "source_name": "Behind The Voice Actors",
+      "minimum_dimension": 64,
+      "path": "images/beq-lugg.jpg",
+      "page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "file_page_url": "https://www.behindthevoiceactors.com/video-games/Final-Fantasy-XIV-Endwalker/",
+      "width": 130,
+      "height": 149,
+      "sha256": "b18fdc3c2a0665de344a9313990f8986baca0c7c4dd152826d5d1f867810642e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Behind The Voice Actors; see linked source page for contributor details."
+    },
+    {
+      "page": "Feo Ul",
+      "category": "character",
+      "expressions": [
+        "フェオ＝ウル"
+      ],
+      "image_pattern": "^Feo\\ Ul\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/feo-ul.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Feo_Ul",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/ea/Feo_Ul.png/350px-Feo_Ul.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Feo_Ul.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "a390b2b83609266a675709513f438d239dbd8a90344b754b7d5bdc9371d35fac",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Runar",
+      "category": "character",
+      "expressions": [
+        "ルナル"
+      ],
+      "image_pattern": "^Runar\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/runar.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Runar",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/7/7d/Runar.png/350px-Runar.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Runar.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 635,
+      "sha256": "31c057cd24d8b7c72f2e05c0aafcc3838b84195d29c9de96e3274a325c35f248",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Chai-Nuzz",
+      "category": "character",
+      "expressions": [
+        "チャイ・ヌズ"
+      ],
+      "image_pattern": "^Chai\\-Nuzz\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/chai-nuzz.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Chai-Nuzz",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/4/4b/Chai-Nuzz.png/350px-Chai-Nuzz.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Chai-Nuzz.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "9afadd30a21e28b4139a7fa12d3618b1f0f3d74f9e2483405149115ee145002b",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Dulia-Chai",
+      "category": "character",
+      "expressions": [
+        "ドゥリア・チャイ"
+      ],
+      "image_pattern": "^Dulia\\-Chai\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/dulia-chai.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Dulia-Chai",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/f/f5/Dulia-Chai.png/350px-Dulia-Chai.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Dulia-Chai.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "754fc2472db664946408ea1c75b17d04c63ed882bef80737b2ad9456c38ec0e5",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Tesleen",
+      "category": "character",
+      "expressions": [
+        "テスリーン"
+      ],
+      "image_pattern": "^Tesleen\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/tesleen.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Tesleen",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/4/42/Tesleen.png/350px-Tesleen.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Tesleen.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "d090624e86cd88cae6d2a809ad9746e949c70b19699662fcb8e54c8f3d8ed930",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Crystal Exarch",
+      "category": "character",
+      "expressions": [
+        "水晶公"
+      ],
+      "image_pattern": "^Crystal\\ Exarch\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/crystal-exarch.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Crystal_Exarch",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/5/51/Crystal_Exarch.png/350px-Crystal_Exarch.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Crystal_Exarch.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "ba07be043db6d82f37b6fae664475319210628605f0ed6d3e532fed7fc80a07e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Seto",
+      "category": "character",
+      "expressions": [
+        "セト"
+      ],
+      "image_pattern": "^Seto\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/seto.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Seto",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/e/ef/Seto.png/350px-Seto.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Seto.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "00ed97f89b68764ca82f3091bffc448b5b685ca1f73e4a77a31f163d73cb47ce",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Sadu",
+      "category": "character",
+      "expressions": [
+        "サドゥ"
+      ],
+      "image_pattern": "^Sadu\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/sadu.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Sadu",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/6/64/Sadu.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Sadu.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 503,
+      "sha256": "4f56099554a558a676f5f27d59d20df177f3a4aec72109983085b1d10193025d",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Magnai",
+      "category": "character",
+      "expressions": [
+        "マグナイ"
+      ],
+      "image_pattern": "^Magnai\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/magnai.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Magnai",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/0/09/Magnai.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Magnai.png",
+      "source_name": "Gamer Escape",
+      "width": 300,
+      "height": 450,
+      "sha256": "67dc7143cab221e4139d3a13d396bbe5cd4d73ee215931a20b605960bd4b2369",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Giott",
+      "category": "character",
+      "expressions": [
+        "ジオット"
+      ],
+      "image_pattern": "^Giott\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/giott.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Giott",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/f/f3/Giott.png/350px-Giott.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Giott.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "39ebd4d776cb474a59aa1ef7db78c232a883d7371669844135ad3d38ac6d1b35",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Taynor",
+      "category": "character",
+      "expressions": [
+        "テイナー"
+      ],
+      "image_pattern": "^Taynor\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/taynor.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Taynor",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/5/59/Taynor.png/350px-Taynor.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Taynor.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "9e4b1214afe9e5ad2d245cf7846f7121595f74e8b2a01d94c3d12029dc0d3b81",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Unukalhai",
+      "category": "character",
+      "expressions": [
+        "ウヌクアルハイ"
+      ],
+      "image_pattern": "^Unukalhai\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/unukalhai.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Unukalhai",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/2/29/Unukalhai.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Unukalhai.png",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 400,
+      "sha256": "5780b62d10a113e990254b8502d96f7fa43b28eb32881cd0899cdaf9c276b9dd",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Gaius",
+      "category": "character",
+      "expressions": [
+        "ガイウス"
+      ],
+      "image_pattern": "^Gaius\\.(png|jpg|jpeg|webp)$",
+      "expansion": "Shadowbringers",
+      "path": "images/gaius.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Gaius",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/0/05/Gaius.png/350px-Gaius.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Gaius.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 636,
+      "sha256": "cac68731dbe9c35c08ba84452978c564396fa8994f358c054e727951739ab66e",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Zenos yae Galvus",
+      "category": "character",
+      "expressions": [
+        "ゼノス・イェー・ガルヴァス",
+        "ゼノス・ヴェトル・ガルヴァス"
+      ],
+      "image_pattern": "^Zenos yae Galvus\\.png$",
+      "expansion": "Endwalker",
+      "path": "images/zenos-yae-galvus.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Zenos_yae_Galvus",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/4/4c/Zenos_yae_Galvus.png/350px-Zenos_yae_Galvus.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Zenos_yae_Galvus.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 566,
+      "sha256": "233d49269334a3f8bf45268b1681303be6391690517c69d41c4258235c573b99",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "N-7000",
+      "category": "character",
+      "expressions": [
+        "N-7000"
+      ],
+      "image_pattern": "^N-7000\\.png$",
+      "expansion": "Endwalker",
+      "path": "images/n-7000.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/N-7000",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/8/82/N-7000.png/350px-N-7000.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:N-7000.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "5b8471e9005d66b37809094c9ef16959249d548a34c2f8695a64f5a655625bd4",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Calyx",
+      "category": "character",
+      "expressions": [
+        "カリュクス"
+      ],
+      "image_pattern": "^Calyx\\.(png|jpg|jpeg)$",
+      "expansion": "Dawntrail",
+      "path": "images/calyx.png",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Calyx",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/7/7e/Calyx.png/350px-Calyx.png",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Calyx.png",
+      "source_name": "Gamer Escape",
+      "width": 350,
+      "height": 637,
+      "sha256": "6a7321ab884ee5211392aa5b5d6546a2729b7ce4811052ff3b2d5ae166a03c10",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    },
+    {
+      "page": "Halmarut",
+      "category": "character",
+      "expressions": [
+        "ハルマルト"
+      ],
+      "image_pattern": "^Halmarut\\.(png|jpg|jpeg)$",
+      "expansion": "Dawntrail",
+      "path": "images/halmarut.jpg",
+      "page_url": "https://ffxiv.gamerescape.com/wiki/Halmarut",
+      "image_url": "https://ffxiv.gamerescape.com/w/images/thumb/f/f4/Halmarut.jpg/220px-Halmarut.jpg",
+      "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Halmarut.jpg",
+      "source_name": "Gamer Escape",
+      "width": 220,
+      "height": 291,
+      "sha256": "2cdc53bea12011cd2504290ae530f7058585cd1524e64fefd8267df81748e747",
+      "credit": "FFXIV game imagery / artwork © SQUARE ENIX. Source: Gamer Escape; see linked source page for contributor details."
+    }
+  ],
+  "unavailable": [
+    {
+      "page": "Tuliyollal (Zone)",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "page": "Solution Nine (Zone)",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "page": "Zanuhali",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Alxaal",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Teeshal Ja",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Dancing Green",
+      "error": "HTTP Error 403: Forbidden"
+    },
+    {
+      "page": "Prishe",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Hesperos",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Argos",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Anima",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Ardbert",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Bismarck",
+      "error": "Image too small to identify subject"
+    },
+    {
+      "page": "Granson",
+      "error": "No matching portrait / location artwork"
+    },
+    {
+      "page": "Cylva",
+      "error": "No matching portrait / location artwork"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DalamudLibPath Condition="'$(DalamudLibPath)' == ''">$(APPDATA)/XIVLauncher/addon/Hooks/dev</DalamudLibPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/HachidoriLink.cs" Link="HachidoriLink.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/Models.cs" Link="Models.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/HachidoriPayloads.cs" Link="HachidoriPayloads.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/WordSpans.cs" Link="WordSpans.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/NpcImageDictionary.cs" Link="NpcImageDictionary.cs" />
+    <Compile Include="../../HachidoriFfxiv/DiagnosticLog.cs" Link="DiagnosticLog.cs" />
+    <Compile Include="../../HachidoriFfxiv/Audio/PronunciationDecoder.cs" Link="PronunciationDecoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Rendering/*.cs" Link="Rendering/%(Filename)%(Extension)" />
+    <Compile Include="../../HachidoriFfxiv/Ui/PopupWindowScope.cs" Link="PopupWindowScope.cs" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)/Dalamud.Bindings.ImGui.dll" />
+    <Reference Include="HexaGen.Runtime" HintPath="$(DalamudLibPath)/HexaGen.Runtime.dll" />
+    <None Include="$(DalamudLibPath)/cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
+    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+  </ItemGroup>
+</Project>

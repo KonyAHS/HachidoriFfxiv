@@ -1,0 +1,208 @@
+{
+  "revision": "2026.10.14.3",
+  "source_commit": "76d22160d687b0e0318071a098ab9eb9d531605f",
+  "game_data_snapshot": "7.57",
+  "entries": 29870,
+  "categories": {
+    "alias": 2,
+    "character": 9972,
+    "clan": 16,
+    "duty": 741,
+    "enemy": 11972,
+    "event": 10,
+    "expansion": 6,
+    "fate": 1380,
+    "job": 43,
+    "location": 4727,
+    "minion": 586,
+    "mount": 358,
+    "organization": 4,
+    "race": 8,
+    "society": 20,
+    "term": 25
+  },
+  "embedded_images": 131,
+  "duplicate_entries_merged": 1266,
+  "images_by_category": {
+    "character": 119,
+    "location": 12
+  },
+  "character_images_by_expansion": {
+    "Dawntrail": 42,
+    "Earlier expansions": 18,
+    "Endwalker": 42,
+    "Shadowbringers": 17
+  },
+  "illustrated_entries": 140,
+  "source_files": [
+    {
+      "sheet": "ENpcResident",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/ENpcResident.csv",
+      "sha256": "e8347d58c6ba659424cdbce6524b8d7c9cf926467ef08a1782cbbd72c45de99a",
+      "rows": 59851
+    },
+    {
+      "sheet": "ENpcResident",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/ENpcResident.csv",
+      "sha256": "a32cb97aabd3e53d306d726bacbaf9ba53f31c784fec6dc355afed7848c63a03",
+      "rows": 59851
+    },
+    {
+      "sheet": "BNpcName",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/BNpcName.csv",
+      "sha256": "489967ed12d0dcde73a98c3c33cab9ebe90388c8fdb49c58eeffb6d245acb9aa",
+      "rows": 15001
+    },
+    {
+      "sheet": "BNpcName",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/BNpcName.csv",
+      "sha256": "08614d48fd45ab0db1b8705425a363b71dc143cccb961a5b916723c81edc0449",
+      "rows": 15001
+    },
+    {
+      "sheet": "PlaceName",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/PlaceName.csv",
+      "sha256": "27b24effa974084276f75892fcaa682032cf664c8567a382399b527ab448c94f",
+      "rows": 5616
+    },
+    {
+      "sheet": "PlaceName",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/PlaceName.csv",
+      "sha256": "99bccbf52017878380337211f19925beb72ce85968ca44391615bdc28d9a262e",
+      "rows": 5616
+    },
+    {
+      "sheet": "ClassJob",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/ClassJob.csv",
+      "sha256": "72ddc2a19f7b586856267dc491c313d77dd8f3878c3d10a23515b76cdd25b313",
+      "rows": 46
+    },
+    {
+      "sheet": "ClassJob",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/ClassJob.csv",
+      "sha256": "da65a1a26fe11951fff4654a2fec1a0702375294a07ae270bbbcaf35cf22d691",
+      "rows": 46
+    },
+    {
+      "sheet": "ContentFinderCondition",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/ContentFinderCondition.csv",
+      "sha256": "8c4c506a8f6c6fc52b0899823d0bdf5fe0a5edca1292ec90be5a7957e4b83eb8",
+      "rows": 1119
+    },
+    {
+      "sheet": "ContentFinderCondition",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/ContentFinderCondition.csv",
+      "sha256": "3f822629b801c4d76af9007950ab975747e4f7dba97fd3410cfaab2ce92f3978",
+      "rows": 1119
+    },
+    {
+      "sheet": "Fate",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/Fate.csv",
+      "sha256": "e59b4ecdbf8b8d6679f495da2f275b4e6cc4754da4d409fd01218c7619c5aecf",
+      "rows": 2111
+    },
+    {
+      "sheet": "Fate",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/Fate.csv",
+      "sha256": "bc1f976fda6e5ad92dda8887c734e06477edd3aca9d4170b1ae719d58f2018a7",
+      "rows": 2111
+    },
+    {
+      "sheet": "Race",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/Race.csv",
+      "sha256": "f04870a29d53c3f69db0bd0d2b8eebd9e08945b542027a6dc973b3b0754dcce0",
+      "rows": 9
+    },
+    {
+      "sheet": "Race",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/Race.csv",
+      "sha256": "0b3315eeebe75903705d5b8d22358c0b34025a744e0bcefd31c7285358650f9e",
+      "rows": 9
+    },
+    {
+      "sheet": "Tribe",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/Tribe.csv",
+      "sha256": "841aec59433fe17e8f1b27d80496cf15be5f6ca5427fa38e7f6a6e8c302a9aab",
+      "rows": 17
+    },
+    {
+      "sheet": "Tribe",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/Tribe.csv",
+      "sha256": "c7e7c4923f42146370a08cf0faaed355a8771b805e87ba319e35668c5d2bd534",
+      "rows": 17
+    },
+    {
+      "sheet": "GrandCompany",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/GrandCompany.csv",
+      "sha256": "bd6579e8a45f0b5994e53f173545c26ba628818394d2ef6b7fb6108be7acb6b1",
+      "rows": 4
+    },
+    {
+      "sheet": "GrandCompany",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/GrandCompany.csv",
+      "sha256": "4ba7c03bec4346416d56ee4b65dd1da52cbce2ee574e4d9b078167a4f8aa254f",
+      "rows": 4
+    },
+    {
+      "sheet": "BeastTribe",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/BeastTribe.csv",
+      "sha256": "503333e4c23dbcada6a123e2af34a691ab371151507a3ffa8f6e5a6a1ad012a6",
+      "rows": 21
+    },
+    {
+      "sheet": "BeastTribe",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/BeastTribe.csv",
+      "sha256": "b0442dbdf01f521277e27d19de8fbd7bac07719884308ff225cedc26aef95104",
+      "rows": 21
+    },
+    {
+      "sheet": "Mount",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/Mount.csv",
+      "sha256": "fdd81e10f2c50e59169d4c84a8fa99d5908817873f9a3c7e534e21478b684e57",
+      "rows": 451
+    },
+    {
+      "sheet": "Mount",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/Mount.csv",
+      "sha256": "28f6be970988f2d67ea2ddafdd63180533fa465dccc75a93995a4eda4c509e35",
+      "rows": 451
+    },
+    {
+      "sheet": "Companion",
+      "language": "ja",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/ja/Companion.csv",
+      "sha256": "130d8232963323efa409b19dcbc11328a99d7da8fe1fe9348a620e13e46a5ab0",
+      "rows": 600
+    },
+    {
+      "sheet": "Companion",
+      "language": "en",
+      "url": "https://raw.githubusercontent.com/xivapi/ffxiv-datamining/76d22160d687b0e0318071a098ab9eb9d531605f/csv/en/Companion.csv",
+      "sha256": "b02a0a246e1a53a8d0e3eabc4a064f8b10d084a435f0f022aee0170541a50824",
+      "rows": 600
+    }
+  ],
+  "unmatched_image_targets": []
+}

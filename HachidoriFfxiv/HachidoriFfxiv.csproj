@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.5.0</Version>
+    <Author>Hachidori for FFXIV contributors</Author>
+    <RepoUrl>https://github.com/KonyAHS/HachidoriFfxiv</RepoUrl>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <PathMap>$(MSBuildProjectDirectory)=/_/HachidoriFfxiv</PathMap>
+    <Name>Hachidori for FFXIV</Name>
+    <Punchline>Yomitan-style Japanese popup dictionary for FFXIV, powered by Hachidori / hoshidicts.</Punchline>
+    <Description>Hover native Japanese dialogue, battle talk and chat for nested dictionary popups, pitch accent, frequencies and Anki mining. Includes an optional reader overlay and search window. Requires Hachidori sharing through the Hachidori Relay Anki add-on.</Description>
+    <Tags>japanese;dictionary;yomitan;anki;language learning</Tags>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+  </ItemGroup>
+</Project>

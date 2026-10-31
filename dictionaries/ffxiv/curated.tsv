@@ -1,0 +1,87 @@
+expression	reading	english	category	source	note
+剣術士	けんじゅつし	Gladiator	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+格闘士	かくとうし	Pugilist	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+斧術士	ふじゅつし	Marauder	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+槍術士	そうじゅつし	Lancer	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+弓術士	きゅうじゅつし	Archer	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+幻術士	げんじゅつし	Conjurer	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+呪術士	じゅじゅつし	Thaumaturge	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+巴術士	はじゅつし	Arcanist	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+双剣士	そうけんし	Rogue	job	https://jp.finalfantasyxiv.com/jobguide/battle/	
+ナイト	ないと	Paladin	job	https://jp.finalfantasyxiv.com/jobguide/paladin/	
+戦士	せんし	Warrior	job	https://jp.finalfantasyxiv.com/jobguide/warrior/	
+暗黒騎士	あんこくきし	Dark Knight	job	https://jp.finalfantasyxiv.com/jobguide/darkknight/	
+ガンブレイカー	がんぶれいかー	Gunbreaker	job	https://jp.finalfantasyxiv.com/jobguide/gunbreaker/	
+白魔道士	しろまどうし	White Mage	job	https://jp.finalfantasyxiv.com/jobguide/whitemage/	
+学者	がくしゃ	Scholar	job	https://jp.finalfantasyxiv.com/jobguide/scholar/	
+占星術師	せんせいじゅつし	Astrologian	job	https://jp.finalfantasyxiv.com/jobguide/astrologian/	
+賢者	けんじゃ	Sage	job	https://jp.finalfantasyxiv.com/jobguide/sage/	
+モンク	もんく	Monk	job	https://jp.finalfantasyxiv.com/jobguide/monk/	
+竜騎士	りゅうきし	Dragoon	job	https://jp.finalfantasyxiv.com/jobguide/dragoon/	
+忍者	にんじゃ	Ninja	job	https://jp.finalfantasyxiv.com/jobguide/ninja/	
+侍	さむらい	Samurai	job	https://jp.finalfantasyxiv.com/jobguide/samurai/	
+リーパー	りーぱー	Reaper	job	https://jp.finalfantasyxiv.com/jobguide/reaper/	
+ヴァイパー	ゔぁいぱー	Viper	job	https://jp.finalfantasyxiv.com/jobguide/viper/	
+吟遊詩人	ぎんゆうしじん	Bard	job	https://jp.finalfantasyxiv.com/jobguide/bard/	
+機工士	きこうし	Machinist	job	https://jp.finalfantasyxiv.com/jobguide/machinist/	
+踊り子	おどりこ	Dancer	job	https://jp.finalfantasyxiv.com/jobguide/dancer/	
+黒魔道士	くろまどうし	Black Mage	job	https://jp.finalfantasyxiv.com/jobguide/blackmage/	
+召喚士	しょうかんし	Summoner	job	https://jp.finalfantasyxiv.com/jobguide/summoner/	
+赤魔道士	あかまどうし	Red Mage	job	https://jp.finalfantasyxiv.com/jobguide/redmage/	
+ピクトマンサー	ぴくとまんさー	Pictomancer	job	https://jp.finalfantasyxiv.com/jobguide/pictomancer/	
+青魔道士	あおまどうし	Blue Mage	job	https://jp.finalfantasyxiv.com/jobguide/bluemage/	Limited job.
+木工師	もっこうし	Carpenter	job	ClassJob	
+鍛冶師	かじし	Blacksmith	job	ClassJob	
+甲冑師	かっちゅうし	Armorer	job	ClassJob	
+彫金師	ちょうきんし	Goldsmith	job	ClassJob	
+革細工師	かわざいくし	Leatherworker	job	ClassJob	
+裁縫師	さいほうし	Weaver	job	ClassJob	
+錬金術師	れんきんじゅつし	Alchemist	job	ClassJob	
+調理師	ちょうりし	Culinarian	job	ClassJob	
+採掘師	さいくつし	Miner	job	ClassJob	
+園芸師	えんげいし	Botanist	job	ClassJob	
+漁師	りょうし	Fisher	job	ClassJob	
+降神祭	こうじんさい	Heavensturn	event	https://jp.finalfantasyxiv.com/lodestone/playguide/db/quest/?category2=7&category4=240	New Year seasonal celebration.
+ヴァレンティオンデー	ゔぁれんてぃおんでー	Valentione's Day	event	https://jp.finalfantasyxiv.com/blog/003831.html	Valentine-themed seasonal celebration.
+プリンセスデー	ぷりんせすでー	Little Ladies' Day	event	https://jp.finalfantasyxiv.com/lodestone/playguide/db/shop/0ba5004ab8e/	Spring seasonal celebration.
+エッグハント	えっぐはんと	Hatching-tide	event	https://jp.finalfantasyxiv.com/lodestone/playguide/db/quest/?category2=7	Egg-themed spring seasonal celebration.
+ゴールドソーサーフェスティバル	ごーるどそーさーふぇすてぃばる	Make It Rain Campaign	event	https://jp.finalfantasyxiv.com/lodestone/playguide/db/quest/?category2=7	Gold Saucer special event.
+紅蓮祭	ぐれんさい	Moonfire Faire	event	https://jp.finalfantasyxiv.com/lodestone/topics/detail/a5ee64e099c85c99e71f4c2a340d0eb13c4cb224	Summer seasonal celebration.
+新生祭	しんせいさい	The Rising	event	https://jp.finalfantasyxiv.com/lodestone/special/2025/The_Rising/6s3bvkhk74	A Realm Reborn anniversary celebration.
+守護天節	しゅごてんせつ	All Saints' Wake	event	https://jp.finalfantasyxiv.com/lodestone/playguide/db/shop/0ba5004ab8e/	Autumn seasonal celebration.
+星芒祭	せいぼうさい	Starlight Celebration	event	https://jp.finalfantasyxiv.com/lodestone/special/2025/Starlight_Celebration/1zy049rho1	Winter seasonal celebration.
+モグモグ★コレクション	もぐもぐこれくしょん	Moogle Treasure Trove	event	https://jp.finalfantasyxiv.com/lodestone/special/mogmog-collection/	Recurring irregular-tomestone event; individual editions have different subtitles.
+モグコレ	もぐこれ	Moogle Treasure Trove	alias	curated-community-alias	Community abbreviation for モグモグ★コレクション.
+光の戦士	ひかりのせんし	Warrior of Light	term	curated-game-terminology	A title used for the player character.
+ヒカセン	ひかせん	Warrior of Light	alias	curated-community-alias	Community abbreviation for 光の戦士.
+闇の戦士	やみのせんし	Warrior of Darkness	term	curated-game-terminology	
+暁の血盟	あかつきのけつめい	Scions of the Seventh Dawn	organization	curated-game-terminology	
+エーテル	えーてる	Aether	term	curated-game-terminology	FFXIV setting term; distinct from the consumable Ether.
+エーテライト	えーてらいと	Aetheryte	term	curated-game-terminology	Teleportation crystal.
+蛮神	ばんしん	Primal	term	curated-game-terminology	
+超える力	こえるちから	The Echo	term	curated-game-terminology	
+冒険者	ぼうけんしゃ	Adventurer	term	curated-game-terminology	
+チョコボ	ちょこぼ	Chocobo	term	curated-game-terminology	
+モーグリ	もーぐり	Moogle	term	curated-game-terminology	
+ギル	ぎる	Gil	term	curated-game-terminology	Currency.
+ミラージュプリズム	みらーじゅぷりずむ	Glamour Prism	term	curated-game-terminology	
+コンテンツファインダー	こんてんつふぁいんだー	Duty Finder	term	curated-game-terminology	
+コンテンツルーレット	こんてんつるーれっと	Duty Roulette	term	curated-game-terminology	
+フリーカンパニー	ふりーかんぱにー	Free Company	term	curated-game-terminology	
+リンクシェル	りんくしぇる	Linkshell	term	curated-game-terminology	
+リミットブレイク	りみっとぶれいく	Limit Break	term	curated-game-terminology	
+アラガントームストーン	あらがんとーむすとーん	Allagan Tomestone	term	curated-game-terminology	
+零式	れいしき	Savage	term	curated-game-terminology	High-difficulty raid designation.
+極	ごく	Extreme	term	curated-game-terminology	High-difficulty trial designation.
+絶	ぜつ	Ultimate	term	curated-game-terminology	Highest-difficulty raid designation.
+若葉	わかば	Sprout	term	curated-community-alias	Nickname for a new adventurer with the sprout icon.
+床ペロ	ゆかぺろ	Floor tanking	term	curated-community-alias	Slang for lying defeated on the floor.
+ワイプ	わいぷ	Wipe	term	curated-community-alias	A party defeat / restarting an encounter.
+タンク	たんく	Tank	term	curated-game-terminology	
+ヒーラー	ひーらー	Healer	term	curated-game-terminology	
+新生エオルゼア	しんせいえおるぜあ	A Realm Reborn	expansion	https://jp.finalfantasyxiv.com/	
+蒼天のイシュガルド	そうてんのいしゅがるど	Heavensward	expansion	https://jp.finalfantasyxiv.com/heavensward/	
+紅蓮のリベレーター	ぐれんのりべれーたー	Stormblood	expansion	https://jp.finalfantasyxiv.com/stormblood/	
+漆黒のヴィランズ	しっこくのゔぃらんず	Shadowbringers	expansion	https://jp.finalfantasyxiv.com/shadowbringers/	
+暁月のフィナーレ	ぎょうげつのふぃなーれ	Endwalker	expansion	https://jp.finalfantasyxiv.com/endwalker/	
+黄金のレガシー	おうごんのれがしー	Dawntrail	expansion	https://jp.finalfantasyxiv.com/dawntrail/	
