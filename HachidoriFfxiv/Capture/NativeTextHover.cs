@@ -6,6 +6,7 @@ using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using HachidoriFfxiv.Hachidori;
@@ -22,16 +23,19 @@ namespace HachidoriFfxiv.Capture;
 /// </summary>
 public sealed unsafe class NativeTextHover : IDisposable
 {
-    private sealed record Cached(string Signature, RichBlock Block, NativeTextLayout Layout);
-    private sealed record Region(string Addon, Cached Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale);
+    private sealed record Part(RichBlock Block, NativeTextLayout Layout);
+    private sealed record Cached(string Signature, Part[] Parts);
+    private sealed record Region(string Addon, Part Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale);
     private readonly Configuration config;
     private readonly Dictionary<nint, Cached> cache = new();
     private Region[] regions = [];
     private Vector2 lastMouse = new(-10000);
     private DateTime lastError;
+    private DateTime lastChatProbe;
     public string? LastError { get; private set; }
     public int RegionCount => regions.Length;
     public bool SubtitleVisible { get; private set; }
+    public string LastHoveredAddon { get; private set; } = string.Empty;
 
     public NativeTextHover(Configuration config)
     {
@@ -67,16 +71,22 @@ public sealed unsafe class NativeTextHover : IDisposable
             if (hovered != null && hovered->IsVisible)
             {
                 var name = hovered->NameString;
-                if (Allowed(name) && name != "TalkSubtitle") ReadAddon(hovered, name);
+                LastHoveredAddon = name;
+                // The ChatLog window and its text panels are separate addons, and the
+                // collision hit can be the window, which has no chat text of its own.
+                if (IsChat(name)) ReadChat();
+                else if (Allowed(name) && name != "TalkSubtitle") ReadAddon(hovered, name);
             }
             else
             {
-                foreach (var name in new[] { "Talk", "_BattleTalk", "ChatLog", "ChatLogPanel_0", "ChatLogPanel_1", "ChatLogPanel_2", "ChatLogPanel_3" })
+                LastHoveredAddon = string.Empty;
+                foreach (var name in new[] { "Talk", "_BattleTalk" })
                 {
                     if (!Allowed(name)) continue;
                     var addon = Plugin.GameGui.GetAddonByName(name);
                     if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name);
                 }
+                ReadChat();
             }
             regions = next.ToArray();
             foreach (var key in cache.Keys.Where(k => !seen.Contains(k)).ToArray()) cache.Remove(key);
@@ -96,6 +106,33 @@ public sealed unsafe class NativeTextHover : IDisposable
         }
 
         void ReadAddon(AtkUnitBase* addon, string name) => ReadNodes(&addon->UldManager, name, 0);
+
+        void ReadChat()
+        {
+            if (!Allowed("ChatLog")) return;
+            var before = next.Count;
+            var probe = new StringBuilder($"hovered='{LastHoveredAddon}'");
+            foreach (var name in ChatPanels)
+            {
+                var addon = Plugin.GameGui.GetAddonByName(name);
+                if (addon.IsNull || !addon.IsVisible) continue;
+                var text = ((AddonChatLogPanel*)addon.Address)->ChatText;
+                if (text == null)
+                {
+                    probe.Append($" {name}:no-node");
+                    ReadAddon((AtkUnitBase*)addon.Address, name);
+                    continue;
+                }
+                var visible = Visible((AtkResNode*)text);
+                probe.Append($" {name}:visible={visible},size={text->Width}x{text->Height},bytes={text->NodeText.AsSpan().Length}");
+                if (visited.Add((nint)text) && visible) ReadText(text, name);
+            }
+            if (LastHoveredAddon.Length > 0 && next.Count == before && (DateTime.UtcNow - lastChatProbe).TotalSeconds > 5)
+            {
+                lastChatProbe = DateTime.UtcNow;
+                DiagnosticLog.Write("chat-hover", $"No chat text under mouse: {probe}");
+            }
+        }
 
         void ReadNodes(AtkUldManager* manager, string name, int depth)
         {
@@ -133,11 +170,12 @@ public sealed unsafe class NativeTextHover : IDisposable
             }
             if (!NativeTextLayout.Contains(clipMin, clipMax, lastMouse)) return;
             var raw = node->NodeText.AsSpan();
-            if (raw.Length == 0 || raw.Length > 16384) return;
+            var chat = IsChat(name);
+            if (raw.Length == 0 || raw.Length > (chat ? 65536 : 16384)) return;
             // NodeText already contains the game's applied line flow. Preserve newlines
             // and UTF-16 offsets so highlighting and Anki matchOffset use the same text.
             var text = SeString.Parse(raw).TextValue;
-            if (text.Length == 0 || text.Length > 2048 || !text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value))) return;
+            if (text.Length == 0 || text.Length > (chat ? 16384 : 2048) || !text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value))) return;
             var signature = $"{node->Width}|{node->Height}|{node->FontSize}|{node->AlignmentFontType}|{node->LineSpacing}|{node->CharSpacing}|{node->TextFlags}|{text}";
             var key = (nint)node;
             seen.Add(key);
@@ -150,18 +188,27 @@ public sealed unsafe class NativeTextHover : IDisposable
                 if (advance <= 0) advance = Math.Max(node->FontSize, node->LineSpacing);
                 var layout = NativeTextLayout.Build(text, node->Width, node->Height, (int)node->AlignmentType,
                     glyphHeight, advance, (node->TextFlags & TextFlags.WordWrap) != 0, prefix => Measure(node, prefix));
-                cached = new Cached(signature, new RichBlock().Add(text), layout);
+                Part[] parts = chat
+                    ? layout.SplitLines(text).Where(p => p.Text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value))).Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray()
+                    : [new Part(new RichBlock().Add(text), layout)];
+                cached = new Cached(signature, parts);
                 cache[key] = cached;
             }
-            next.Add(new Region(name, cached, min, max, clipMin, clipMax, new Vector2((max.X - min.X) / node->Width, (max.Y - min.Y) / node->Height)));
+            var scale = new Vector2((max.X - min.X) / node->Width, (max.Y - min.Y) / node->Height);
+            foreach (var part in cached.Parts)
+                next.Add(new Region(name, part, min, max, clipMin, clipMax, scale));
         }
     }
+
+    private static readonly string[] ChatPanels = ["ChatLogPanel_0", "ChatLogPanel_1", "ChatLogPanel_2", "ChatLogPanel_3"];
+
+    private static bool IsChat(string name) => name.StartsWith("ChatLog", StringComparison.Ordinal);
 
     private bool Allowed(string name) => name switch
     {
         "Talk" or "TalkSubtitle" => config.CaptureTalk,
         "_BattleTalk" => config.CaptureBattleTalk,
-        _ when name.StartsWith("ChatLog", StringComparison.Ordinal) => config.NativeChatHover && config.CaptureChat,
+        _ when IsChat(name) => config.NativeChatHover && config.CaptureChat,
         _ => config.NativeOtherTextHover,
     };
 

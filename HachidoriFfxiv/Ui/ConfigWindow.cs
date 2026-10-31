@@ -7,6 +7,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Capture;
+using HachidoriFfxiv.Publishing;
 
 namespace HachidoriFfxiv.Ui;
 
@@ -19,20 +20,36 @@ public sealed class ConfigWindow : Window
         XivChatType.Ls1, XivChatType.CrossLinkShell1, XivChatType.Echo, XivChatType.SystemMessage,
     ];
 
+    private static readonly (string Name, bool Talk, bool Battle, bool Popups, bool Chat)[] PublishPresets =
+    [
+        ("Dialogue only", true, true, false, false),
+        ("Dialogue and popups (recommended)", true, true, true, false),
+        ("Everything, including chat", true, true, true, true),
+    ];
+
+    private static readonly (string Name, int Port)[] PublishPorts =
+    [
+        ("Textractor", 6677),
+        ("LunaTranslator", 2333),
+        ("Agent", 9001),
+    ];
+
     private readonly Configuration config;
     private readonly HachidoriService service;
     private readonly Fonts fonts;
     private readonly NativeTextHover nativeHover;
+    private readonly TextPublisher publisher;
     private readonly Func<string> exportLogs;
     private string? exportedLog;
 
-    public ConfigWindow(Configuration config, HachidoriService service, Fonts fonts, NativeTextHover nativeHover, Func<string> exportLogs)
+    public ConfigWindow(Configuration config, HachidoriService service, Fonts fonts, NativeTextHover nativeHover, TextPublisher publisher, Func<string> exportLogs)
         : base("Hachidori Settings##hachidori-ffxiv-config")
     {
         this.config = config;
         this.service = service;
         this.fonts = fonts;
         this.nativeHover = nativeHover;
+        this.publisher = publisher;
         this.exportLogs = exportLogs;
         Size = new Vector2(560, 560);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -61,6 +78,12 @@ public sealed class ConfigWindow : Window
         {
             if (tab.Success)
                 DrawCaptureTab();
+        }
+
+        using (var tab = ImRaii.TabItem("GSM"))
+        {
+            if (tab.Success)
+                DrawPublishTab();
         }
 
         using (var tab = ImRaii.TabItem("Connection"))
@@ -272,6 +295,69 @@ public sealed class ConfigWindow : Window
                     config.ChatChannels.Remove(channel);
                 Changed(true);
             }
+        }
+    }
+
+    private void DrawPublishTab()
+    {
+        ImGui.TextWrapped("Sends game text over a WebSocket on this computer so GameSentenceMiner can read it. Off by default; nothing leaves this PC.");
+        Checkbox("Publish text for GSM", () => config.PublishEnabled, v => config.PublishEnabled = v);
+        using var disabled = ImRaii.Disabled(!config.PublishEnabled);
+
+        var preset = Array.FindIndex(PublishPresets, p => p.Talk == config.PublishTalk && p.Battle == config.PublishBattleTalk && p.Popups == config.PublishPopups && p.Chat == config.PublishChat);
+        var presetNames = PublishPresets.Select(p => p.Name).Append("Custom").ToArray();
+        var selected = preset < 0 ? PublishPresets.Length : preset;
+        if (ImGui.Combo("What to send", ref selected, presetNames, presetNames.Length) && selected < PublishPresets.Length)
+        {
+            var p = PublishPresets[selected];
+            config.PublishTalk = p.Talk;
+            config.PublishBattleTalk = p.Battle;
+            config.PublishPopups = p.Popups;
+            config.PublishChat = p.Chat;
+            Changed(true);
+        }
+
+        using (ImRaii.PushIndent())
+        {
+            Checkbox("Dialogue and cutscene subtitles", () => config.PublishTalk, v => config.PublishTalk = v);
+            Checkbox("Battle talk", () => config.PublishBattleTalk, v => config.PublishBattleTalk = v);
+            Checkbox("Interaction popups (yes/no prompts, choice menus)", () => config.PublishPopups, v => config.PublishPopups = v);
+            Checkbox("Chat (channels from the Capture tab)", () => config.PublishChat, v => config.PublishChat = v);
+            if (config.PublishChat)
+                ImGui.TextColored(new Vector4(1f, 0.8f, 0.4f, 1f), "Sends other players' messages to GSM.");
+        }
+        Checkbox("Put the speaker's name before each line", () => config.PublishSpeaker, v => config.PublishSpeaker = v);
+
+        if ((config.PublishTalk && !config.CaptureTalk) || (config.PublishBattleTalk && !config.CaptureBattleTalk) || (config.PublishChat && !config.CaptureChat))
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0.4f, 1f), "A selected source is turned off in the Capture tab and won't be sent.");
+
+        ImGui.Separator();
+        var portIndex = Array.FindIndex(PublishPorts, p => p.Port == config.PublishPort);
+        var portNames = PublishPorts.Select(p => $"{p.Name} ({p.Port})").Append("Custom").ToArray();
+        var portSelected = portIndex < 0 ? PublishPorts.Length : portIndex;
+        if (ImGui.Combo("GSM source slot", ref portSelected, portNames, portNames.Length) && portSelected < PublishPorts.Length)
+        {
+            config.PublishPort = PublishPorts[portSelected].Port;
+            Changed(true);
+        }
+        HelpMarker("GSM listens to all three slots by default, and the name is only its label. Choose one that no other program you run uses.");
+
+        var port = config.PublishPort;
+        if (ImGui.InputInt("Port", ref port))
+        {
+            config.PublishPort = Math.Clamp(port, 1, 65535);
+            Changed(true);
+        }
+        ImGui.TextDisabled($"In GSM's WebSocket sources, this is localhost:{config.PublishPort}");
+
+        if (publisher.Error is { } error)
+            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), error);
+        else if (publisher.Listening)
+            ImGui.TextUnformatted(publisher.ClientCount == 0 ? "Listening. Waiting for GSM to connect…" : $"Connected clients: {publisher.ClientCount}");
+        using (ImRaii.Disabled(publisher.ClientCount == 0))
+        {
+            if (ImGui.Button("Send test line"))
+                publisher.SendTest();
         }
     }
 

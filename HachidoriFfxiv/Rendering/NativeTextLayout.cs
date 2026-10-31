@@ -57,6 +57,26 @@ public sealed class NativeTextLayout
         return new NativeTextLayout { Cells = cells };
     }
 
+    /// <summary>
+    /// One independent layout per source line, with offsets local to that line. Chat holds many
+    /// unrelated messages in one text node; each is its own sentence for lookups and mining.
+    /// </summary>
+    public IReadOnlyList<(string Text, NativeTextLayout Layout)> SplitLines(string text)
+    {
+        var parts = new List<(string, NativeTextLayout)>();
+        for (var start = 0; start < text.Length;)
+        {
+            var end = text.IndexOfAny(['\r', '\n'], start);
+            if (end < 0) end = text.Length;
+            var lineCells = new List<Cell>();
+            foreach (var cell in Cells)
+                if (cell.Index >= start && cell.Index < end) lineCells.Add(cell with { Index = cell.Index - start });
+            if (lineCells.Count > 0) parts.Add((text[start..end], new NativeTextLayout { Cells = lineCells }));
+            start = end + (end + 1 < text.Length && text[end] == '\r' && text[end + 1] == '\n' ? 2 : 1);
+        }
+        return parts;
+    }
+
     public Cell? Hit(Vector2 point)
     {
         foreach (var cell in Cells)

@@ -16,6 +16,7 @@ public enum LineSource
     BattleTalk,
     Chat,
     Manual,
+    Popup,
 }
 
 /// <summary>A captured line of game text, with its prebuilt scannable block.</summary>
@@ -35,11 +36,14 @@ public sealed class GameLine
 /// </summary>
 public sealed unsafe class TextCapture : IDisposable
 {
+    private static readonly string[] PopupAddons = ["SelectYesno", "SelectOk", "SelectString", "SelectIconString", "CutSceneSelectString"];
+
     private readonly Configuration config;
     private readonly List<GameLine> history = new();
     private string lastTalk = string.Empty;
     private string lastBattleTalk = string.Empty;
     private string lastSubtitle = string.Empty;
+    private readonly Dictionary<string, string> lastPopups = new();
 
     public TextCapture(Configuration config)
     {
@@ -74,6 +78,69 @@ public sealed unsafe class TextCapture : IDisposable
             Poll("_BattleTalk", LineSource.BattleTalk, ref lastBattleTalk, v => BattleTalkVisible = v);
         else
             lastBattleTalk = string.Empty;
+        PollPopups();
+    }
+
+    /// <summary>Interaction prompts and choice menus, read only for the opt-in text feed.</summary>
+    private void PollPopups()
+    {
+        if (!config.PublishEnabled || !config.PublishPopups)
+        {
+            lastPopups.Clear();
+            return;
+        }
+        foreach (var name in PopupAddons)
+        {
+            var addon = Plugin.GameGui.GetAddonByName(name);
+            if (addon.IsNull || !addon.IsVisible)
+            {
+                lastPopups.Remove(name);
+                continue;
+            }
+            var prompt = name switch
+            {
+                "SelectYesno" => ((AddonSelectYesno*)addon.Address)->PromptText,
+                "SelectOk" => ((AddonSelectOk*)addon.Address)->PromptText,
+                _ => null,
+            };
+            var text = prompt != null
+                ? ReadSeString(prompt->NodeText.AsSpan()).Trim()
+                : ReadAllTexts(&((AtkUnitBase*)addon.Address)->UldManager);
+            if (text.Length == 0 || (lastPopups.TryGetValue(name, out var last) && last == text))
+                continue;
+            lastPopups[name] = text;
+            AddPopup(text);
+        }
+    }
+
+    /// <summary>Every visible text node including list rows, in node order, one per paragraph.</summary>
+    private static string ReadAllTexts(AtkUldManager* root)
+    {
+        var parts = new List<string>();
+        Collect(root, 0);
+        return string.Join("\n\n", parts);
+
+        void Collect(AtkUldManager* manager, int depth)
+        {
+            if (depth > 8 || manager->NodeList == null)
+                return;
+            for (var i = 0; i < manager->NodeListCount; i++)
+            {
+                var node = manager->NodeList[i];
+                if (node == null || !node->IsVisible())
+                    continue;
+                if (node->Type == NodeType.Text)
+                {
+                    var value = ReadSeString(((AtkTextNode*)node)->NodeText.AsSpan()).Trim();
+                    if (value.Length > 0)
+                        parts.Add(value);
+                }
+                else if ((int)node->Type >= 1000 && ((AtkComponentNode*)node)->Component != null)
+                {
+                    Collect(&((AtkComponentNode*)node)->Component->UldManager, depth + 1);
+                }
+            }
+        }
     }
 
     private void Poll(string addonName, LineSource source, ref string last, Action<bool> setVisible)
@@ -168,6 +235,14 @@ public sealed unsafe class TextCapture : IDisposable
         if (!text.Any(c => Japanese.IsJapanese(c)))
             return;
         Add(LineSource.Chat, message.Sender.TextValue, text);
+    }
+
+    /// <summary>Popups go to the feed only: they would displace the current line in the reader.</summary>
+    private void AddPopup(string text)
+    {
+        text = Japanese.NormaliseGameText(text, joinLines: true);
+        if (text.Length > 0)
+            LineCaptured?.Invoke(new GameLine { Source = LineSource.Popup, Speaker = string.Empty, Text = NameKana.Apply(text, PlayerName.Replacements(config)) });
     }
 
     private void Add(LineSource source, string speaker, string text)

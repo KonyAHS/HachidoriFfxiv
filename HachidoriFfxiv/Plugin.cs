@@ -6,6 +6,7 @@ using Dalamud.Plugin.Services;
 using HachidoriFfxiv.Audio;
 using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Hachidori;
+using HachidoriFfxiv.Publishing;
 using HachidoriFfxiv.Ui;
 
 namespace HachidoriFfxiv;
@@ -32,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Fonts fonts;
     private readonly TextCapture capture;
     private readonly NativeTextHover nativeHover;
+    private readonly TextPublisher publisher;
     private readonly PopupManager popups;
     private readonly ReaderWindow reader;
     private readonly SearchWindow search;
@@ -49,10 +51,11 @@ public sealed class Plugin : IDalamudPlugin
         fonts = new Fonts(config);
         capture = new TextCapture(config);
         nativeHover = new NativeTextHover(config);
+        publisher = new TextPublisher(config, capture);
         popups = new PopupManager(config, service, audio, fonts);
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
-        configWindow = new ConfigWindow(config, service, fonts, nativeHover, ExportLogs);
+        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, ExportLogs);
         windows.AddWindow(reader);
         windows.AddWindow(search);
         windows.AddWindow(configWindow);
@@ -145,6 +148,7 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(Command);
         CommandManager.RemoveHandler(LegacyCommand);
         windows.RemoveAllWindows();
+        publisher.Dispose();
         capture.Dispose();
         nativeHover.Dispose();
         popups.Dispose();
@@ -171,6 +175,12 @@ public sealed class Plugin : IDalamudPlugin
             ["scanModifier"] = config.ScanModifier.ToString(),
             ["nativeHover"] = config.NativeTextHover,
             ["nativeRegionCount"] = nativeHover.RegionCount,
+            ["nativeChatHover"] = config.NativeChatHover,
+            ["captureChat"] = config.CaptureChat,
+            ["lastHoveredAddon"] = nativeHover.LastHoveredAddon,
+            ["publishEnabled"] = config.PublishEnabled,
+            ["publishPort"] = config.PublishPort,
+            ["publishClients"] = publisher.ClientCount,
             ["talkVisible"] = capture.TalkVisible,
             ["floatingSubtitleVisible"] = nativeHover.SubtitleVisible,
             ["battleTalkVisible"] = capture.BattleTalkVisible,

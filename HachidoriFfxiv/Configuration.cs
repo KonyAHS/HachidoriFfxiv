@@ -90,6 +90,15 @@ public sealed class Configuration : IPluginConfiguration
         XivChatType.TellIncoming,
     };
 
+    // Text feed for GameSentenceMiner (off unless the user enables it)
+    public bool PublishEnabled { get; set; } = false;
+    public int PublishPort { get; set; } = 6677;
+    public bool PublishTalk { get; set; } = true;
+    public bool PublishBattleTalk { get; set; } = true;
+    public bool PublishPopups { get; set; } = true;
+    public bool PublishChat { get; set; } = false;
+    public bool PublishSpeaker { get; set; } = false;
+
     // Anki (mining is done by the Hachidori host with its own Anki Template)
     public string AnkiTemplateId { get; set; } = string.Empty;
     public string DocumentTitle { get; set; } = "FINAL FANTASY XIV";

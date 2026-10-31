@@ -33,6 +33,7 @@ async Task Until(Func<bool> condition)
 // A style-stack underflow used to crash the game when the first popup opened.
 CheckPopupScopes(Check);
 await NpcImageChecks.Run(Check);
+await PublishChecks.Run(Check);
 
 Vector2 FixedMeasure(string s) => new(s.EnumerateRunes().Count() * 10, 12);
 var native = NativeTextLayout.Build("冒険\n者𠮷", 40, 40, 0, 12, 18, false, FixedMeasure);
@@ -56,6 +57,12 @@ Check(native.HitScreen(new(205, 105), new(200, 100), Vector2.Zero, new(200, 100)
     "collapsed native transforms do not produce hover targets");
 Check(NativeTextLayout.Build("冒険者", 40, 40, 0, 12, 18, true, FixedMeasure).Hit(new(25, 5))?.Index == 2,
     "native targets reflow when text-box width changes");
+
+var chatLayout = NativeTextLayout.Build("冒険\nabc\r\n者𠮷", 40, 60, 0, 12, 18, false, FixedMeasure);
+var chatParts = chatLayout.SplitLines("冒険\nabc\r\n者𠮷");
+Check(chatParts.Count == 3 && chatParts[2].Text == "者𠮷", "chat text splits into one block per message");
+Check(chatParts[2].Layout.Hit(new(15, 40))?.Index == 1 && chatParts[0].Layout.Hit(new(15, 40)) is null,
+    "chat message offsets are local and keep their on-screen position");
 
 var mineRequest = new JsonObject { ["captureUnavailable"] = new JsonArray("screenshot", "sentence-audio", "gif") };
 var submit = HachidoriPayloads.Submit(mineRequest);
