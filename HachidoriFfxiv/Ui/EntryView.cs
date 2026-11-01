@@ -268,6 +268,7 @@ public sealed class EntryView
         var shown = new HashSet<string>();
         var font = ImGui.GetFont();
         var size = ImGui.GetFontSize();
+        var (labelFont, labelSize) = RichText.Sized(size * 0.8f);
         var drawList = ImGui.GetWindowDrawList();
         var textColor = ImGui.GetColorU32(ImGuiCol.Text);
         var x0 = ImGui.GetCursorScreenPos().X;
@@ -281,7 +282,7 @@ public sealed class EntryView
                     continue;
                 var label = $"[{Japanese.DownstepLabel(pitch)}]";
                 var widths = morae.Select(m => RichText.Measure(font, size, m)).ToList();
-                var total = widths.Sum() + RichText.Measure(font, size * 0.8f, label) + size * 0.8f;
+                var total = widths.Sum() + RichText.Measure(labelFont, labelSize, label) + size * 0.8f;
                 if (!lineStart && ImGui.GetCursorScreenPos().X + total > x0 + width)
                     ImGui.NewLine();
                 var pos = ImGui.GetCursorScreenPos();
@@ -303,7 +304,7 @@ public sealed class EntryView
                     x += widths[i];
                 }
 
-                drawList.AddText(font, size * 0.8f, new Vector2(x + size * 0.2f, top + 2 + size * 0.15f), ImGui.GetColorU32(ImGuiCol.TextDisabled), label);
+                drawList.AddText(labelFont, labelSize, new Vector2(x + size * 0.2f, top + 2 + size * 0.15f), ImGui.GetColorU32(ImGuiCol.TextDisabled), label);
                 ImGui.Dummy(new Vector2(total, size * 1.35f));
                 if (ImGui.IsItemHovered() && group.Dictionary.Length > 0)
                 {

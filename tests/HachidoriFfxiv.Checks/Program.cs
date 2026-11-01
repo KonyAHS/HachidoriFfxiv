@@ -328,6 +328,14 @@ static unsafe void CheckPopupScopes(Action<bool, string> check)
                 {
                     var block = new RichBlock().Add("Dictionary entry: ").Add(new RichRun { Text = "headword", Ruby = "reading", Chip = true });
                     RichText.Draw(block, 240, (0, 10), false);
+                    var font = ImGui.GetFont();
+                    var fontSize = ImGui.GetFontSize();
+                    RichText.SetFontLadders(new() { [(nint)font.Handle] = [new(font, 1f), new(font, 0.5f), new(font, 1.7f)] });
+                    check(MathF.Abs(RichText.Sized(fontSize * 0.6f).Size - fontSize * 0.5f) < 0.001f
+                          && MathF.Abs(RichText.Sized(fontSize * 3f).Size - fontSize * 1.7f) < 0.001f,
+                        $"text sizes snap to a rasterised font on frame {frame + 1}");
+                    RichText.Draw(block, 240, (0, 10), false);
+                    RichText.SetFontLadders(new());
                 }
                 using var nested = new PopupWindowScope("regression-nested", ImGuiWindowFlags.None, false);
             }

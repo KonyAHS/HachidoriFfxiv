@@ -100,6 +100,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void Draw()
     {
+        using var sizedFonts = fonts.LockFrame();
         popups.NpcImages.PollOperations();
         nativeHover.Draw(popups);
         reader.IsOpen = config.ReaderEnabled;

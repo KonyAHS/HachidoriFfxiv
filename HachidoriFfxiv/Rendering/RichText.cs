@@ -6,6 +6,9 @@ using Dalamud.Bindings.ImGui;
 
 namespace HachidoriFfxiv.Rendering;
 
+/// <summary>A font rasterised at <see cref="Scale"/> times its ladder's base size.</summary>
+public readonly record struct SizedFontRung(ImFontPtr Font, float Scale);
+
 /// <summary>A styled piece of inline text.</summary>
 public sealed class RichRun
 {
@@ -79,6 +82,7 @@ public sealed class RichBlock
         public float Width;
         public float BaseSize;
         public nint Font;
+        public int LadderVersion;
         public float Height;
         public readonly List<Glyph> Glyphs = new();
         public readonly List<Line> Lines = new();
@@ -134,8 +138,62 @@ public static unsafe class RichText
     private const float RubyScale = 0.5f;
     private const float ChipPadEm = 0.35f;
     private static readonly Dictionary<(nint Font, int Codepoint), float> Advances = new();
+    private static Dictionary<nint, SizedFontRung[]> ladders = new();
+    private static int ladderVersion;
 
     public static uint DefaultLinkColor => 0xFFF5B06A; // ABGR: soft blue
+
+    /// <summary>Sets the sized fonts for each base font; a change invalidates cached layouts and advances.</summary>
+    public static void SetFontLadders(Dictionary<nint, SizedFontRung[]> next)
+    {
+        var same = next.Count == ladders.Count;
+        foreach (var (font, rungs) in next)
+        {
+            same = same && ladders.TryGetValue(font, out var old) && SameRungs(rungs, old);
+            if (!same)
+                break;
+        }
+
+        ladders = next;
+        if (same)
+            return;
+        ladderVersion++;
+        Advances.Clear();
+    }
+
+    private static bool SameRungs(SizedFontRung[] a, SizedFontRung[] b)
+    {
+        if (a.Length != b.Length)
+            return false;
+        for (var i = 0; i < a.Length; i++)
+        {
+            if ((nint)a[i].Font.Handle != (nint)b[i].Font.Handle || a[i].Scale != b[i].Scale)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The font and exact size to draw <paramref name="size"/> with: the nearest font rasterised for the
+    /// current base font, snapped to its native size so glyphs are not resampled. Without one, the current font.
+    /// </summary>
+    public static (ImFontPtr Font, float Size) Sized(float size)
+    {
+        var font = ImGui.GetFont();
+        if (!ladders.TryGetValue((nint)font.Handle, out var rungs))
+            return (font, size);
+        var baseSize = ImGui.GetFontSize();
+        var wanted = MathF.Log(size / baseSize);
+        var best = rungs[0];
+        foreach (var rung in rungs)
+        {
+            if (MathF.Abs(MathF.Log(rung.Scale) - wanted) < MathF.Abs(MathF.Log(best.Scale) - wanted))
+                best = rung;
+        }
+
+        return (best.Font, baseSize * best.Scale);
+    }
 
     /// <summary>
     /// Draws a block at the cursor, advances the cursor, and reports the character under the mouse.
@@ -148,7 +206,7 @@ public static unsafe class RichText
         width = MathF.Max(width, baseSize * 2);
         var layout = block.CachedLayout;
         var fontId = (nint)font.Handle;
-        if (layout is null || layout.Font != fontId || MathF.Abs(layout.Width - width) > 0.5f || MathF.Abs(layout.BaseSize - baseSize) > 0.01f)
+        if (layout is null || layout.Font != fontId || MathF.Abs(layout.Width - width) > 0.5f || MathF.Abs(layout.BaseSize - baseSize) > 0.01f || layout.LadderVersion != ladderVersion)
         {
             layout = BuildLayout(block, font, fontId, baseSize, width);
             block.CachedLayout = layout;
@@ -206,9 +264,10 @@ public static unsafe class RichText
             var pos = new Vector2(origin.X + seg.X + (run.Chip ? seg.Size * ChipPadEm : 0), y);
             var color = run.Color != 0 ? run.Color : run.Link ? DefaultLinkColor : textColor;
             var text = scan.Substring(seg.CharStart, seg.CharEnd - seg.CharStart);
-            drawList.AddText(font, seg.Size, pos, color, text);
+            var segFont = Sized(seg.Size).Font;
+            drawList.AddText(segFont, seg.Size, pos, color, text);
             if (run.Bold)
-                drawList.AddText(font, seg.Size, pos + new Vector2(MathF.Max(0.6f, seg.Size / 28f), 0), color, text);
+                drawList.AddText(segFont, seg.Size, pos + new Vector2(MathF.Max(1f, MathF.Round(seg.Size / 28f)), 0), color, text);
             if (run.Underline || run.Link || run.Strike)
             {
                 var w = 0f;
@@ -231,11 +290,11 @@ public static unsafe class RichText
             if (string.IsNullOrEmpty(run.Ruby))
                 continue;
             var line = layout.Lines[deco.Line];
-            var rubySize = deco.Size * RubyScale;
-            var rubyWidth = Measure(font, fontId, rubySize, run.Ruby);
+            var (rubyFont, rubySize) = Sized(deco.Size * RubyScale);
+            var rubyWidth = Measure(rubyFont, rubySize, run.Ruby);
             var x = origin.X + deco.X + (deco.W - rubyWidth) * 0.5f;
             var baseTop = origin.Y + line.Top + line.RubyHeight + (line.Height - line.RubyHeight - deco.Size) * 0.6f;
-            drawList.AddText(font, rubySize, new Vector2(x, baseTop - rubySize * 1.05f), run.Color != 0 ? run.Color : textColor, run.Ruby);
+            drawList.AddText(rubyFont, rubySize, new Vector2(x, baseTop - rubySize * 1.05f), run.Color != 0 ? run.Color : textColor, run.Ruby);
         }
 
         var size = new Vector2(width, layout.Height + block.MarginTopEm * baseSize);
@@ -315,7 +374,7 @@ public static unsafe class RichText
 
     private static RichBlock.Layout BuildLayout(RichBlock block, ImFontPtr font, nint fontId, float baseSize, float width)
     {
-        var layout = new RichBlock.Layout { Width = width, BaseSize = baseSize, Font = fontId };
+        var layout = new RichBlock.Layout { Width = width, BaseSize = baseSize, Font = fontId, LadderVersion = ladderVersion };
         var units = new List<Unit>();
         var runOffsets = new int[block.Runs.Count];
         var offset = 0;
@@ -325,14 +384,19 @@ public static unsafe class RichText
             var run = block.Runs[r];
             var text = run.Text;
             offset += text.Length;
-            var size = baseSize * run.Scale;
+            var (runFont, size) = Sized(baseSize * run.Scale);
+            var runFontId = (nint)runFont.Handle;
             if (text.Length == 0)
                 continue;
             if (run.Chip || run.Ruby is not null)
             {
-                var w = Measure(font, fontId, size, text);
+                var w = Measure(runFont, runFontId, size, text);
                 if (run.Ruby is not null)
-                    w = MathF.Max(w, Measure(font, fontId, size * RubyScale, run.Ruby));
+                {
+                    var (rubyFont, rubySize) = Sized(size * RubyScale);
+                    w = MathF.Max(w, Measure(rubyFont, rubySize, run.Ruby));
+                }
+
                 if (run.Chip)
                     w += size * ChipPadEm * 2;
                 units.Add(new Unit { Run = r, Start = 0, End = text.Length, Atomic = true, W = w });
@@ -355,14 +419,14 @@ public static unsafe class RichText
 
                 if (char.IsWhiteSpace((char)Math.Min(cp, 0xFFFF)))
                 {
-                    units.Add(new Unit { Run = r, Start = i, End = i + len, Space = true, W = Advance(font, fontId, cp) * size });
+                    units.Add(new Unit { Run = r, Start = i, End = i + len, Space = true, W = Advance(runFont, runFontId, cp) * size });
                     i += len;
                     continue;
                 }
 
                 if (!IsWordChar(cp))
                 {
-                    units.Add(new Unit { Run = r, Start = i, End = i + len, W = Advance(font, fontId, cp) * size });
+                    units.Add(new Unit { Run = r, Start = i, End = i + len, W = Advance(runFont, runFontId, cp) * size });
                     i += len;
                     continue;
                 }
@@ -377,7 +441,7 @@ public static unsafe class RichText
                         c = char.ConvertToUtf32(text[i], text[i + 1]);
                     if (!IsWordChar(c))
                         break;
-                    w2 += Advance(font, fontId, c) * size;
+                    w2 += Advance(runFont, runFontId, c) * size;
                     i += l;
                 }
 
@@ -410,7 +474,8 @@ public static unsafe class RichText
         void PlaceGlyphs(Unit unit, bool breakAnywhere)
         {
             var run = block.Runs[unit.Run];
-            var size = baseSize * run.Scale;
+            var (runFont, size) = Sized(baseSize * run.Scale);
+            var runFontId = (nint)runFont.Handle;
             var text = run.Text;
             if (unit.Atomic)
             {
@@ -442,7 +507,7 @@ public static unsafe class RichText
                 var l = char.IsHighSurrogate(text[i]) && i + 1 < unit.End ? 2 : 1;
                 if (l == 2)
                     cp = char.ConvertToUtf32(text[i], text[i + 1]);
-                var w = Advance(font, fontId, cp) * size;
+                var w = Advance(runFont, runFontId, cp) * size;
                 if (breakAnywhere && lineHasContent && x + w > width)
                     FinishLine();
                 layout.Glyphs.Add(new RichBlock.Glyph { CharIndex = runOffsets[unit.Run] + i, Length = l, Line = lineIndex, X = x, W = w, Size = size });
@@ -502,7 +567,7 @@ public static unsafe class RichText
                 X = block.Runs[run].Chip
                     ? FindDecorationX(layout, run, glyph.Line, glyph.X)
                     : block.Runs[run].Ruby is not null
-                        ? CenteredRubyBaseX(layout, block.Runs[run], run, glyph.Line, glyph.X, font, fontId, glyph.Size)
+                        ? CenteredRubyBaseX(layout, block.Runs[run], run, glyph.Line, glyph.X, glyph.Size)
                         : glyph.X,
                 Size = glyph.Size,
                 CharStart = glyph.CharIndex,
@@ -515,12 +580,12 @@ public static unsafe class RichText
         return layout;
     }
 
-    private static float CenteredRubyBaseX(RichBlock.Layout layout, RichRun run, int runIndex, int line, float fallback, ImFontPtr font, nint fontId, float size)
+    private static float CenteredRubyBaseX(RichBlock.Layout layout, RichRun run, int runIndex, int line, float fallback, float size)
     {
         foreach (var d in layout.Decorations)
         {
             if (d.Run == runIndex && d.Line == line)
-                return d.X + (d.W - Measure(font, fontId, size, run.Text)) * 0.5f;
+                return d.X + (d.W - Measure(Sized(size).Font, size, run.Text)) * 0.5f;
         }
 
         return fallback;
