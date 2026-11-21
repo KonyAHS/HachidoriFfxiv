@@ -149,6 +149,64 @@ public static unsafe class RichText
     /// <summary>Links in popups follow the popup theme; elsewhere the default.</summary>
     public static uint LinkColor { get; set; } = DefaultLinkColor;
 
+    private static uint contrastBackground;
+    private static uint contrastText;
+    private static readonly Dictionary<uint, uint> Readable = new();
+
+    /// <summary>
+    /// The opaque background (ABGR) explicit text colours must stay readable on, and the colour
+    /// to pull them towards; 0 turns the check off. Dictionaries pick colours for one background
+    /// (usually dark), which can vanish on another theme's.
+    /// </summary>
+    public static void SetContrast(uint background, uint text)
+    {
+        if (background == contrastBackground && text == contrastText)
+            return;
+        contrastBackground = background;
+        contrastText = text;
+        Readable.Clear();
+    }
+
+    public static (uint Background, uint Text) Contrast => (contrastBackground, contrastText);
+
+    private const float MinimumContrast = 4.5f; // WCAG AA for body text
+
+    /// <summary>The colour, moved towards the theme's text colour until it reads on the background.</summary>
+    public static uint ReadableColor(uint color)
+    {
+        if (contrastBackground == 0 || color == 0)
+            return color;
+        if (Readable.TryGetValue(color, out var cached))
+            return cached;
+        var result = color;
+        for (var step = 1; step <= 10 && ContrastRatio(result, contrastBackground) < MinimumContrast; step++)
+            result = Lerp(color, contrastText, step / 10f);
+        if (Readable.Count > 512)
+            Readable.Clear();
+        return Readable[color] = result;
+    }
+
+    private static float Channel(uint abgr, int shift)
+    {
+        var c = ((abgr >> shift) & 255) / 255f;
+        return c <= 0.03928f ? c / 12.92f : MathF.Pow((c + 0.055f) / 1.055f, 2.4f);
+    }
+
+    private static float Luminance(uint abgr) => 0.2126f * Channel(abgr, 0) + 0.7152f * Channel(abgr, 8) + 0.0722f * Channel(abgr, 16);
+
+    private static float ContrastRatio(uint a, uint b)
+    {
+        var la = Luminance(a);
+        var lb = Luminance(b);
+        return (MathF.Max(la, lb) + 0.05f) / (MathF.Min(la, lb) + 0.05f);
+    }
+
+    private static uint Lerp(uint a, uint b, float t)
+    {
+        uint Mix(int shift) => (uint)MathF.Round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t) << shift;
+        return Mix(0) | Mix(8) | Mix(16) | (a & 0xFF000000);
+    }
+
     /// <summary>Sets the sized fonts for each base font; a change invalidates cached layouts and advances.</summary>
     public static void SetFontLadders(Dictionary<nint, SizedFontRung[]> next)
     {
@@ -272,7 +330,7 @@ public static unsafe class RichText
             var line = layout.Lines[seg.Line];
             var y = origin.Y + line.Top + line.RubyHeight + (line.Height - line.RubyHeight - seg.Size) * 0.6f;
             var pos = new Vector2(origin.X + seg.X + (run.Chip ? seg.Size * ChipPadEm : 0), y);
-            var color = run.Color != 0 ? run.Color : run.Link ? LinkColor : textColor;
+            var color = run.Color != 0 ? (run.Chip ? run.Color : ReadableColor(run.Color)) : run.Link ? ReadableColor(LinkColor) : textColor;
             var text = scan.Substring(seg.CharStart, seg.CharEnd - seg.CharStart);
             var segFont = Sized(seg.Size).Font;
             drawList.AddText(segFont, seg.Size, pos, color, text);
@@ -304,7 +362,7 @@ public static unsafe class RichText
             var rubyWidth = Measure(rubyFont, rubySize, run.Ruby);
             var x = origin.X + deco.X + (deco.W - rubyWidth) * 0.5f;
             var baseTop = origin.Y + line.Top + line.RubyHeight + (line.Height - line.RubyHeight - deco.Size) * 0.6f;
-            drawList.AddText(rubyFont, rubySize, new Vector2(x, baseTop - rubySize * 1.05f), run.RubyColor != 0 ? run.RubyColor : run.Color != 0 ? run.Color : textColor, run.Ruby);
+            drawList.AddText(rubyFont, rubySize, new Vector2(x, baseTop - rubySize * 1.05f), ReadableColor(run.RubyColor != 0 ? run.RubyColor : run.Color) is var ruby && ruby != 0 ? ruby : textColor, run.Ruby);
         }
 
         var size = new Vector2(width, layout.Height + block.MarginTopEm * baseSize);

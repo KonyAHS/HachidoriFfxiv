@@ -27,6 +27,11 @@ internal sealed class PopupWindowScope : IDisposable
                 var previousLink = RichText.LinkColor;
                 RichText.LinkColor = theme.IsPlugin ? RichText.DefaultLinkColor : CssColor.ToAbgr(theme.Link);
                 cleanup.Push(() => RichText.LinkColor = previousLink);
+                // Dictionary colours must stay readable on this theme's background.
+                var previousContrast = RichText.Contrast;
+                var background = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg] with { W = 1 };
+                RichText.SetContrast(CssColor.ToAbgr(background), ImGui.GetColorU32(ImGuiCol.Text) | 0xFF000000);
+                cleanup.Push(() => RichText.SetContrast(previousContrast.Background, previousContrast.Text));
             }
             // Draw order alone does not change ImGui's persistent window order.
             // Keep definitions over the reader without stealing keyboard focus.
