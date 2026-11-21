@@ -81,7 +81,7 @@ float MeasureChat(ReadOnlySpan<byte> bytes)
 }
 
 byte[] chatText = [.."隠\r"u8, 0x02, (byte)MacroCode.Icon, 0x02, 0x02, 0x03, .."冒険\rabc\r\n者𠮷\r"u8];
-var chatParts = NativeChatLayout.Build(chatText, 40, 54, 0, 12, 18, MeasureChat);
+var chatParts = NativeChatLayout.Build(chatText, 40, 54, 0, 18, 18, bottomAligned: true, MeasureChat);
 Check(chatParts.Count == 2 && chatParts[0].Text == "冒険" && chatParts[1].Text == "者𠮷",
     "chat shows the newest rows in the scrolled buffer and ignores the final row terminator");
 Check(chatParts[0].Layout.Hit(new(5, 4)) is null && chatParts[0].Layout.Hit(new(18, 4))?.Index == 0,
@@ -90,14 +90,19 @@ Check(chatParts[1].Layout.Hit(new(15, 40))?.Index == 1 && chatParts[0].Layout.Hi
     "chat message offsets are local and keep their on-screen position");
 byte[] mixedChat = [.."古い台詞\r　続き\rエスティニアン：冒険\r[CWLS1]<Player"u8,
     0x02, (byte)MacroCode.Icon, 0x02, 0x02, 0x03, .."World> こんにちは\r"u8];
-var mixedChatParts = NativeChatLayout.Build(mixedChat, 400, 29, 0, 12, 18, MeasureChat);
+var mixedChatParts = NativeChatLayout.Build(mixedChat, 400, 29, 0, 18, 18, bottomAligned: true, MeasureChat);
 Check(mixedChatParts.Count == 2 && mixedChatParts[0].Text.StartsWith("エスティニアン", StringComparison.Ordinal)
-    && mixedChatParts[0].Layout.Hit(new(5, 4))?.Index == 0
+    && mixedChatParts[0].Layout.HitScreen(new(5, 4), Vector2.Zero, Vector2.One, Vector2.Zero, new(400, 29)) is { Index: 0, Min.Y: 0, Max.Y: 11 }
     && mixedChatParts[1].Layout.HitScreen(new(229, 26), Vector2.Zero, Vector2.One, Vector2.Zero, new(400, 29))?.Index
         == mixedChatParts[1].Text.IndexOf('こ')
     && mixedChatParts[1].Layout.HitScreen(new(229, 29), Vector2.Zero, Vector2.One, Vector2.Zero, new(400, 29)) is null,
-    "NPC dialogue and linkshell hitboxes stay on their visible rows when the bottom row is clipped");
-var sparseChat = NativeChatLayout.Build("冒険\r\r続き"u8, 40, 72, 0, 12, 18, MeasureChat);
+    "live chat clips the first visible row and keeps linkshell text aligned at the bottom");
+var scrolledChat = NativeChatLayout.Build(mixedChat, 400, 29, 0, 18, 18, bottomAligned: false, MeasureChat);
+Check(scrolledChat.Count == 2 && scrolledChat[0].Text == "古い台詞"
+    && scrolledChat[0].Layout.Hit(new(5, 4))?.Index == 0 && scrolledChat[1].Text == "　続き"
+    && scrolledChat[1].Layout.HitScreen(new(15, 28), Vector2.Zero, Vector2.One, Vector2.Zero, new(400, 29)) is { Index: 1, Max.Y: 29 },
+    "scrolling into history shows the first buffered rows and clips the last visible row");
+var sparseChat = NativeChatLayout.Build("冒険\r\r続き"u8, 40, 72, 0, 12, 18, bottomAligned: false, MeasureChat);
 Check(sparseChat.Count == 2 && sparseChat[0].Layout.Hit(new(5, 4))?.Index == 0
     && sparseChat[1].Layout.Hit(new(5, 40))?.Index == 0,
     "chat preserves interior blank rows and the final row without a terminator");
