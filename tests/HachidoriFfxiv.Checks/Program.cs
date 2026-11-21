@@ -79,14 +79,27 @@ float MeasureChat(ReadOnlySpan<byte> bytes)
     return width;
 }
 
-byte[] chatText = [0x02, (byte)MacroCode.Icon, 0x02, 0x02, 0x03, .."冒険\rabc\r\n者𠮷\r隠"u8];
+byte[] chatText = [.."隠\r"u8, 0x02, (byte)MacroCode.Icon, 0x02, 0x02, 0x03, .."冒険\rabc\r\n者𠮷\r"u8];
 var chatParts = NativeChatLayout.Build(chatText, 40, 54, 0, 12, 18, MeasureChat);
 Check(chatParts.Count == 2 && chatParts[0].Text == "冒険" && chatParts[1].Text == "者𠮷",
-    "chat targets use the game's row breaks and exclude rows outside the node");
+    "chat shows the newest rows in the scrolled buffer and ignores the final row terminator");
 Check(chatParts[0].Layout.Hit(new(5, 4)) is null && chatParts[0].Layout.Hit(new(18, 4))?.Index == 0,
     "an inline chat icon occupies screen space without creating a lookup target");
 Check(chatParts[1].Layout.Hit(new(15, 40))?.Index == 1 && chatParts[0].Layout.Hit(new(15, 40)) is null,
     "chat message offsets are local and keep their on-screen position");
+byte[] mixedChat = [.."古い台詞\r　続き\rエスティニアン：冒険\r[CWLS1]<Player"u8,
+    0x02, (byte)MacroCode.Icon, 0x02, 0x02, 0x03, .."World> こんにちは\r"u8];
+var mixedChatParts = NativeChatLayout.Build(mixedChat, 400, 29, 0, 12, 18, MeasureChat);
+Check(mixedChatParts.Count == 2 && mixedChatParts[0].Text.StartsWith("エスティニアン", StringComparison.Ordinal)
+    && mixedChatParts[0].Layout.Hit(new(5, 4))?.Index == 0
+    && mixedChatParts[1].Layout.HitScreen(new(229, 26), Vector2.Zero, Vector2.One, Vector2.Zero, new(400, 29))?.Index
+        == mixedChatParts[1].Text.IndexOf('こ')
+    && mixedChatParts[1].Layout.HitScreen(new(229, 29), Vector2.Zero, Vector2.One, Vector2.Zero, new(400, 29)) is null,
+    "NPC dialogue and linkshell hitboxes stay on their visible rows when the bottom row is clipped");
+var sparseChat = NativeChatLayout.Build("冒険\r\r続き"u8, 40, 72, 0, 12, 18, MeasureChat);
+Check(sparseChat.Count == 2 && sparseChat[0].Layout.Hit(new(5, 4))?.Index == 0
+    && sparseChat[1].Layout.Hit(new(5, 40))?.Index == 0,
+    "chat preserves interior blank rows and the final row without a terminator");
 
 var mineRequest = new JsonObject { ["captureUnavailable"] = new JsonArray("screenshot", "sentence-audio", "gif") };
 var submit = HachidoriPayloads.Submit(mineRequest);

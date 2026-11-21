@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using HachidoriFfxiv.Hachidori;
 using Lumina.Text.Payloads;
@@ -11,8 +10,8 @@ namespace HachidoriFfxiv.Rendering;
 
 internal static class NativeChatLayout
 {
-    // The log viewer has already wrapped and scrolled this buffer. Keep the encoded
-    // prefixes for measurement, and map only their text characters to lookup offsets.
+    // The log viewer has already wrapped the text and chosen the scroll position.
+    // The node buffer can still include older rows above the visible window.
     public static IReadOnlyList<(string Text, NativeTextLayout Layout)> Build(ReadOnlySpan<byte> text,
         float width, float height, int alignment, float glyphHeight, float lineAdvance,
         Func<ReadOnlySpan<byte>, float> measure)
@@ -50,13 +49,17 @@ internal static class NativeChatLayout
                 plain.Append(utf16[..rune.EncodeToUtf16(utf16)]);
             }
         }
-        EndLine(text.Length, text.Length);
+        if (lineStart < text.Length)
+            EndLine(text.Length, text.Length);
 
         var parts = new List<(string, NativeTextLayout)>();
-        var contentHeight = glyphHeight + (lines.Count - 1) * lineAdvance;
+        // The game draws the last rows from the top of the node, including a
+        // partially visible bottom row. The final separator just ends the last row.
+        var visibleCount = Math.Min(lines.Count, (int)Math.Ceiling(height / lineAdvance));
+        var contentHeight = glyphHeight + (visibleCount - 1) * lineAdvance;
         var y = Math.Max(0, height - contentHeight) * Math.Clamp(alignment / 3, 0, 2) / 2f;
         var horizontal = Math.Clamp(alignment % 3, 0, 2);
-        foreach (var line in lines)
+        foreach (var line in lines.Skip(lines.Count - visibleCount))
         {
             if (y >= height) break;
             if (line.Text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value)))
