@@ -54,10 +54,10 @@ public sealed class PopupManager : IDisposable
         NpcImages.Dispose();
     }
 
-    internal sealed record PendingHit(TextHit Hit, int Depth, ScanContext Context, bool Kanji, int? TokenEnd = null);
+    internal sealed record PendingHit(TextHit Hit, int Depth, ScanContext Context, bool Kanji, int? TokenEnd = null, bool KeepPrevious = true);
 
     /// <summary>A text area reports the hovered character. Depth is 0 outside popups, N+1 inside popup N.</summary>
-    public void Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context = null)
+    public void Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context = null, bool keepPrevious = true)
     {
         if (hit is not { } h)
             return;
@@ -77,7 +77,7 @@ public sealed class PopupManager : IDisposable
             }
         }
         var ctx = context?.Invoke(h.Block, h.CharIndex) ?? new ScanContext(h.Block.ScanText, h.CharIndex, config.DocumentTitle);
-        frameHit = new PendingHit(h, depth, ctx, false, tokenEnd);
+        frameHit = new PendingHit(h, depth, ctx, false, tokenEnd, keepPrevious);
     }
 
     /// <summary>Opens a popup for a query from a command or a button, anchored at the mouse.</summary>
@@ -231,7 +231,7 @@ public sealed class PopupManager : IDisposable
             // Keep showing the previous result at this spot until the new one arrives (no flicker).
             var replacement = new PopupLayer(hit, query, hit.Kanji ? service.KanjiAsync(query[..Math.Min(query.Length, char.IsHighSurrogate(query[0]) ? 2 : 1)]) : service.LookupAsync(query))
             {
-                Previous = previous.Visible ? previous : null,
+                Previous = hit.KeepPrevious && previous.Visible ? previous : null,
             };
             layers.Add(replacement);
             return;

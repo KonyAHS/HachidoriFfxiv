@@ -24,7 +24,9 @@ namespace HachidoriFfxiv.Capture;
 public sealed unsafe class NativeTextHover : IDisposable
 {
     private sealed record Part(RichBlock Block, NativeTextLayout Layout);
-    private sealed record Cached(string Signature, Part[] Parts);
+    private readonly record struct TextStyle(ushort Width, ushort Height, byte FontSize, byte AlignmentFontType,
+        byte LineSpacing, byte CharSpacing, TextFlags Flags);
+    private sealed record Cached(TextStyle Style, byte[] Raw, Part[] Parts);
     private sealed record Region(string Addon, Part Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale);
     private readonly Configuration config;
     private readonly Dictionary<nint, Cached> cache = new();
@@ -194,26 +196,36 @@ public sealed unsafe class NativeTextHover : IDisposable
             var raw = node->NodeText.AsSpan();
             var chat = IsChat(name);
             if (raw.Length == 0 || raw.Length > (chat ? 65536 : 16384)) return;
-            // NodeText already contains the game's applied line flow. Preserve newlines
-            // and UTF-16 offsets so highlighting and Anki matchOffset use the same text.
-            var text = SeString.Parse(raw).TextValue;
-            if (text.Length == 0 || text.Length > (chat ? 16384 : 2048) || !text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value))) return;
-            var signature = $"{node->Width}|{node->Height}|{node->FontSize}|{node->AlignmentFontType}|{node->LineSpacing}|{node->CharSpacing}|{node->TextFlags}|{text}";
+            var style = new TextStyle(node->Width, node->Height, node->FontSize, node->AlignmentFontType,
+                node->LineSpacing, node->CharSpacing, node->TextFlags);
             var key = (nint)node;
             seen.Add(key);
-            if (!cache.TryGetValue(key, out var cached) || cached.Signature != signature)
+            if (!cache.TryGetValue(key, out var cached) || cached.Style != style || !raw.SequenceEqual(cached.Raw))
             {
                 // Use the game's own font measurement, never an approximate ImGui font.
-                var glyphHeight = Measure(node, "国").Y;
+                var glyphHeight = Measure(node, "国"u8).Y;
                 if (glyphHeight <= 0) return;
-                var advance = Measure(node, "国\n国").Y - glyphHeight;
+                var advance = Measure(node, chat ? "国\r国"u8 : "国\n国"u8).Y - glyphHeight;
                 if (advance <= 0) advance = Math.Max(node->FontSize, node->LineSpacing);
-                var layout = NativeTextLayout.Build(text, node->Width, node->Height, (int)node->AlignmentType,
-                    glyphHeight, advance, (node->TextFlags & TextFlags.WordWrap) != 0, prefix => Measure(node, prefix));
-                Part[] parts = chat
-                    ? layout.SplitLines(text).Where(p => p.Text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value))).Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray()
-                    : [new Part(new RichBlock().Add(text), layout)];
-                cached = new Cached(signature, parts);
+                Part[] parts = [];
+                if (chat)
+                {
+                    parts = NativeChatLayout.Build(raw, style.Width, style.Height, (int)node->AlignmentType,
+                        glyphHeight, advance, prefix => Measure(node, prefix).X)
+                        .Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray();
+                }
+                else
+                {
+                    var text = SeString.Parse(raw).TextValue;
+                    if (text.Length is > 0 and <= 2048 && text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value)))
+                    {
+                        var layout = NativeTextLayout.Build(text, style.Width, style.Height, (int)node->AlignmentType,
+                            glyphHeight, advance, (style.Flags & TextFlags.WordWrap) != 0,
+                            prefix => Measure(node, Encoding.UTF8.GetBytes(prefix)));
+                        parts = [new Part(new RichBlock().Add(text), layout)];
+                    }
+                }
+                cached = new Cached(style, raw.ToArray(), parts);
                 cache[key] = cached;
             }
             var scale = new Vector2((max.X - min.X) / node->Width, (max.Y - min.Y) / node->Height);
@@ -245,9 +257,11 @@ public sealed unsafe class NativeTextHover : IDisposable
         return true;
     }
 
-    private static Vector2 Measure(AtkTextNode* node, string text)
+    private static Vector2 Measure(AtkTextNode* node, ReadOnlySpan<byte> text)
     {
-        var bytes = Encoding.UTF8.GetBytes(text + '\0');
+        Span<byte> bytes = text.Length < 1024 ? stackalloc byte[text.Length + 1] : new byte[text.Length + 1];
+        text.CopyTo(bytes);
+        bytes[^1] = 0;
         ushort width = 0, height = 0;
         fixed (byte* pointer = bytes)
             node->GetTextDrawSize(&width, &height, pointer);
@@ -292,7 +306,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                     // The game draws the name in Latin letters; the sentence Hachidori gets uses katakana.
                     var sentence = NameKana.Apply(block.ScanText, PlayerName.Replacements(config), ref index);
                     return new ScanContext(sentence, index, $"{config.DocumentTitle} — {region.Addon}");
-                });
+                }, keepPrevious: !IsChat(region.Addon));
             return;
         }
     }
