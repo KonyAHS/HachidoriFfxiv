@@ -96,7 +96,7 @@ internal static class OfflineChecks
 
     private static void CheckEngine(Action<bool, string> check, NativeEngine native, string package)
     {
-        var engine = new LocalEngine(native, KanjiFurigana.Shared);
+        var engine = new LocalEngine(native, () => KanjiFurigana.Shared);
         var dictionary = new LocalDictionary("ffxiv", DictionaryTitle, package, true, 1, 0, 0, 0);
         engine.Load([dictionary, dictionary with { Id = "missing", Path = package + "-missing" }]);
         check(engine.Loaded.Count == 1 && engine.Failures.Single().Dictionary.Id == "missing" && engine.DictionaryCount == 1,

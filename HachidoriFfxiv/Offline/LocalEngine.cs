@@ -40,10 +40,11 @@ public sealed class LocalEngine : IDisposable
     private const int MaxLookupTextBytes = 4 * 1024;
 
     private readonly NativeEngine native;
-    private readonly KanjiFurigana? furigana;
+    private readonly Func<KanjiFurigana>? furigana;
     private Dictionary<string, Dictionary<string, JsonObject>>? tagBanks;
 
-    public LocalEngine(NativeEngine native, KanjiFurigana? furigana = null)
+    /// <param name="furigana">The reading tables, asked for at the first lookup (parsing them takes a moment).</param>
+    public LocalEngine(NativeEngine native, Func<KanjiFurigana>? furigana = null)
     {
         this.native = native;
         this.furigana = furigana;
@@ -241,10 +242,10 @@ public sealed class LocalEngine : IDisposable
 
     private void WithFurigana(JsonArray results)
     {
-        if (furigana is null) return;
+        if (furigana?.Invoke() is not { } tables) return;
         foreach (var term in results.Select(r => r?["term"]).OfType<JsonObject>())
         {
-            if (furigana.For(Text(term["expression"]), Text(term["reading"])) is not { } split) continue;
+            if (tables.For(Text(term["expression"]), Text(term["reading"])) is not { } split) continue;
             term["furigana"] = new JsonArray(split.Select(s => (JsonNode)new JsonObject { ["text"] = s.Text, ["reading"] = s.Reading }).ToArray());
         }
     }

@@ -73,7 +73,7 @@ Console.WriteLine($"Sync: {synced} in {watch.Elapsed.TotalSeconds:0.0} s; {offli
 foreach (var skip in synced.Skipped) Console.WriteLine($"  skipped {skip.Title}: {skip.Reason}");
 foreach (var folder in synced.Retired) OfflineStore.TryDelete(folder);
 
-var engine = new LocalEngine(native, KanjiFurigana.Shared);
+var engine = new LocalEngine(native, () => KanjiFurigana.Shared);
 watch.Restart();
 engine.Load(OfflinePlan.For(offlineStore, link.Snapshot));
 Console.WriteLine($"Loaded {engine.Loaded.Count} dictionaries ({engine.DictionaryCount} kinds) in {watch.ElapsedMilliseconds} ms.");

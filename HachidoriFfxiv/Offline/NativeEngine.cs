@@ -77,7 +77,14 @@ public sealed unsafe class NativeEngine : IDisposable
 
     public string LastError
     {
-        get { lock (Gate) return Utf8(lastError()); }
+        get
+        {
+            lock (Gate)
+            {
+                ThrowIfDisposed();
+                return Utf8(lastError());
+            }
+        }
     }
 
     public void Reset()

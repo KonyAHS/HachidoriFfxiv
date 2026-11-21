@@ -25,10 +25,14 @@ public sealed class OfflineMode : IDisposable
     private readonly HachidoriLink link;
     private readonly string libraryDirectory;
     private readonly HttpClient http = new() { Timeout = Timeout.InfiniteTimeSpan };
+    // Loading the DLL and loading dictionaries are guarded apart: the draw thread
+    // asks whether the engine exists every frame and must not wait for a load.
+    private readonly object engineGate = new();
     private readonly object gate = new();
     private readonly CancellationTokenSource lifetime = new();
     private NativeEngine? native;
-    private LocalEngine? engine;
+    private volatile LocalEngine? engine;
+    private volatile string? engineError;
     private bool loaded;
     private string? loadedState;
     private CancellationTokenSource? pendingSave;
@@ -60,7 +64,7 @@ public sealed class OfflineMode : IDisposable
     /// <summary>Set up, with dictionaries on disk and an engine that loads.</summary>
     public bool Ready => Enabled && Store.HasDictionaries && Engine() is not null;
 
-    public string? EngineError { get; private set; }
+    public string? EngineError => engineError;
 
     public string? LastSyncError { get; private set; }
 
@@ -76,20 +80,22 @@ public sealed class OfflineMode : IDisposable
 
     private LocalEngine? Engine()
     {
-        lock (gate)
+        if (engine is { } ready) return ready;
+        if (engineError is not null || lifetime.IsCancellationRequested) return null;
+        lock (engineGate)
         {
-            if (engine is not null || EngineError is not null) return engine;
+            if (engine is not null || engineError is not null) return engine;
             try
             {
                 native = NativeEngine.LoadFrom(libraryDirectory);
-                engine = new LocalEngine(native, KanjiFurigana.Shared);
+                engine = new LocalEngine(native, () => KanjiFurigana.Shared);
                 DiagnosticLog.Write("offline", $"Loaded {native.Version.Short}.");
             }
             catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException
                                            or InvalidOperationException or OfflineEngineException or IOException)
             {
-                EngineError = $"The offline engine could not load: {ex.Message}";
-                DiagnosticLog.Write("offline", EngineError);
+                engineError = $"The offline engine could not load: {ex.Message}";
+                DiagnosticLog.Write("offline", engineError);
             }
             return engine;
         }
@@ -268,6 +274,7 @@ public sealed class OfflineMode : IDisposable
         lifetime.Cancel();
         try { syncTask?.Wait(TimeSpan.FromSeconds(5)); }
         catch (AggregateException) { }
+        lock (engineGate)
         lock (gate)
         {
             engine?.Dispose();
