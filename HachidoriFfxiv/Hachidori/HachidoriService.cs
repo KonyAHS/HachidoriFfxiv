@@ -26,6 +26,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     private readonly ConcurrentDictionary<string, Task<IReadOnlyList<WordSpan>>> segmentCache = new();
     private readonly LiveBackend live;
     private readonly LocalBackend? local;
+    private readonly Anki.OfflineAnkiMiner? offlineAnki;
 
     /// <param name="offlineRoot">Where offline mode keeps its copy; null leaves offline mode out.</param>
     /// <param name="libraryDirectory">The folder holding hdw_native.dll.</param>
@@ -42,6 +43,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
             Offline = new OfflineMode(config, Link, offlineRoot, libraryDirectory);
             Offline.Changed += ClearCache;
             local = new LocalBackend(Offline, http, () => Options);
+            offlineAnki = new Anki.OfflineAnkiMiner(() => Snapshot, Offline.Loaded, http);
         }
     }
 
@@ -185,13 +187,11 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     public sealed record AnkiStatus(bool Available, string? ConfigKey, string? Error);
 
-    public const string OfflineMiningMessage =
-        "Anki mining needs Hachidori in Chrome. Offline mode covers lookups only; open Chrome to add notes.";
-
     public async Task<AnkiStatus> AnkiStatusAsync()
     {
-        if (UsingOffline)
-            return new AnkiStatus(false, null, OfflineMiningMessage);
+        // Offline, the plugin renders the note from the saved Template and writes it through AnkiConnect.
+        if (UsingOffline && offlineAnki is not null)
+            return await offlineAnki.StatusAsync(NullIfBlank(config.AnkiTemplateId)).ConfigureAwait(false);
         var payload = new JsonObject();
         if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId))
             payload["templateId"] = config.AnkiTemplateId;
@@ -248,8 +248,12 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         return request;
     }
 
+    private static string? NullIfBlank(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
     public async Task<AnkiDecision> AnkiPreflightAsync(JsonObject request)
     {
+        if (UsingOffline && offlineAnki is not null)
+            return await offlineAnki.PreflightAsync(request).ConfigureAwait(false);
         var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_preflight", new JsonObject { ["request"] = request.DeepClone() })
             .ConfigureAwait(false);
         return ParseDecision(reply);
@@ -257,6 +261,8 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     public async Task<AnkiDecision> AnkiSubmitAsync(JsonObject request, Media.ScreenshotMedia? screenshot = null)
     {
+        if (UsingOffline && offlineAnki is not null)
+            return await offlineAnki.SubmitAsync(request, screenshot).ConfigureAwait(false);
         DiagnosticLog.Write("anki", $"Submitting note with explicit client-media envelope (screenshot={screenshot is not null}).");
         var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_submit", HachidoriPayloads.Submit(request, screenshot))
             .ConfigureAwait(false);
@@ -265,6 +271,11 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     public async Task AnkiBrowseAsync(long[] noteIds, string expression, string? configKey)
     {
+        if (UsingOffline && offlineAnki is not null)
+        {
+            await offlineAnki.BrowseAsync(noteIds, expression, NullIfBlank(config.AnkiTemplateId)).ConfigureAwait(false);
+            return;
+        }
         var request = new JsonObject
         {
             ["noteIds"] = new JsonArray(noteIds.Select(id => (JsonNode?)id).ToArray()),
@@ -322,6 +333,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     {
         Link.SnapshotChanged -= ClearCache;
         Link.ConnectionChanged -= OnConnectionChanged;
+        offlineAnki?.Dispose();
         Offline?.Dispose();
         Link.Dispose();
         http.Dispose();

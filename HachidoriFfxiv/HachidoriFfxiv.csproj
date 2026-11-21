@@ -21,6 +21,8 @@
     <EmbeddedResource Include="Themes\*.css" LogicalName="HachidoriFfxiv.Themes.%(Filename).css" />
     <!-- KANJIDIC and Jitendex kanwa readings for offline furigana, as Hachidori bundles them. -->
     <EmbeddedResource Include="Offline\Data\*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />
+    <!-- Yomitan's structured-content class styles, inlined into offline Anki glossaries. -->
+    <EmbeddedResource Include="Anki\Data\*.json" LogicalName="HachidoriFfxiv.Anki.%(Filename).json" />
   </ItemGroup>
 
   <ItemGroup>

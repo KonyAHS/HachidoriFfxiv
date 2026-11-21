@@ -70,6 +70,9 @@ public sealed class KanjiFurigana
 
     // ------------------------------------------------------------ distribute
 
+    /// <summary>distributeFurigana without kanji readings: null where no split, or more than one, spells the reading.</summary>
+    public static IReadOnlyList<FuriganaSegment>? Distribute(string expression, string reading) => DistributeFurigana(expression, reading, null);
+
     private sealed class Group(bool isKana, string text)
     {
         public bool IsKana { get; } = isKana;

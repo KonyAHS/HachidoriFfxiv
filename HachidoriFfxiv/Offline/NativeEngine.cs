@@ -28,6 +28,7 @@ public sealed unsafe class NativeEngine : IDisposable
     private readonly delegate* unmanaged[Cdecl]<byte*, int, byte*, byte*> segment;
     private readonly delegate* unmanaged[Cdecl]<byte*, byte*> kanji;
     private readonly delegate* unmanaged[Cdecl]<byte*> tags;
+    private readonly delegate* unmanaged[Cdecl]<byte*> styles;
     private readonly delegate* unmanaged[Cdecl]<byte*, byte*, int> media;
     private readonly delegate* unmanaged[Cdecl]<byte*> mediaData;
     private readonly delegate* unmanaged[Cdecl]<byte*> version;
@@ -48,6 +49,7 @@ public sealed unsafe class NativeEngine : IDisposable
             segment = (delegate* unmanaged[Cdecl]<byte*, int, byte*, byte*>)Export("hdw_segment");
             kanji = (delegate* unmanaged[Cdecl]<byte*, byte*>)Export("hdw_kanji");
             tags = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_tags");
+            styles = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_styles");
             media = (delegate* unmanaged[Cdecl]<byte*, byte*, int>)Export("hdw_media");
             mediaData = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_media_data");
             version = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_native_version");
@@ -154,6 +156,9 @@ public sealed unsafe class NativeEngine : IDisposable
         });
 
     public string Tags() => Call("hdw_tags", () => Utf8(tags()));
+
+    /// <summary>The loaded dictionaries' stylesheets: <c>[{dictionary, styles}]</c>.</summary>
+    public string Styles() => Call("hdw_styles", () => Utf8(styles()));
 
     /// <summary>A media file out of a loaded dictionary's media.bin, by dictionary title; null when absent.</summary>
     public byte[]? Media(string dictionary, string path) =>

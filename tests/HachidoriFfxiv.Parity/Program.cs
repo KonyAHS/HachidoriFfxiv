@@ -15,6 +15,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using HachidoriFfxiv.Anki;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Offline;
 
@@ -115,6 +116,70 @@ T Local<T>(Func<T> call)
     localMs += timer.Elapsed.TotalMilliseconds;
     return reply;
 }
+
+if (args.Contains("--anki"))
+{
+    // Note fields: Hachidori's own renderer through the relay's /ankiFields (it writes
+    // nothing to Anki) against the offline renderer, for the same lookup results.
+    var markers = AnkiFields.CoreMarkers.Where(m => m is not ("audio" or "pitch-accent-graphs" or "pitch-accent-graphs-jj")).ToArray();
+    var rows = OfflineSync.SnapshotRows(link.Snapshot).Values.ToList();
+    var words = linesFile is not null ? lines : new[]
+    {
+        "冒険者", "食べられなかった", "分かりません", "アルフィノ", "暁の血盟", "見る", "日本", "溺れる", "羽織る", "行ってきます",
+        "大丈夫", "申し訳", "蛮神", "クリスタル", "思い出す", "おるまい", "した", "可愛い", "勉強", "世界",
+    };
+    int fieldsCompared = 0, fieldDiffs = 0, styleOnly = 0;
+    foreach (var word in words)
+    {
+        var body = new JsonObject { ["text"] = word, ["type"] = "term", ["markers"] = new JsonArray(markers.Select(m => (JsonNode?)m).ToArray()),
+            ["maxEntries"] = 4, ["includeMedia"] = false };
+        using var posted = await http.PostAsync("http://127.0.0.1:19633/ankiFields", new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
+        var liveFields = (JsonNode.Parse(await posted.Content.ReadAsStringAsync())?["fields"] as JsonArray ?? []).OfType<JsonObject>().ToList();
+        var results = (engine.Lookup(new JsonObject { ["text"] = word, ["maxResults"] = 4 })["results"] as JsonArray ?? []).OfType<JsonObject>().ToList();
+        var templates = markers.ToDictionary(m => m, m => new FieldTemplate($"{{{m}}}"));
+        for (var i = 0; i < Math.Min(results.Count, liveFields.Count); i++)
+        {
+            var request = (JsonObject)results[i].DeepClone();
+            foreach (var group in (request["term"]?["frequencies"] as JsonArray ?? []).OfType<JsonObject>())
+                group["frequencyMode"] = rows.FirstOrDefault(r => r["title"]?.ToString() == group["dictionary"]?.ToString())?["frequencyMode"]?.DeepClone();
+            request["generation"] = engine.Generation;
+            request["sentence"] = word;
+            request["matchOffset"] = 0;
+            request["searchQuery"] = word;
+            request["popupSelectionText"] = "";
+            request["documentTitle"] = "";
+            request["dictionaryAliases"] = new JsonObject(rows.Where(r => r["displayName"]?.ToString() is { Length: > 0 })
+                .Select(r => KeyValuePair.Create(r["title"]!.ToString(), (JsonNode?)r["displayName"]!.ToString())));
+            request["dictionaryIds"] = new JsonObject(rows.Select(r => KeyValuePair.Create(r["title"]!.ToString(), r["id"]?.DeepClone())));
+            request["frequencyDictionaries"] = new JsonArray(rows.Where(r => r["enabled"]?.ToString() != "false" && (r["frequencyCount"]?.GetValue<double>() ?? 0) > 0)
+                .Select(r => (JsonNode?)r["title"]!.ToString()).ToArray());
+            var offline = AnkiNoteRenderer.RenderFields(link.Snapshot, request, templates, "", engine, [], splitSentence: false);
+            foreach (var marker in markers)
+            {
+                fieldsCompared++;
+                var live = liveFields[i][marker]?.ToString() ?? "";
+                var mine = offline.GetValueOrDefault(marker, "");
+                if (live == mine) continue;
+                if (WithoutStyles(live) == WithoutStyles(mine))
+                {
+                    styleOnly++;
+                    if (verbose) Console.WriteLine($"STYLE {word}[{i}] {{{marker}}}\n  live:    {StyleText(live)}\n  offline: {StyleText(mine)}");
+                    continue;
+                }
+                fieldDiffs++;
+                var at = Enumerable.Range(0, Math.Min(live.Length, mine.Length)).FirstOrDefault(k => live[k] != mine[k], Math.Min(live.Length, mine.Length));
+                var from = Math.Max(0, at - 80);
+                Console.WriteLine($"DIFF {word}[{i}] {{{marker}}} at {at}\n  live:    …{live[from..Math.Min(live.Length, at + 160)]}\n  offline: …{mine[from..Math.Min(mine.Length, at + 160)]}");
+            }
+        }
+        if (results.Count != liveFields.Count) Console.WriteLine($"COUNT {word}: live {liveFields.Count} results, offline {results.Count}");
+    }
+    Console.WriteLine($"{fieldsCompared} fields compared, {fieldDiffs} differ, {styleOnly} differ only inside dictionary <style> (CSSOM serialization, random prefix).");
+    return fieldDiffs == 0 ? 0 : 1;
+}
+
+static string WithoutStyles(string html) => System.Text.RegularExpressions.Regex.Replace(html, @"<style[^>]*>[\s\S]*?</style>", "<style/>");
+static string StyleText(string html) => string.Join("\n", System.Text.RegularExpressions.Regex.Matches(html, @"<style[^>]*>([\s\S]*?)</style>").Select(m => m.Groups[1].Value));
 
 if (Argument("--audio") is { } audioTerm)
 {

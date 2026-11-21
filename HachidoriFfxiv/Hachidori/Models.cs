@@ -182,4 +182,7 @@ public sealed class AnkiDecision
 
     /// <summary>The Template maps {screenshot}: the client sends the picture with the note.</summary>
     public bool Screenshot { get; init; }
+
+    /// <summary>What did not make it into a note that was still added (a pronunciation or picture).</summary>
+    public string[] Warnings { get; init; } = [];
 }

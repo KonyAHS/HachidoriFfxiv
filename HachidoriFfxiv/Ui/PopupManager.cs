@@ -38,6 +38,8 @@ public sealed class PopupManager : IDisposable
         NpcImages = new NpcImageCapture(service);
         Themes = new PopupThemeProvider(config, service);
         service.Link.WordStatusChanged += () => ankiStatusAt = DateTime.MinValue;
+        // Live and offline mining check different things: ask again when the backend changes.
+        service.Link.ConnectionChanged += () => ankiStatusAt = DateTime.MinValue;
     }
 
     public bool AnyOpen => layers.Any(l => l.Visible);
@@ -545,11 +547,6 @@ public sealed class PopupManager : IDisposable
     {
         try
         {
-            if (service.UsingOffline)
-            {
-                entry.Anki = AnkiState.Offline;
-                return;
-            }
             entry.Anki = AnkiState.Checking;
             var status = await AnkiStatus().ConfigureAwait(false);
             if (!status.Available)
@@ -583,15 +580,6 @@ public sealed class PopupManager : IDisposable
     {
         try
         {
-            // The controller can ask to mine an entry whose button is disabled. Offline,
-            // nothing is captured or sent; once Hachidori is linked again, check it instead.
-            if (entry.Anki is AnkiState.Offline)
-            {
-                if (!service.UsingOffline)
-                    await CheckAnkiAsync(state, entry).ConfigureAwait(false);
-                return;
-            }
-
             if (entry.Anki is AnkiState.Added || (entry.Anki is AnkiState.Duplicate && !force))
             {
                 var ids = entry.Decision?.NoteIds ?? [];
@@ -630,7 +618,8 @@ public sealed class PopupManager : IDisposable
                 entry.Anki = AnkiState.Added;
                 entry.Decision = result;
                 var noteId = result.NoteIds.FirstOrDefault();
-                var added = $"{(result.State == "added" ? "Added" : "Updated")} note {noteId}.{screenshotWarning}";
+                var warnings = result.Warnings.Length > 0 ? " " + string.Join(" ", result.Warnings) : string.Empty;
+                var added = $"{(result.State == "added" ? "Added" : "Updated")} note {noteId}.{screenshotWarning}{warnings}";
                 entry.AnkiMessage = added;
                 if (Media is { AttachesMedia: true } media && noteId != 0)
                 {

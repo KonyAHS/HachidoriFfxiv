@@ -20,7 +20,13 @@ public static partial class OfflineAudio
 {
     private const int MaxAudioBytes = 16 * 1024 * 1024;
 
-    public static async Task<byte[]?> FetchAsync(HttpClient http, JsonNode? sources, string expression, string reading, CancellationToken ct)
+    public static async Task<byte[]?> FetchAsync(HttpClient http, JsonNode? sources, string expression, string reading, CancellationToken ct) =>
+        (await FetchFileAsync(http, sources, expression, reading, ct).ConfigureAwait(false))?.Data;
+
+    /// <summary>A downloaded pronunciation with what Hachidori names its Anki file by: its bytes' type and URL.</summary>
+    public sealed record AudioFile(byte[] Data, string? MediaType, string Url);
+
+    public static async Task<AudioFile?> FetchFileAsync(HttpClient http, JsonNode? sources, string expression, string reading, CancellationToken ct)
     {
         var errors = new List<string>();
         foreach (var source in (sources as JsonArray ?? []).OfType<JsonObject>())
@@ -35,8 +41,8 @@ public static partial class OfflineAudio
                 var candidates = type == "custom" ? [url] : await ListAsync(http, url, ct).ConfigureAwait(false);
                 foreach (var candidate in candidates)
                 {
-                    if (await DownloadAsync(http, candidate, ct).ConfigureAwait(false) is { Length: > 0 } data)
-                        return data;
+                    if (await DownloadAsync(http, candidate, ct).ConfigureAwait(false) is { Data.Length: > 0 } file)
+                        return file;
                 }
             }
             catch (Exception ex) when (ex is HttpRequestException or OfflineEngineException or UriFormatException or TaskCanceledException
@@ -71,13 +77,13 @@ public static partial class OfflineAudio
         return candidates.OfType<JsonObject>().Select(c => HttpUrl(Str(c["url"]))).ToList();
     }
 
-    private static async Task<byte[]?> DownloadAsync(HttpClient http, string url, CancellationToken ct)
+    private static async Task<AudioFile?> DownloadAsync(HttpClient http, string url, CancellationToken ct)
     {
         using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode) return null;
         if (response.Content.Headers.ContentLength > MaxAudioBytes) return null;
         var data = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
-        return data.Length <= MaxAudioBytes ? data : null;
+        return data.Length <= MaxAudioBytes ? new AudioFile(data, response.Content.Headers.ContentType?.MediaType, url) : null;
     }
 
     private static string HttpUrl(string value)

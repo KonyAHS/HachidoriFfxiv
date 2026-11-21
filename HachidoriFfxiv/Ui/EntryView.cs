@@ -23,8 +23,6 @@ public enum AnkiState
     Busy,
     Added,
     Error,
-    /// <summary>Answered by the offline engine: mining needs Hachidori in Chrome.</summary>
-    Offline,
 }
 
 /// <summary>One dictionary entry in a popup, with its prebuilt text blocks and per-entry state.</summary>
@@ -239,7 +237,6 @@ public sealed class EntryView
                 AnkiState.Duplicate => (FontAwesomeIcon.Search, "Already in Anki: view the note (Shift-click to add anyway)", true),
                 AnkiState.Busy => (FontAwesomeIcon.Spinner, "Saving to Anki…", false),
                 AnkiState.Added => (FontAwesomeIcon.Check, "Added: view the note in Anki", true),
-                AnkiState.Offline => (FontAwesomeIcon.Plus, HachidoriService.OfflineMiningMessage, false),
                 _ => (FontAwesomeIcon.ExclamationTriangle, AnkiMessage ?? "Anki is unavailable", true),
             };
             using (ImRaii.Disabled(!enabled))

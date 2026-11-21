@@ -288,6 +288,11 @@ public sealed class LocalEngine : IDisposable
         return new JsonObject { ["kanji"] = found.Length == 0 ? null : kanji };
     }
 
+    /// <summary>engine-service.js hd_styles: each loaded dictionary's stylesheet, in load order.</summary>
+    public IReadOnlyList<(string Dictionary, string Styles)> Styles() =>
+        (JsonNode.Parse(native.Styles()) as JsonArray ?? []).OfType<JsonObject>()
+            .Select(s => (Text(s["dictionary"]), Text(s["styles"]))).ToList();
+
     // ---------------------------------------------------------------- hd_media
 
     /// <summary>engine-service.js hd_media: the first spelling of the path the dictionary has.</summary>

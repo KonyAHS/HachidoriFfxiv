@@ -14,15 +14,23 @@ namespace HachidoriFfxiv.Media;
 public sealed class AnkiConnect : IDisposable
 {
     private readonly Func<string> url;
+    private readonly Func<string?>? key;
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
-    public AnkiConnect(Func<string> url) => this.url = url;
+    /// <param name="key">AnkiConnect's API key, when it requires one.</param>
+    public AnkiConnect(Func<string> url, Func<string?>? key = null)
+    {
+        this.url = url;
+        this.key = key;
+    }
 
     public async Task<JsonNode?> InvokeAsync(string action, JsonObject? parameters = null, CancellationToken ct = default)
     {
         var body = new JsonObject { ["action"] = action, ["version"] = 6 };
         if (parameters is not null)
             body["params"] = parameters;
+        if (key?.Invoke() is { Length: > 0 } apiKey)
+            body["key"] = apiKey;
         using var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
         HttpResponseMessage response;
         try
