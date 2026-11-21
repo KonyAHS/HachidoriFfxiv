@@ -40,7 +40,8 @@ Once your Hachidori host is linked, try `/hachidori 冒険者` in game.
 - **Pronunciation audio** from your Hachidori audio sources.
 - **Anki mining** with your Hachidori template. Each chat message is its own sentence.
 - **Card media from the game, no GSM needed:** a screenshot, the line's voice
-  recorded from the game (or TTS for unvoiced lines), and a GIF of the scene.
+  recorded from the game (or TTS for unvoiced lines), an AVIF/WebP/GIF of the
+  scene and an AI sentence translation.
 - **Reader and search windows:** an optional line history overlay and a search box.
 - **Your character's name in katakana,** so it reads naturally in sentences and cards.
 - **GSM text feed (opt-in):** sends dialogue and interaction popups to
@@ -119,9 +120,15 @@ Cards you add with **+** can get media straight from the game. Settings are in
 - **TTS for unvoiced lines**: when a line had no voice, the sentence is spoken by
   a local engine with VOICEVOX's API (VOICEVOX, AivisSpeech…) or any URL you give
   that returns audio.
-- **GIF**: a few seconds of the scene from when the line appeared.
+- **Animation**: a few seconds of the scene from when the line appeared, as
+  animated AVIF (smallest, best quality), WebP or GIF. AVIF and WebP use FFmpeg,
+  which the plugin finds on PATH or in GSM's folder; without it you get a GIF.
+- **Sentence translation**: GSM's translation prompt and settings, with nearby
+  dialogue as context, through Gemini, Groq, OpenAI-compatible APIs, Ollama,
+  LM Studio, Z.ai or DeepL. You can also use your local Codex or Claude Code
+  login. **Import from GSM** copies your provider, models, keys and field.
 
-Voice lines, TTS audio and GIFs are added to the note through the
+Voice lines, TTS audio, animations and translations are added to the note through the
 [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on right after
 Hachidori creates it. They go to a field named like *Sentence Audio* and a field
 named like *GIF*. Without a GIF field, the GIF replaces the screenshot in your

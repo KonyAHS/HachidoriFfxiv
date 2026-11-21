@@ -461,6 +461,9 @@ public sealed class ConfigWindow : Window
         }
 
         ImGui.Separator();
+        DrawTranslation(Toggle);
+
+        ImGui.Separator();
         if (ImGui.Button("Test AnkiConnect"))
         {
             mediaTest = "Checking AnkiConnect…";
@@ -548,6 +551,195 @@ public sealed class ConfigWindow : Window
             config.AnkiConnectUrl = anki.Trim();
         if (ImGui.IsItemDeactivatedAfterEdit())
             Save();
+    }
+
+    private static readonly string[] ProviderNames =
+        ["Gemini", "Groq", "OpenAI-compatible", "Ollama", "LM Studio", "Z.ai", "DeepL", "Codex (local CLI)", "Claude Code (local CLI)"];
+
+    private void DrawTranslation(Func<string, bool, Action<bool>, bool> toggle)
+    {
+        void Save() => config.Save();
+        toggle("Sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v);
+        HelpMarker("Translates the mined line with GSM's prompt and settings, using nearby dialogue as context, into the field below.");
+        if (ImGui.Button("Import from GSM"))
+        {
+            try { mediaTest = media.Translator.ImportFromGsm(); Save(); }
+            catch (Exception ex) { mediaTest = $"Import failed: {ex.Message}"; }
+        }
+
+        HelpMarker("Copies the AI provider, models, API keys, prompts and Anki field from GameSentenceMiner's active profile.");
+        if (!config.TranslationEnabled)
+            return;
+
+        using var indent = ImRaii.PushIndent();
+        var provider = (int)config.TranslationProvider;
+        if (ImGui.Combo("Provider", ref provider, ProviderNames, ProviderNames.Length))
+        {
+            config.TranslationProvider = (TranslationProvider)provider;
+            Save();
+        }
+
+        var settings = media.Translator.Settings(config.TranslationProvider);
+        var cli = config.TranslationProvider is TranslationProvider.Codex or TranslationProvider.ClaudeCode;
+        if (cli)
+        {
+            ImGui.TextWrapped(config.TranslationProvider == TranslationProvider.Codex
+                ? "Runs `codex exec` read-only in an empty folder with your Codex login. Nothing else is installed."
+                : "Runs `claude -p` with no tools in an empty folder with your Claude Code login. Nothing else is installed.");
+        }
+        else if (config.TranslationProvider is not (TranslationProvider.Ollama or TranslationProvider.LmStudio))
+        {
+            var key = settings.ApiKey;
+            if (ImGui.InputText("API key", ref key, 512, ImGuiInputTextFlags.Password))
+                settings.ApiKey = key.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+
+        if (config.TranslationProvider != TranslationProvider.DeepL)
+        {
+            var model = settings.Model;
+            if (ImGui.InputTextWithHint("Model", cli ? "blank: the CLI's default" : "", ref model, 256))
+                settings.Model = model.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+
+        var field = config.TranslationField;
+        if (ImGui.InputText("Anki field", ref field, 128))
+            config.TranslationField = field.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+
+        if (ImGui.Button("Test translation"))
+        {
+            mediaTest = "Translating…";
+            _ = TestTranslationAsync();
+        }
+
+        if (!Advanced)
+            return;
+
+        if (!cli && config.TranslationProvider != TranslationProvider.DeepL)
+        {
+            var backup = settings.BackupModel;
+            if (ImGui.InputText("Backup model", ref backup, 256))
+                settings.BackupModel = backup.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+
+        if (!cli)
+        {
+            var url = settings.Url;
+            if (ImGui.InputTextWithHint("API address", Translator.Defaults[config.TranslationProvider].Url, ref url, 512))
+                settings.Url = url.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+
+        if (config.TranslationProvider == TranslationProvider.OpenAI)
+        {
+            var effort = settings.ReasoningEffort;
+            if (ImGui.InputTextWithHint("Reasoning effort", "blank, low, medium, high", ref effort, 32))
+                settings.ReasoningEffort = effort.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+
+        if (config.TranslationProvider == TranslationProvider.DeepL)
+        {
+            var target = config.DeepLTargetLanguage;
+            if (ImGui.InputText("DeepL target language", ref target, 16))
+                config.DeepLTargetLanguage = target.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+            return;
+        }
+
+        if (cli)
+        {
+            var path = config.TranslationProvider == TranslationProvider.Codex ? config.CodexPath : config.ClaudeCodePath;
+            if (ImGui.InputTextWithHint("CLI path", "blank: find automatically", ref path, 512))
+            {
+                if (config.TranslationProvider == TranslationProvider.Codex) config.CodexPath = path.Trim();
+                else config.ClaudeCodePath = path.Trim();
+            }
+
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+
+        var language = config.TranslationLanguage;
+        if (ImGui.InputText("Translate into", ref language, 64))
+            config.TranslationLanguage = language.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+
+        var promptKinds = new[] { "Canned translation prompt", "Canned context prompt", "Custom prompt" };
+        var kind = config.UseCannedTranslationPrompt ? 0 : config.UseCannedContextPrompt ? 1 : 2;
+        if (ImGui.Combo("Prompt", ref kind, promptKinds, promptKinds.Length))
+        {
+            config.UseCannedTranslationPrompt = kind == 0;
+            config.UseCannedContextPrompt = kind == 1;
+            Save();
+        }
+
+        if (kind == 2)
+        {
+            var custom = config.CustomTranslationPrompt;
+            if (ImGui.InputTextMultiline("##custom-prompt", ref custom, 8192, new Vector2(-1, 80 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale)))
+                config.CustomTranslationPrompt = custom;
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+
+        var full = config.CustomFullPrompt;
+        ImGui.TextUnformatted("Full prompt template (blank: GSM's)");
+        HelpMarker("Placeholders: {game_title} {character_context} {dialogue_context} {prompt_to_use} {sentence} {native_language}. Must include {sentence}.");
+        if (ImGui.InputTextMultiline("##full-prompt", ref full, 16384, new Vector2(-1, 80 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale)))
+            config.CustomFullPrompt = full;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+
+        var context = config.DialogueContextLength;
+        if (ImGui.SliderInt("Dialogue context lines", ref context, -1, 20))
+            config.DialogueContextLength = context;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+        HelpMarker("Lines before and after the mined one. 0: none, -1: all captured lines.");
+        if (!cli)
+        {
+            var temperature = (float)config.TranslationTemperature;
+            if (ImGui.SliderFloat("Temperature", ref temperature, 0f, 2f, "%.2f"))
+                config.TranslationTemperature = Math.Round(temperature, 2);
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+            var topP = (float)config.TranslationTopP;
+            if (ImGui.SliderFloat("Top P", ref topP, 0f, 1f, "%.2f"))
+                config.TranslationTopP = Math.Round(topP, 2);
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+            var tokens = config.TranslationMaxTokens;
+            if (ImGui.InputInt("Max output tokens", ref tokens))
+                config.TranslationMaxTokens = Math.Clamp(tokens, 64, 65536);
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                Save();
+        }
+    }
+
+    private async System.Threading.Tasks.Task TestTranslationAsync()
+    {
+        try
+        {
+            var result = await media.Translator.TranslateAsync("冒険者さん、ちょっと手を貸してもらえないかな？",
+                ["この辺りで魔物が増えているらしい。"], "村人", "FINAL FANTASY XIV").ConfigureAwait(false);
+            mediaTest = $"Translation works: {result}";
+        }
+        catch (Exception ex)
+        {
+            mediaTest = $"Translation failed: {ex.Message}";
+        }
     }
 
     private async System.Threading.Tasks.Task TestTtsAsync()

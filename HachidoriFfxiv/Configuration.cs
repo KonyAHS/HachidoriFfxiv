@@ -149,6 +149,24 @@ public sealed class Configuration : IPluginConfiguration
     }
     public string AnkiConnectUrl { get; set; } = "http://127.0.0.1:8765";
 
+    // Sentence translation, with GameSentenceMiner's parameters (Settings → Mining).
+    public bool TranslationEnabled { get; set; } = false;
+    public Media.TranslationProvider TranslationProvider { get; set; } = Media.TranslationProvider.Gemini;
+    public string TranslationField { get; set; } = "SentenceTranslation";
+    public string TranslationLanguage { get; set; } = "English";
+    public string DeepLTargetLanguage { get; set; } = "EN-US";
+    public bool UseCannedTranslationPrompt { get; set; } = true;
+    public bool UseCannedContextPrompt { get; set; } = false;
+    public string CustomTranslationPrompt { get; set; } = string.Empty;
+    public string CustomFullPrompt { get; set; } = string.Empty;
+    public int DialogueContextLength { get; set; } = 5;
+    public double TranslationTemperature { get; set; } = 0.3;
+    public double TranslationTopP { get; set; } = 0.9;
+    public int TranslationMaxTokens { get; set; } = 4096;
+    public Dictionary<Media.TranslationProvider, Media.AiProviderSettings> AiProviders { get; set; } = new();
+    public string CodexPath { get; set; } = string.Empty;
+    public string ClaudeCodePath { get; set; } = string.Empty;
+
     // Anki (mining is done by the Hachidori host with its own Anki Template)
     public string AnkiTemplateId { get; set; } = string.Empty;
     public string DocumentTitle { get; set; } = "FINAL FANTASY XIV";

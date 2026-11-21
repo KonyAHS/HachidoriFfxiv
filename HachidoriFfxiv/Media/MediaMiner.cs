@@ -25,6 +25,7 @@ public sealed class MediaMiner : IDisposable
         Frames = new GameFrames(config);
         Tts = new TtsClient(config);
         Anki = new AnkiConnect(() => config.AnkiConnectUrl);
+        Translator = new Translator(config);
         capture.LineCaptured += OnLine;
         Frames.ClipReady += OnClip;
     }
@@ -33,10 +34,11 @@ public sealed class MediaMiner : IDisposable
     public LineTimeline Timeline { get; } = new();
     public TtsClient Tts { get; }
     public AnkiConnect Anki { get; }
+    public Translator Translator { get; }
     public GameAudioRecorder? Recorder => recorder;
 
     /// <summary>Whether anything beyond Hachidori's own note needs AnkiConnect.</summary>
-    public bool AttachesMedia => config.RecordVoiceLines || Tts.Enabled || config.CaptureGif;
+    public bool AttachesMedia => config.RecordVoiceLines || Tts.Enabled || config.CaptureGif || config.TranslationEnabled;
 
     private void OnLine(GameLine line)
     {
@@ -81,13 +83,17 @@ public sealed class MediaMiner : IDisposable
 
         var audioTask = SentenceAudioAsync(span, sentence);
         var gifTask = config.CaptureGif ? AnimationAsync(span) : Task.FromResult<(byte[] Data, string Ext, string? Note)?>(null);
+        var translationTask = config.TranslationEnabled ? TranslateAsync(span, sentence) : Task.FromResult<string?>(null);
         (byte[] Data, string Ext, string Kind)? audio = null;
         (byte[] Data, string Ext, string? Note)? gif = null;
+        string? translation = null;
         try { audio = await audioTask.ConfigureAwait(false); }
         catch (Exception ex) { warnings.Add($"audio: {ex.Message}"); }
         try { gif = await gifTask.ConfigureAwait(false); }
-        catch (Exception ex) { warnings.Add($"GIF: {ex.Message}"); }
-        if (audio is null && gif is null)
+        catch (Exception ex) { warnings.Add($"animation: {ex.Message}"); }
+        try { translation = await translationTask.ConfigureAwait(false); }
+        catch (Exception ex) { warnings.Add($"translation: {ex.Message}"); }
+        if (audio is null && gif is null && translation is null)
             return warnings.Count > 0 ? string.Join("; ", warnings) : string.Empty;
 
         var fields = await Anki.FieldsAsync(noteId).ConfigureAwait(false);
@@ -123,6 +129,20 @@ public sealed class MediaMiner : IDisposable
                 var current = updates.TryGetValue(field, out var pending) ? pending : fields.First(f => f.Name == field).Value;
                 updates[field] = MediaFields.WithGif(current, file, screenshotFile);
                 notes.Add($"{anim.Ext.ToUpperInvariant()} ({anim.Data.Length / 1024} KB)");
+            }
+        }
+
+        if (translation is not null)
+        {
+            var field = fields.FirstOrDefault(f => string.Equals(f.Name, config.TranslationField.Trim(), StringComparison.OrdinalIgnoreCase)).Name;
+            if (field is null)
+            {
+                warnings.Add($"no “{config.TranslationField}” field for the translation");
+            }
+            else if (fields.First(f => f.Name == field).Value.Trim().Length == 0)
+            {
+                updates[field] = System.Net.WebUtility.HtmlEncode(translation).Replace("\n", "<br>");
+                notes.Add("translation");
             }
         }
 
@@ -167,6 +187,25 @@ public sealed class MediaMiner : IDisposable
         if (!AudioClips.IsVoiced(before, clip, rate, Math.Clamp(config.VoiceDetectionRatio, 1.1f, 10f)))
             return null;
         return AudioClips.EncodeOpus(AudioClips.Normalize(AudioClips.Trim(clip, rate)), rate);
+    }
+
+    /// <summary>The line with GSM-style dialogue context: up to N captured lines before and after it.</summary>
+    private Task<string?> TranslateAsync(LineSpan? span, string sentence)
+    {
+        var history = capture.History.Where(l => l.Source is LineSource.Talk or LineSource.BattleTalk).ToList();
+        var index = span is null ? -1 : history.IndexOf(span.Line);
+        var n = config.DialogueContextLength;
+        List<string> context;
+        if (n == 0 || history.Count == 0)
+            context = [];
+        else if (n < 0)
+            context = history.Select(l => l.Text).ToList();
+        else if (index < 0)
+            context = history.Skip(Math.Max(0, history.Count - n)).Select(l => l.Text).ToList();
+        else
+            context = history.Skip(Math.Max(0, index - n)).Take(Math.Min(history.Count, index + 1 + n) - Math.Max(0, index - n)).Select(l => l.Text).ToList();
+        var text = span?.Line.Text ?? sentence;
+        return Translator.TranslateAsync(text, context, span?.Line.Speaker ?? string.Empty, "FINAL FANTASY XIV")!;
     }
 
     private string? ffmpegPath;
@@ -233,6 +272,7 @@ public sealed class MediaMiner : IDisposable
         recorder?.Dispose();
         Frames.Dispose();
         Tts.Dispose();
+        Translator.Dispose();
         Anki.Dispose();
     }
 }

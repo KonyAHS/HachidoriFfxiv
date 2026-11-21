@@ -128,6 +128,23 @@ static class MediaChecks
                 "AVIF is smaller than WebP, which is smaller than GIF");
         }
 
+        // ---------------------------------------------------- translation prompt
+        var prompt = TranslationPrompt.Build("English", true, false, "", "", 5, "{sentence}を守れ{x}",
+            ["前の台詞", "次の台詞"], "アルフィノ", "FINAL FANTASY XIV");
+        check(prompt.Contains("\"FINAL FANTASY XIV\"") && prompt.Contains("Professional Game Localization Task")
+              && prompt.Contains("natural-sounding, context-aware English") && prompt.Contains("Dialogue Context:\n\n前の台詞\n次の台詞")
+              && prompt.Contains("spoken by アルフィノ") && prompt.TrimEnd().EndsWith("{sentence}を守れ{x}"),
+            "translation prompts follow GSM's template, with context, speaker and the line last");
+        check(TranslationPrompt.Build("English", true, false, "", "", 0, "a", ["b"], "", "").Contains("No dialogue context available.")
+              && TranslationPrompt.Build("French", false, false, "Say it in {native_language}:", "", 5, "a", [], "", "").Contains("Say it in French:"),
+            "dialogue context can be turned off, and custom prompts get GSM's placeholders");
+        try
+        {
+            TranslationPrompt.Build("English", true, false, "", "no sentence here", 5, "a", [], "", "");
+            check(false, "a full prompt without {sentence} is rejected");
+        }
+        catch (InvalidOperationException) { check(true, "a full prompt without {sentence} is rejected"); }
+
         // --------------------------------------------------------------- fields
         var fields = new List<(string Name, string Value)>
         {

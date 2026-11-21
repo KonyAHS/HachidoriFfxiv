@@ -509,7 +509,7 @@ public sealed class PopupManager : IDisposable
                 entry.AnkiMessage = added;
                 if (Media is { AttachesMedia: true } media && noteId != 0)
                 {
-                    entry.AnkiMessage = $"{added} Adding voice and GIF…";
+                    entry.AnkiMessage = $"{added} Adding media…";
                     try
                     {
                         var attached = await media.AttachAsync(noteId, state.Context.Sentence, screenshot?.Filename).ConfigureAwait(false);
