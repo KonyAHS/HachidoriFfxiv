@@ -14,6 +14,10 @@ Windows plugin for Dalamud, installed through a custom repository.
 
 </div>
 
+[![Hachidori dictionary popup over Japanese dialogue in FFXIV](docs/screenshots/dialogue-lookup.png)](docs/screenshots/dialogue-lookup.png)
+
+The Crystal popup looks up **蛮神** (ばんしん) in dialogue and shows the FFXIV dictionary’s English term, **Primal**.
+
 <details>
 <summary>Open a sample dictionary entry</summary>
 
