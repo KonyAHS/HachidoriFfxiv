@@ -486,11 +486,4 @@ public static class Colors
 {
     public const uint Dim = 0xFF9A9A9A;
     public const uint Example = 0xFFC8D8E8;
-    public const uint DictionaryChip = 0xFF6B4A3A;   // muted blue
-    public const uint TagChip = 0xFF505050;
-    public const uint FrequencyChip = 0xFF3F6B3A;    // muted green
-    public const uint InflectionChip = 0xFF5A3F6B;   // muted purple
-    public const uint CountChip = 0xFF2F5F8F;        // amber-ish
-    public const uint PitchLine = 0xFF6AB0F5;
-    public const uint Accent = 0xFFB98CF0;           // lilac (Hachidori)
 }

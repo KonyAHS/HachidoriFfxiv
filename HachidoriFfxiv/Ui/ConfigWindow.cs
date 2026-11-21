@@ -8,6 +8,7 @@ using Dalamud.Interface.Windowing;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Publishing;
+using HachidoriFfxiv.Rendering.Css;
 
 namespace HachidoriFfxiv.Ui;
 
@@ -39,10 +40,11 @@ public sealed class ConfigWindow : Window
     private readonly Fonts fonts;
     private readonly NativeTextHover nativeHover;
     private readonly TextPublisher publisher;
+    private readonly PopupThemeProvider themes;
     private readonly Func<string> exportLogs;
     private string? exportedLog;
 
-    public ConfigWindow(Configuration config, HachidoriService service, Fonts fonts, NativeTextHover nativeHover, TextPublisher publisher, Func<string> exportLogs)
+    public ConfigWindow(Configuration config, HachidoriService service, Fonts fonts, NativeTextHover nativeHover, TextPublisher publisher, PopupThemeProvider themes, Func<string> exportLogs)
         : base("Hachidori Settings##hachidori-ffxiv-config")
     {
         this.config = config;
@@ -50,6 +52,7 @@ public sealed class ConfigWindow : Window
         this.fonts = fonts;
         this.nativeHover = nativeHover;
         this.publisher = publisher;
+        this.themes = themes;
         this.exportLogs = exportLogs;
         Size = new Vector2(560, 560);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -66,6 +69,12 @@ public sealed class ConfigWindow : Window
         {
             if (tab.Success)
                 DrawPopupTab();
+        }
+
+        using (var tab = ImRaii.TabItem("Theme"))
+        {
+            if (tab.Success)
+                DrawThemeTab();
         }
 
         using (var tab = ImRaii.TabItem("Reader"))
@@ -226,6 +235,86 @@ public sealed class ConfigWindow : Window
             config.AudioVolume = volume;
             Changed(true);
         }
+    }
+
+    private void DrawThemeTab()
+    {
+        void Save() => config.Save();
+        var follow = config.FollowHachidoriTheme;
+        if (ImGui.Checkbox("Use Hachidori's popup theme", ref follow))
+        {
+            config.FollowHachidoriTheme = follow;
+            Save();
+        }
+
+        HelpMarker("Draws popups with the theme chosen in Hachidori (Settings → Design): Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme or Crystal, including your custom popup CSS.");
+        if (!config.FollowHachidoriTheme)
+        {
+            ImGui.TextDisabled("Popups use the plugin's own look.");
+            return;
+        }
+
+        using var indent = ImRaii.PushIndent();
+        var hostTheme = service.OptionString("popupTheme", "default");
+        var hostVariant = service.OptionString("popupThemeVariant", "auto");
+        var current = PopupTheme.Current;
+        ImGui.TextDisabled(service.Link.Connected
+            ? $"Hachidori uses \"{hostTheme}\"{(hostVariant != "auto" ? $" ({hostVariant})" : string.Empty)}."
+            : "Not linked: showing the theme defaults until Hachidori connects.");
+
+        // Theme: Hachidori's choice, a renderer, or one of Default's palettes.
+        var choices = new[] { string.Empty }.Concat(PopupThemeProvider.Renderers.Where(r => r != "default")).Concat(themes.Palettes).ToArray();
+        var labels = choices.Select(c => c.Length == 0 ? "Same as Hachidori" : PopupThemeProvider.Renderers.Contains(c) ? $"{c} (theme)" : $"{c} (Default palette)").ToArray();
+        var index = Math.Max(0, Array.IndexOf(choices, config.HachidoriThemeOverride));
+        if (ImGui.Combo("Theme", ref index, labels, labels.Length))
+        {
+            config.HachidoriThemeOverride = choices[index];
+            Save();
+        }
+
+        var variants = new[] { string.Empty }.Concat(PopupThemeProvider.Variants).ToArray();
+        var variantLabels = variants.Select(v => v.Length == 0 ? "Same as Hachidori" : v == "auto" ? "Automatic (Grey in game)" : v).ToArray();
+        var variantIndex = Math.Max(0, Array.IndexOf(variants, config.HachidoriVariantOverride));
+        if (ImGui.Combo("Colours", ref variantIndex, variantLabels, variantLabels.Length))
+        {
+            config.HachidoriVariantOverride = variants[variantIndex];
+            Save();
+        }
+
+        HelpMarker("Crystal's colour schemes: Grey, Beige and Retro blue.");
+
+        var opacity = config.FollowHachidoriOpacity;
+        if (ImGui.Checkbox("Use Hachidori's popup opacity", ref opacity))
+        {
+            config.FollowHachidoriOpacity = opacity;
+            Save();
+        }
+
+        if (!config.FollowHachidoriOpacity)
+            ImGui.TextDisabled("Uses \"Popup opacity\" from the Popup tab.");
+
+        var custom = config.ApplyHachidoriCustomCss;
+        if (ImGui.Checkbox("Apply Hachidori's custom popup CSS", ref custom))
+        {
+            config.ApplyHachidoriCustomCss = custom;
+            Save();
+        }
+
+        HelpMarker("Hachidori's Custom popup CSS and the CSS of enabled user scripts.");
+
+        ImGui.TextUnformatted("Extra CSS for the game popup");
+        HelpMarker("Applied after Hachidori's CSS. Supported: colours, backgrounds and linear gradients, borders and border-radius, padding, box-shadow, font sizes of the headword and reading, and custom properties (var()). For example:\n:host { --hoshidicts-accent: #f0a; }\n.gsm-hoshidicts-popup { border-radius: 20px; border: 2px solid gold; }\n.jl-spelling { color: orange; font-size: 26px; }");
+        var extra = config.ExtraPopupCss;
+        if (ImGui.InputTextMultiline("##extra-css", ref extra, 16384, new Vector2(-1, 140 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale)))
+            config.ExtraPopupCss = extra;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+
+        if (themes.Error is { } error)
+            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), $"Theme error: {error}");
+        else
+            ImGui.TextDisabled($"Showing: {current.Renderer}{(current.Renderer == "default" ? $" / {current.Palette}" : string.Empty)}{(current.Variant.Length > 0 && current.Renderer == "crystal" ? $" / {current.Variant}" : string.Empty)}, {(current.Dark ? "dark" : "light")}.");
+        ImGui.TextDisabled("Changes apply to the next popup. Try /hachidori search to check a theme.");
     }
 
     private void DrawReaderTab()

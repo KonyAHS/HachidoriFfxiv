@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Rendering;
+using HachidoriFfxiv.Rendering.Css;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -31,7 +32,11 @@ async Task Until(Func<bool> condition)
 
 // The actual native popup scope, tested outside FFXIV against local cimgui.
 // A style-stack underflow used to crash the game when the first popup opened.
+CheckPopupThemes(Check);
 CheckPopupScopes(Check);
+PopupTheme.Current = ThemeFor("crystal", "crystal", "blue");
+CheckPopupScopes((ok, name) => Check(ok, $"Crystal theme: {name}"));
+PopupTheme.Current = PopupTheme.PluginDefault();
 await NpcImageChecks.Run(Check);
 await PublishChecks.Run(Check);
 
@@ -366,4 +371,67 @@ static unsafe void CheckPopupScopes(Action<bool, string> check)
         }
     }
     finally { ImGui.DestroyContext(context); }
+}
+
+static string ThemeCss(string renderer)
+{
+    for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+    {
+        var path = Path.Combine(dir.FullName, "HachidoriFfxiv", "Themes", renderer + ".css");
+        if (File.Exists(path)) return File.ReadAllText(path);
+    }
+    throw new FileNotFoundException($"Theme stylesheet {renderer}.css");
+}
+
+static PopupTheme ThemeFor(string renderer, string palette, string variant, string custom = "", float opacity = 85) =>
+    PopupThemeEngine.Compute(new(renderer, palette, variant, ThemeCss(renderer), custom, opacity));
+
+static void CheckPopupThemes(Action<bool, string> check)
+{
+    static bool Near(Vector4? color, string hex, float alpha = 1f) =>
+        color is { } c && CssColor.Parse(hex, true) is { } want
+        && Vector3.Distance(new(c.X, c.Y, c.Z), new(want.X, want.Y, want.Z)) < 0.02f && MathF.Abs(c.W - alpha) < 0.02f;
+
+    var defaultTheme = ThemeFor("default", "default", "auto");
+    check(defaultTheme.Dark && Near(defaultTheme.Popup.Background, "#272630", 0.85f) && defaultTheme.Popup.Radius == 14
+          && Near(defaultTheme.Accent, "#a89ce4") && defaultTheme.Section is not null,
+        "Default theme: palette colours, opacity, rounded popup and glossary cards");
+    var light = ThemeFor("default", "solarized-light", "auto");
+    check(!light.Dark && Near(light.Popup.Background, "#fdf6e3", 0.85f) && Near(light.Text, "#586e75"),
+        "Default palettes switch the popup to light colours");
+    var oklch = ThemeFor("default", "dark", "auto");
+    check(oklch.Popup.Background is { X: > 0.05f and < 0.2f } && oklch.Text is { X: > 0.85f },
+        "oklch() palette colours resolve");
+    var nazeka = ThemeFor("nazeka", "nazeka", "auto");
+    check(Near(nazeka.Headword, "#99ddff") && Near(nazeka.Reading, "#99ff99") && nazeka.Popup.Radius == 3,
+        "Nazeka theme: headword and reading colours");
+    var jl = ThemeFor("jl", "jl", "auto");
+    check(Near(jl.Separator, "#ffffff") && Near(jl.Headword, "#d2691e") && Near(jl.Popup.Background, "#000000", 0.85f),
+        "JL theme: separators, spelling colour and opacity variable");
+    var grey = ThemeFor("crystal", "crystal", "grey");
+    var blue = ThemeFor("crystal", "crystal", "blue");
+    var beige = ThemeFor("crystal", "crystal", "beige");
+    check(grey.Frame is { Inset: 3, BorderWidth: 2 } && grey.Crest && Near(grey.Accent, "#b8913f"),
+        "Crystal theme: inner frame, crest and gold accent");
+    check(Near(blue.Popup.Background, "#223e9c", 0.85f) && !beige.Dark && grey.Dark,
+        "Crystal colour variants: Retro blue, light Beige, dark Grey");
+    var custom = ThemeFor("jl", "jl", "auto", ":host { --hoshidicts-accent: #f0a; } .gsm-hoshidicts-popup { border-radius: 20px; border: 2px solid gold; } .jl-spelling { color: orange; }");
+    check(Near(custom.Accent, "#ff00aa") && custom.Popup.Radius == 20 && custom.Popup.BorderWidth == 2
+          && Near(custom.Popup.BorderColor, "gold") && Near(custom.Headword, "orange"),
+        "custom popup CSS overrides theme variables and boxes");
+    var states = ThemeFor("jl", "jl", "auto", ".jl-spelling:hover { color: red; } .gsm-hoshidicts-audio-menu button { background: red; }");
+    check(Near(states.Headword, "#d2691e") && states.Button.W < 0.01f,
+        "hover states and unrelated containers do not restyle the popup");
+    check(Near(ThemeFor("plain", "plain", "auto", opacity: 40).Popup.Background, "#ffffff") && Near(ThemeFor("bee", "bee", "auto", opacity: 40).Popup.Background, "#fff7fc", 0.4f),
+        "Hachidori's opacity reaches themes that use it");
+    check(CssColor.Parse("color-mix(in srgb, #000 50%, transparent)", true) is { W: > 0.49f and < 0.51f }
+          && CssColor.Parse("light-dark(#fff, #000)", false) is { X: 1 } && CssColor.Parse("rgb(255 0 0 / 0.5)", true) is { X: 1, W: 0.5f },
+        "colour functions: color-mix, light-dark and modern rgb()");
+
+    RichText.SetContrast(CssColor.ToAbgr(new Vector4(0.97f, 0.97f, 0.92f, 1)), 0xFF222222);
+    var faint = RichText.ReadableColor(0xFFC8D8E8);
+    RichText.SetContrast(CssColor.ToAbgr(new Vector4(0.1f, 0.1f, 0.12f, 1)), 0xFFEEEEEE);
+    var kept = RichText.ReadableColor(0xFFC8D8E8);
+    RichText.SetContrast(0, 0);
+    check(faint != 0xFFC8D8E8 && kept == 0xFFC8D8E8, "dictionary colours are only darkened where they would vanish");
 }

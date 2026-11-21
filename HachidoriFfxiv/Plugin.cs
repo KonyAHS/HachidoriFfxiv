@@ -55,7 +55,7 @@ public sealed class Plugin : IDalamudPlugin
         popups = new PopupManager(config, service, audio, fonts);
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
-        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, ExportLogs);
+        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, ExportLogs);
         windows.AddWindow(reader);
         windows.AddWindow(search);
         windows.AddWindow(configWindow);

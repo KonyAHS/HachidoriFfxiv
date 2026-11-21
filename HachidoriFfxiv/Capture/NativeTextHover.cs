@@ -247,13 +247,15 @@ public sealed unsafe class NativeTextHover : IDisposable
             var draw = ImGui.GetBackgroundDrawList();
             if (popups.HighlightFor(region.Text.Block, 0) is { } highlight)
             {
+                var theme = Rendering.Css.PopupTheme.Current;
+                var highlightColor = theme.IsPlugin ? ImGui.GetColorU32(ImGuiCol.TextSelectedBg) : Rendering.Css.CssColor.ToAbgr(theme.Highlight);
                 foreach (var glyph in region.Text.Layout.Cells)
                 {
                     if (glyph.Index < highlight.Start || glyph.Index >= highlight.End) continue;
                     var glyphMin = Vector2.Max(origin + glyph.Min * region.Scale, region.ClipMin + viewport.Pos);
                     var glyphMax = Vector2.Min(origin + glyph.Max * region.Scale, region.ClipMax + viewport.Pos);
                     if (glyphMax.X > glyphMin.X && glyphMax.Y > glyphMin.Y)
-                        draw.AddRectFilled(glyphMin, glyphMax, ImGui.GetColorU32(ImGuiCol.TextSelectedBg));
+                        draw.AddRectFilled(glyphMin, glyphMax, highlightColor);
                 }
             }
             if (config.NativeHoverDebug)

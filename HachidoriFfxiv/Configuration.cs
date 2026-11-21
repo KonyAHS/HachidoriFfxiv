@@ -58,6 +58,14 @@ public sealed class Configuration : IPluginConfiguration
     public bool ShowAttribution { get; set; } = false;
     public bool ShowLookupCounts { get; set; } = true;
     public bool HonourDefinitionBlur { get; set; } = true;
+    // Hachidori popup themes: the popup follows the theme, colours and custom CSS chosen in Hachidori.
+    public bool FollowHachidoriTheme { get; set; } = true;
+    public bool FollowHachidoriOpacity { get; set; } = true;
+    public bool ApplyHachidoriCustomCss { get; set; } = true;
+    public string HachidoriThemeOverride { get; set; } = string.Empty;
+    public string HachidoriVariantOverride { get; set; } = string.Empty;
+    public string ExtraPopupCss { get; set; } = string.Empty;
+
     public bool AutoPlayAudio { get; set; } = false;
     public float AudioVolume { get; set; } = 0.8f;
 

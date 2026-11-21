@@ -8,6 +8,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Rendering;
+using HachidoriFfxiv.Rendering.Css;
 
 namespace HachidoriFfxiv.Ui;
 
@@ -35,12 +36,14 @@ public sealed class PopupManager : IDisposable
         this.fonts = fonts;
         Images = new DictionaryImages(service);
         NpcImages = new NpcImageCapture(service);
+        Themes = new PopupThemeProvider(config, service);
         service.Link.WordStatusChanged += () => ankiStatusAt = DateTime.MinValue;
     }
 
     public bool AnyOpen => layers.Any(l => l.Visible);
     public DictionaryImages Images { get; }
     public NpcImageCapture NpcImages { get; }
+    public PopupThemeProvider Themes { get; }
     public bool ContainsMouse(Vector2 mouse) => layers.Any(l => l.Visible && l.Contains(mouse));
 
     public void CloseAll() => layers.Clear();
@@ -112,6 +115,10 @@ public sealed class PopupManager : IDisposable
     /// <summary>Called once per frame after all scannable windows were drawn.</summary>
     public void Draw()
     {
+        Themes.Update();
+        var theme = PopupTheme.Current;
+        theme.Scale = ImGuiHelpers.GlobalScale * config.PopupFontSize / MathF.Max(8f, theme.BaseFontPx);
+
         var now = DateTime.UtcNow;
         var mouse = ImGui.GetMousePos();
         var hit = frameHit;
@@ -266,7 +273,9 @@ public sealed class PopupManager : IDisposable
 
         ImGui.SetNextWindowPos(pos, ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(width, height), ImGuiCond.Always);
-        ImGui.SetNextWindowBgAlpha(config.PopupBackgroundAlpha);
+        var theme = PopupTheme.Current;
+        if (theme.IsPlugin)
+            ImGui.SetNextWindowBgAlpha(config.PopupBackgroundAlpha);
 
         var flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove
                     | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking
@@ -293,15 +302,11 @@ public sealed class PopupManager : IDisposable
                 for (var e = 0; e < shown.Entries.Count; e++)
                 {
                     if (e > 0)
-                    {
-                        ImGui.Spacing();
-                        ImGui.Separator();
-                        ImGui.Spacing();
-                    }
+                        DrawEntrySeparator(theme, contentWidth);
 
                     var entry = shown.Entries[e];
                     using var entryId = ImRaii.PushId(e);
-                    var entryHit = entry.Draw(this, depth + 1, contentWidth, service, audio, reply, shown.Context);
+                    var entryHit = DrawEntry(theme, entry, depth, contentWidth, reply, shown.Context);
                     if (entryHit is { } eh)
                     {
                         // Kanji lookup: hovering the headword while holding Alt (or clicking a kanji) opens kanji info.
@@ -330,6 +335,49 @@ public sealed class PopupManager : IDisposable
         }
 
         layer.FirstFrame = false;
+    }
+
+    private static void DrawEntrySeparator(PopupTheme theme, float width)
+    {
+        if (theme.IsPlugin)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+            return;
+        }
+
+        ImGui.Dummy(new Vector2(1, 4 * theme.Scale));
+        if (theme.Separator is { } color)
+        {
+            var thickness = MathF.Max(1f, theme.SeparatorWidth * theme.Scale);
+            var start = ImGui.GetCursorScreenPos();
+            ImGui.GetWindowDrawList().AddLine(start, start + new Vector2(width, 0), CssColor.ToAbgr(color), thickness);
+            ImGui.Dummy(new Vector2(1, thickness));
+        }
+
+        ImGui.Dummy(new Vector2(1, 4 * theme.Scale));
+    }
+
+    /// <summary>An entry, inside the theme's entry card when it has one (painted from last frame's height).</summary>
+    private TextHit? DrawEntry(PopupTheme theme, EntryView entry, int depth, float width, LookupReply reply, ScanContext context)
+    {
+        var card = theme.IsPlugin || !theme.Entry.HasPaint ? null : theme.Entry;
+        if (card is null)
+            return entry.Draw(this, depth + 1, width, service, audio, reply, context);
+
+        var scale = theme.Scale;
+        var pad = card.Padding * scale;
+        var top = ImGui.GetCursorScreenPos();
+        if (entry.CardHeight > 0)
+            ThemePainter.Paint(ImGui.GetWindowDrawList(), top, top + new Vector2(width, entry.CardHeight), card, scale);
+        ImGui.Dummy(new Vector2(1, MathF.Max(pad.X, 2 * scale)));
+        if (pad.W > 0) ImGui.Indent(pad.W);
+        var hit = entry.Draw(this, depth + 1, width - pad.W - pad.Y, service, audio, reply, context);
+        if (pad.W > 0) ImGui.Unindent(pad.W);
+        ImGui.Dummy(new Vector2(1, MathF.Max(pad.Z, 2 * scale)));
+        entry.CardHeight = ImGui.GetCursorScreenPos().Y - top.Y;
+        return hit;
     }
 
     // ------------------------------------------------------------- lookups
@@ -516,9 +564,26 @@ public sealed class PopupManager : IDisposable
         public Vector2 WindowPos { get; set; }
         public Vector2 WindowSize { get; set; }
 
-        public int MatchLength => TokenLength ?? (polled
-            ? state.Reply?.Results.FirstOrDefault()?.Matched.Length ?? 1
-            : Previous?.MatchLength ?? 1);
+        /// <summary>
+        /// The highlighted length in the source text. Hachidori measures the match as
+        /// <c>result.matched || result.term.expression</c>; the engine may leave <c>matched</c>
+        /// empty, which used to collapse the highlight to the first character. A word span from
+        /// tokenized hover only ever extends the match, never shortens it.
+        /// </summary>
+        public int MatchLength
+        {
+            get
+            {
+                if (!polled)
+                    return Math.Max(TokenLength ?? 0, Previous?.MatchLength ?? 1);
+                var first = state.Reply?.Results.FirstOrDefault();
+                var matched = first is null ? 0
+                    : first.Matched.Length > 0 ? first.Matched.Length
+                    : first.Term.Expression.Length;
+                var available = Math.Max(1, Source.ScanText.Length - SourceIndex);
+                return Math.Clamp(Math.Max(TokenLength ?? 0, matched), 1, available);
+            }
+        }
 
         public bool Visible => polled ? !Dead : Previous is not null;
 

@@ -142,3 +142,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+--------------------------------------------------------------------------------
+Hachidori popup themes (HachidoriFfxiv/Themes)
+--------------------------------------------------------------------------------
+
+default.css is Hachidori's render/reader.css and the other stylesheets are the
+popup themes bundled with Hachidori (https://github.com/bee-san/hachidori and
+https://github.com/bee-san/hachidori-themes), GPL-3.0-or-later. The plugin reads
+them to draw its popups in the theme selected in Hachidori. The JL, Nazeka and
+Bee themes adapt work by rampaa/JL and wareya/nazeka under the Apache License
+2.0; see the *.ATTRIBUTION.md and *.LICENSE.Apache-2.0 files beside them.
