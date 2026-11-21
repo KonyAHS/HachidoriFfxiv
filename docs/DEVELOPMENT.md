@@ -12,6 +12,13 @@ The installable package is
 For development, add the adjacent `HachidoriFfxiv.dll` to Dalamud's Dev Plugin
 Locations. Keep all dependency DLLs alongside it and disable any installed copy.
 
+To update the existing dev plugin registered in the running game's directory,
+use `./deploy-local.ps1` from the checkout with the integrated media and chat
+features. It runs the regression suite, checks the built DLL for those features,
+rejects version downgrades, backs up replaced files and checks the installed hash.
+`./deploy-local.ps1 -WhatIf` runs the checks without replacing any files.
+Check `%APPDATA%/XIVLauncher/dalamud.log` for a successful reload.
+
 To release, update `<Version>` in the project, commit to `main`, then push a
 matching tag, for example `v0.1.5.0`. The workflow builds, runs offline checks,
 and publishes `latest.zip`, `pluginmaster.json`, `source.zip` and checksums.
