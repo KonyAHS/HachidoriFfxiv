@@ -49,6 +49,16 @@ public static class OfflinePlan
         d.PitchCount > 0 ? d.PitchCount : Count(row?["pitchCount"]),
         d.KanjiCount > 0 ? d.KanjiCount : Count(row?["kanjiCount"]));
 
+    /// <summary>Whether a Hachidori version ("0.6.0") is newer than another; false when either does not parse.</summary>
+    public static bool IsNewer(string candidate, string baseline) =>
+        TryVersion(candidate, out var a) && TryVersion(baseline, out var b) && a > b;
+
+    private static bool TryVersion(string text, out Version version)
+    {
+        var core = new string(text.TakeWhile(c => char.IsDigit(c) || c == '.').ToArray());
+        return Version.TryParse(core.Contains('.') ? core : core + ".0", out version!);
+    }
+
     private static bool IsEnabled(JsonNode? node) => node is not JsonValue v || !v.TryGetValue<bool>(out var b) || b;
 
     private static long Count(JsonNode? node) => JsonNumber.Count(node);

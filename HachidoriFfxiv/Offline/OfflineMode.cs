@@ -250,22 +250,13 @@ public sealed class OfflineMode : IDisposable
         if (EngineError is { } error) warnings.Add(error);
         var engineVersion = EngineVersion?.Hachidori;
         var host = link.Connected ? link.HostVersion : Store.Manifest.HostVersion;
-        if (engineVersion is not null && IsNewer(host, engineVersion))
+        if (engineVersion is not null && OfflinePlan.IsNewer(host, engineVersion))
             warnings.Add($"Hachidori {host} is newer than the offline engine (built from {engineVersion}). Offline results may differ until the plugin is updated.");
         foreach (var skip in Store.Manifest.Skipped)
             warnings.Add($"Not available offline: {skip.Title}. {skip.Reason}");
         foreach (var (dictionary, reason) in LoadFailures)
             warnings.Add($"{dictionary.Title} did not load offline: {reason}");
         return warnings;
-    }
-
-    public static bool IsNewer(string candidate, string baseline) =>
-        TryVersion(candidate, out var a) && TryVersion(baseline, out var b) && a > b;
-
-    private static bool TryVersion(string text, out Version version)
-    {
-        var core = new string(text.TakeWhile(c => char.IsDigit(c) || c == '.').ToArray());
-        return Version.TryParse(core.Contains('.') ? core : core + ".0", out version!);
     }
 
     private static string Str(JsonNode? node) => node is JsonValue v && v.TryGetValue<string>(out var s) ? s : string.Empty;

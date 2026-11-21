@@ -31,6 +31,7 @@ public sealed unsafe class NativeEngine : IDisposable
     private readonly delegate* unmanaged[Cdecl]<byte*, byte*, int> media;
     private readonly delegate* unmanaged[Cdecl]<byte*> mediaData;
     private readonly delegate* unmanaged[Cdecl]<byte*> version;
+    private readonly delegate* unmanaged[Cdecl]<byte*, byte*, int, byte*> import;
     private bool disposed;
 
     public NativeEngine(string path)
@@ -50,6 +51,7 @@ public sealed unsafe class NativeEngine : IDisposable
             media = (delegate* unmanaged[Cdecl]<byte*, byte*, int>)Export("hdw_media");
             mediaData = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_media_data");
             version = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_native_version");
+            import = (delegate* unmanaged[Cdecl]<byte*, byte*, int, byte*>)Export("hdw_import");
             var init = (delegate* unmanaged[Cdecl]<int>)Export("hdw_native_init");
             if (init() != 1)
                 throw new InvalidOperationException("hdw_native could not switch its paths to UTF-8.");
@@ -159,6 +161,22 @@ public sealed unsafe class NativeEngine : IDisposable
                 return data == null ? null : new ReadOnlySpan<byte>(data, length).ToArray();
             }
         });
+
+    /// <summary>
+    /// Imports a Yomitan dictionary archive into <c>outDirectory/&lt;title&gt;</c>
+    /// (hdw_import). The plugin downloads packages already imported by
+    /// Hachidori; this is for tests that need one without a host.
+    /// </summary>
+    public JsonObject Import(string archive, string outDirectory)
+    {
+        lock (Gate)
+        {
+            ThrowIfDisposed();
+            fixed (byte* a = Utf8Z(archive))
+            fixed (byte* o = Utf8Z(outDirectory))
+                return JsonNode.Parse(Utf8(import(a, o, 0))) as JsonObject ?? new JsonObject();
+        }
+    }
 
     // hdw_last_error is cleared on entry to every call, so a non-empty one after
     // the call means this call failed (engine-service.js throwIfEngineFailed).
