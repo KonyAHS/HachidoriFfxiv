@@ -1,11 +1,27 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
+<div align="center">
+
+<img src="assets/hachidori-icon.png" alt="Hachidori for FFXIV logo" width="112" height="112">
 
 # Hachidori for FFXIV
 
-Hover Japanese dialogue, subtitles, battle talk and chat in FFXIV for dictionary
-popups, pronunciation, nested lookups and Anki mining. An optional reader and
-search window are included. Windows; Dalamud API 15. This is a custom-repository
-plugin, with no official Dalamud listing.
+**Read Japanese as you play FFXIV.**<br>Hover dialogue, subtitles, battle talk, and chat for dictionary lookups, pronunciation, and Anki mining.
+
+[![Latest release](https://img.shields.io/github/v/release/KonyAHS/HachidoriFfxiv?label=release&color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest) [![GitHub stars](https://img.shields.io/github/stars/KonyAHS/HachidoriFfxiv?color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/stargazers) [![Build status](https://github.com/KonyAHS/HachidoriFfxiv/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/KonyAHS/HachidoriFfxiv/actions/workflows/release.yml) [![Dalamud API 15](https://img.shields.io/badge/Dalamud_API-15-80602c)](#first-setup) [![GPL-3.0 license](https://img.shields.io/github/license/KonyAHS/HachidoriFfxiv?color=80602c)](LICENSE)
+
+[Install](#first-setup) · [Features](#features) · [Popup themes](#popup-themes) · [FFXIV dictionary](dictionaries/ffxiv/README.md)
+
+Windows plugin for Dalamud, installed through a custom repository.
+
+</div>
+
+<details>
+<summary>Open a sample dictionary entry</summary>
+
+**冒険者** (ぼうけんしゃ) — adventurer
+
+Once your Hachidori host is linked, try `/hachidori 冒険者` in game.
+
+</details>
 
 ## Features
 
