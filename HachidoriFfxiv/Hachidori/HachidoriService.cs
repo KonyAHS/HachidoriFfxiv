@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace HachidoriFfxiv.Hachidori;
 
 /// <summary>Everything the plugin asks Hachidori for, on top of <see cref="HachidoriLink"/>.</summary>
-public sealed class HachidoriService : IDisposable
+public sealed class HachidoriService : IDisposable, INpcPictureHost
 {
     private const string EngineTarget = "hoshidicts-offscreen";
     private const string WorkerTarget = "hoshidicts-worker";
@@ -87,6 +87,34 @@ public sealed class HachidoriService : IDisposable
         var bytes = HachidoriPayloads.Media(reply);
         DiagnosticLog.Write("image", $"generation={generation}, bytes={bytes?.Length ?? 0}");
         return bytes;
+    }
+
+    // ---------------------------------------------------------------- NPC pictures
+
+    IReadOnlyList<HostDictionary> INpcPictureHost.Dictionaries => Dictionaries
+        .Select(d => new HostDictionary(Text(d["id"]) ?? "", Text(d["title"]) ?? "", Text(d["revision"])))
+        .Where(d => d.Title.Length > 0).ToList();
+
+    private static string? Text(JsonNode? node) => node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+
+    async Task<long> INpcPictureHost.GenerationAsync(CancellationToken ct)
+    {
+        var reply = await Link.RequestAsync(EngineTarget, "hd_status", null, ct).ConfigureAwait(false);
+        return reply?["generation"] is JsonValue g && g.TryGetValue<long>(out var generation)
+            ? generation : throw new HachidoriException("The host did not report its dictionary generation.");
+    }
+
+    Task<byte[]?> INpcPictureHost.MediaAsync(string dictionary, string path, long generation, CancellationToken ct) =>
+        GetImageAsync(dictionary, path, generation, ct);
+
+    Task<JsonNode?> INpcPictureHost.ImportAsync(string type, JsonObject payload, CancellationToken ct) =>
+        Link.RequestAsync(NpcImageDictionary.Target, type, payload, ct);
+
+    async Task INpcPictureHost.RemoveAsync(HostDictionary dictionary, CancellationToken ct)
+    {
+        var payload = new JsonObject { ["title"] = dictionary.Title };
+        if (dictionary.Id.Length > 0) payload["id"] = dictionary.Id;
+        await Link.RequestAsync(EngineTarget, "hd_remove", payload, ct).ConfigureAwait(false);
     }
 
     public Task<LookupReply> LookupAsync(string text)

@@ -43,7 +43,7 @@ public sealed class EntryView
         {
             var header = new RichBlock { MarginTopEm = 0.25f };
             if (config.ShowDictionaryNames && group.Dictionary.Length > 0)
-                header.Add(ThemePainter.Chip(group.Dictionary.StartsWith("FFXIV picture · ", StringComparison.Ordinal) ? "Your NPC picture" : group.Dictionary, theme.DictionaryChip, theme)).Add(" ");
+                header.Add(ThemePainter.Chip(HachidoriFfxiv.Hachidori.NpcImageDictionary.IsPictureDictionary(group.Dictionary) ? "Your NPC picture" : group.Dictionary, theme.DictionaryChip, theme)).Add(" ");
             if (config.ShowDefinitionTags)
             {
                 foreach (var tag in group.Tags.Count > 0
@@ -254,7 +254,7 @@ public sealed class EntryView
                 using (ImRaii.Disabled(manager.NpcImages.Busy || !manager.NpcImages.Available))
                 {
                     if (Button(FontAwesomeIcon.Camera, manager.NpcImages.Available
-                            ? "Attach an NPC picture in Hachidori: capture, drag around the NPC, release to save. Replaces your previous picture for this name and reading."
+                            ? "Attach an NPC picture in Hachidori: capture, drag around the NPC, release to save. Replaces your previous picture for this name and reading. All pictures share one dictionary; /hachidori pictures lists them."
                             : "NPC pictures require a connected Hachidori host with dictionary upload support."))
                         manager.NpcImages.Start(term);
                 }

@@ -43,7 +43,7 @@ Once your Hachidori host is linked, try `/hachidori 冒険者` in game.
 - **Your character's name in katakana,** so it reads naturally in sentences and cards.
 - **GSM text feed (opt-in):** sends dialogue and interaction popups to
   [GameSentenceMiner](https://github.com/bpwhelan/GameSentenceMiner).
-- **NPC images:** crop a screenshot into a dictionary on your host.
+- **NPC images:** crop screenshots into one picture dictionary on your host.
 - **Optional FFXIV dictionary** of game names and vocabulary.
 
 ## First setup
@@ -80,8 +80,12 @@ No compiling or manual DLL installation is needed.
   `/hachidori reader` for the optional reader/history overlay.
 - Use the pronunciation button for dictionary audio. For Anki, configure a
   template in Hachidori, select it in the plugin settings, then use **+** on an entry.
-- The camera button lets you crop an NPC screenshot into a dictionary on your
-  host. This requires host support for linked dictionary imports.
+- The camera button lets you crop an NPC screenshot into your host. All pictures
+  share one **FFXIV NPC pictures** dictionary; `/hachidori pictures` lists them,
+  removes them, and merges the one-picture dictionaries made by older versions.
+  Hachidori cannot edit an installed dictionary, so the plugin keeps the pictures
+  in its config folder (`npc-pictures`) and replaces the whole dictionary on each
+  change. This requires host support for linked dictionary imports.
 - Optional: import [the FFXIV Japanese–English dictionary](dictionaries/ffxiv/README.md)
   into Hachidori for game names and vocabulary. **Contains expansion spoilers.**
 

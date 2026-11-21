@@ -63,7 +63,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori reader · /hachidori search · /hachidori config · /hachidori logs",
+            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori config · /hachidori logs",
         });
         CommandManager.AddHandler(LegacyCommand, new CommandInfo(OnCommand)
         {
@@ -126,6 +126,9 @@ public sealed class Plugin : IDalamudPlugin
                 return;
             case "search":
                 search.Toggle();
+                return;
+            case "pictures":
+                popups.NpcImages.Open();
                 return;
             case "reconnect":
                 service.Link.Reconnect();
