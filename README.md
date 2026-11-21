@@ -112,11 +112,16 @@ running; setting up and syncing need Hachidori linked through Anki as usual.
    used, the last sync, and **Turn off and delete offline data**.
 
 Offline lookups use the same engine and settings as Hachidori, so results match
-the browser's. Offline, pronunciation uses your Audio URL and Yomitan JSON
-sources directly (browser speech needs Chrome), lookup counts are recorded once
-Hachidori is linked again, and Anki mining and NPC pictures need Chrome. The
-plugin warns when your Hachidori is newer than its built-in engine; a
-dictionary in a format it cannot read stays live-only until the plugin updates.
+the browser's. Anki mining also works offline: the plugin fills your Hachidori
+Anki Template itself and adds the note through AnkiConnect, with the
+pronunciation, the game screenshot and dictionary images. It checks duplicates
+with Anki's own first-field check rather than Hachidori's word index, and leaves
+Templates that overwrite existing notes, use Smaller Anki cards or the pitch
+graph markers to Chrome. Offline, pronunciation uses your Audio URL and Yomitan
+JSON sources directly (browser speech needs Chrome), lookup counts are recorded
+once Hachidori is linked again, and NPC pictures need Chrome. The plugin warns
+when your Hachidori is newer than its built-in engine; a dictionary in a format
+it cannot read stays live-only until the plugin updates.
 
 ## Popup themes
 

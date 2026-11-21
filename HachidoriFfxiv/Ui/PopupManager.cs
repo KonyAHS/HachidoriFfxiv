@@ -700,7 +700,9 @@ public sealed class PopupManager : IDisposable
         public PopupLayer? Previous { get; set; }
         public bool Dead { get; private set; }
         public bool FirstFrame { get; set; } = true;
-        public bool ResetScroll { get; set; }
+        // Every new lookup starts at its first result: the popup's ImGui window, and so its
+        // scroll position, is shared by every lookup shown at this depth.
+        public bool ResetScroll { get; set; } = true;
         public float ContentHeight { get; set; }
         public Vector2 WindowPos { get; set; }
         public Vector2 WindowSize { get; set; }

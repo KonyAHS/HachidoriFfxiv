@@ -181,6 +181,20 @@ if (args.Contains("--anki"))
 static string WithoutStyles(string html) => System.Text.RegularExpressions.Regex.Replace(html, @"<style[^>]*>[\s\S]*?</style>", "<style/>");
 static string StyleText(string html) => string.Join("\n", System.Text.RegularExpressions.Regex.Matches(html, @"<style[^>]*>([\s\S]*?)</style>").Select(m => m.Groups[1].Value));
 
+if (Argument("--segment-probe") is { } segmentLine)
+{
+    var spans = engine.Segment(HachidoriPayloads.Segment(segmentLine, ScanLength, personal))["segments"]![0]!["spans"] as JsonArray ?? [];
+    foreach (var span in spans.OfType<JsonObject>())
+    {
+        int start = (int)span["start"]!.GetValue<double>(), length = (int)span["length"]!.GetValue<double>();
+        var candidates = string.Join(" ", (span["candidates"] as JsonArray ?? []).Take(4).Select(c => $"{c?["expression"]}【{c?["reading"]}】"));
+        var alternative = string.Join(" | ", (span["alternative"] as JsonArray ?? []).Select(w =>
+            $"{segmentLine.Substring((int)w!["start"]!.GetValue<double>(), (int)w["length"]!.GetValue<double>())}={(w["candidates"] as JsonArray)?.FirstOrDefault()?["expression"]}{(w["functionWord"]?.GetValue<bool>() == true ? "(fw)" : "")}"));
+        Console.WriteLine($"{segmentLine.Substring(start, length),-10} fw={span["functionWord"]} {candidates}{(alternative.Length > 0 ? $"   alt: {alternative}" : "")}");
+    }
+    return 0;
+}
+
 if (Argument("--svg-probe") is { } svgWords)
 {
     // Each SVG image the words' glossaries name, as the browser draws it beside the

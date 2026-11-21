@@ -44,6 +44,7 @@ PopupTheme.Current = PopupTheme.PluginDefault();
 await NpcImageChecks.Run(Check);
 await PublishChecks.Run(Check);
 await OfflineChecks.Run(Check);
+AnkiChecks.Run(Check);
 
 Vector2 FixedMeasure(string s) => new(s.EnumerateRunes().Count() * 10, 12);
 var native = NativeTextLayout.Build("冒険\n者𠮷", 40, 40, 0, 12, 18, false, FixedMeasure);
