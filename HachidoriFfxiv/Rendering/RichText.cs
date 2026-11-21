@@ -42,6 +42,10 @@ public sealed class RichBlock
     private string? scanText;
     internal Layout? CachedLayout;
 
+    /// <summary>Where the block was last drawn (screen) and on which ImGui frame; for controller navigation.</summary>
+    public System.Numerics.Vector2 LastOrigin { get; internal set; }
+    public int LastDrawnFrame { get; internal set; } = -1;
+
     public string ScanText
     {
         get
@@ -277,6 +281,8 @@ public static unsafe class RichText
         }
 
         var origin = ImGui.GetCursorScreenPos() + new Vector2(0, block.MarginTopEm * baseSize);
+        block.LastOrigin = origin;
+        block.LastDrawnFrame = ImGui.GetFrameCount();
         var drawList = ImGui.GetWindowDrawList();
         var textColor = ImGui.GetColorU32(ImGuiCol.Text);
 
@@ -383,6 +389,24 @@ public static unsafe class RichText
         }
 
         return null;
+    }
+
+    /// <summary>Screen rectangles of each glyph of a block drawn on the previous frame or this one, in text order.</summary>
+    public static List<(int Index, Vector2 Min, Vector2 Max)> GlyphRects(RichBlock block)
+    {
+        var result = new List<(int, Vector2, Vector2)>();
+        var layout = block.CachedLayout;
+        if (layout is null || block.LastDrawnFrame < ImGui.GetFrameCount() - 1)
+            return result;
+        foreach (var g in layout.Glyphs)
+        {
+            var line = layout.Lines[g.Line];
+            result.Add((g.CharIndex,
+                block.LastOrigin + new Vector2(g.X, line.Top + line.RubyHeight),
+                block.LastOrigin + new Vector2(g.X + g.W, line.Top + line.Height)));
+        }
+
+        return result;
     }
 
     public static float Measure(ImFontPtr font, float size, string text) => Measure(font, (nint)font.Handle, size, text);

@@ -95,6 +95,12 @@ public sealed class ConfigWindow : Window
                 DrawMiningTab();
         }
 
+        using (var tab = ImRaii.TabItem("Controller"))
+        {
+            if (tab.Success)
+                DrawControllerTab();
+        }
+
         using (var tab = ImRaii.TabItem("Reader"))
         {
             if (tab.Success)
@@ -766,6 +772,108 @@ public sealed class ConfigWindow : Window
         {
             mediaTest = ex.Message;
         }
+    }
+
+    private static readonly Dalamud.Game.ClientState.GamePad.GamepadButtons[] HoldChoices =
+    [
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.None,
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.Select,
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.Start,
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.L3,
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.R3,
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.L3 | Dalamud.Game.ClientState.GamePad.GamepadButtons.R3,
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.L1 | Dalamud.Game.ClientState.GamePad.GamepadButtons.R1,
+        Dalamud.Game.ClientState.GamePad.GamepadButtons.Select | Dalamud.Game.ClientState.GamePad.GamepadButtons.DpadDown,
+    ];
+
+    private void DrawControllerTab()
+    {
+        void Save() => config.Save();
+        var ps = config.ControllerPlayStationLabels;
+        string Name(Dalamud.Game.ClientState.GamePad.GamepadButtons b) => b switch
+        {
+            Dalamud.Game.ClientState.GamePad.GamepadButtons.None => "Off (macro only)",
+            _ => string.Join(" + ", Enum.GetValues<Dalamud.Game.ClientState.GamePad.GamepadButtons>()
+                .Where(v => v != Dalamud.Game.ClientState.GamePad.GamepadButtons.None && b.HasFlag(v))
+                .Select(v => v switch
+                {
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.Select => ps ? "Select / Touchpad" : "Back / View",
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.Start => ps ? "Options" : "Start / Menu",
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L1 => ps ? "L1" : "LB",
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R1 => ps ? "R1" : "RB",
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L3 => ps ? "L3" : "LS click",
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R3 => ps ? "R3" : "RS click",
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.DpadDown => "D-pad down",
+                    _ => v.ToString(),
+                })),
+        };
+
+        ImGui.TextWrapped("Read FFXIV dialogue with a controller: move a cursor word by word, see the dictionary, mine with one button. While the mode is on, the controller drives Hachidori and the game ignores it; leave the mode to play again.");
+        var enabled = config.ControllerEnabled;
+        if (ImGui.Checkbox("Controller reading mode", ref enabled))
+        {
+            config.ControllerEnabled = enabled;
+            Save();
+        }
+
+        if (!config.ControllerEnabled)
+            return;
+
+        ImGui.Separator();
+        ImGui.TextUnformatted("Enter the mode");
+        using (ImRaii.PushIndent())
+        {
+            ImGui.TextWrapped("Best: put a macro with this line on a cross hotbar slot. FFXIV handles the press, so nothing else triggers.");
+            ImGui.TextUnformatted("/hachidori pad");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Copy"))
+                ImGui.SetClipboardText("/hachidori pad");
+
+            var index = Math.Max(0, Array.IndexOf(HoldChoices, config.ControllerHoldButton));
+            var labels = HoldChoices.Select(Name).ToArray();
+            if (ImGui.Combo("Or hold", ref index, labels, labels.Length))
+            {
+                config.ControllerHoldButton = HoldChoices[index];
+                Save();
+            }
+
+            HelpMarker("Holding the button enters the mode. FFXIV still sees that press, so pick a button whose game action you don't mind, or use the macro.");
+            if (config.ControllerHoldButton != Dalamud.Game.ClientState.GamePad.GamepadButtons.None)
+            {
+                var seconds = config.ControllerHoldSeconds;
+                if (ImGui.SliderFloat("Hold for (s)", ref seconds, 0.2f, 1.5f, "%.1f"))
+                    config.ControllerHoldSeconds = seconds;
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                    Save();
+            }
+        }
+
+        ImGui.Separator();
+        ImGui.TextUnformatted("In the mode");
+        using (ImRaii.PushIndent())
+        {
+            string B(string xbox, string playstation) => ps ? playstation : xbox;
+            foreach (var (keys, action) in new[]
+                     {
+                         ("D-pad ◀▶ / left stick", "previous / next word (or character)"),
+                         ("D-pad ▲▼ / left stick", "line above / below"),
+                         (B("A", "✕"), "add the selected entry to Anki"),
+                         (B("X", "□"), "play its pronunciation"),
+                         (B("LT / RT", "L2 / R2"), "previous / next dictionary entry"),
+                         ("Right stick", "scroll the popup"),
+                         (B("RB", "R1"), "move the cursor into the popup to look up a word inside it"),
+                         (B("B / LB", "○ / L1"), "back out of the popup; B again leaves the mode"),
+                         (B("Y", "△"), "switch between words and characters"),
+                         (B("Back / Start", "Select / Options"), "leave the mode"),
+                     })
+                ImGui.BulletText($"{keys}: {action}");
+        }
+
+        ImGui.Separator();
+        Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v);
+        Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
+        Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
+        Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
     }
 
     private void DrawReaderTab()

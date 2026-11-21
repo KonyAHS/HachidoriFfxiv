@@ -27,6 +27,7 @@
     <Compile Include="../../HachidoriFfxiv/Media/GifEncoder.cs" Link="Media/GifEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnimationEncoder.cs" Link="Media/AnimationEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/TranslationPrompt.cs" Link="Media/TranslationPrompt.cs" />
+    <Compile Include="../../HachidoriFfxiv/Ui/CursorMoves.cs" Link="Ui/CursorMoves.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="Media/ScreenshotMedia.cs" />

@@ -107,6 +107,24 @@ colours and sizes, and CSS custom properties (`var()`) apply. Layout rules
 popup keeps the plugin's layout. After a Hachidori update, refresh the bundled
 stylesheets with `python -I scripts/sync_hachidori_themes.py <extension folder>`.
 
+## Controller
+
+Read dialogue with a controller, like GSM's overlay: a cursor moves word by word,
+the dictionary opens at it, and one button mines the card. FFXIV uses every
+button, so this is a mode: while it is on, the controller drives Hachidori and
+the game ignores it; leave it to play again.
+
+- **Enter**: put a macro with `/hachidori pad` on a cross hotbar slot. FFXIV
+  handles that press, so nothing else triggers. Or hold Back/Select (changeable
+  in `/hachidori config` → **Controller**); the game still sees that press.
+- **In the mode**: D-pad or left stick moves by word (◀▶) and line (▲▼);
+  A adds to Anki, X plays audio, LT/RT change the entry, the right stick scrolls,
+  RB moves into the popup for a nested lookup, B or LB backs out, Y switches
+  between words and characters, Back/Start leaves.
+- The mode ends by itself when the dialogue closes.
+- Blocking the game's input needs "plugin gamepad input" allowed in Dalamud's
+  settings; the hint bar warns if it is not.
+
 ## Card media: screenshot, voice line, GIF
 
 Cards you add with **+** can get media straight from the game. Settings are in

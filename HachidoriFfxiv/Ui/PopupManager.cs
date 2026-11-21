@@ -57,12 +57,86 @@ public sealed class PopupManager : IDisposable
         NpcImages.Dispose();
     }
 
-    internal sealed record PendingHit(TextHit Hit, int Depth, ScanContext Context, bool Kanji, int? TokenEnd = null, bool KeepPrevious = true);
+    internal sealed record PendingHit(TextHit Hit, int Depth, ScanContext Context, bool Kanji, int? TokenEnd = null,
+        bool Forced = false, bool KeepPrevious = true);
+
+    // ------------------------------------------------------------ controller
+
+    /// <summary>Controller mode: mouse hovers only count after the mouse moves, and the cursor's parents stay open.</summary>
+    public bool ControllerActive { get; set; }
+    private Vector2 lastMouse;
+    private DateTime mouseMovedAt = DateTime.MinValue;
+    private int sustainDepth = -1;
+
+    private bool MouseRecentlyMoved => (DateTime.UtcNow - mouseMovedAt).TotalSeconds < 0.75;
+
+    /// <summary>Keeps popups 0..depth open this frame.</summary>
+    public void Sustain(int depth) => sustainDepth = Math.Max(sustainDepth, depth);
+
+    /// <summary>The number of visible popups.</summary>
+    public int VisibleCount => layers.TakeWhile(l => l.Visible).Count();
+
+    /// <summary>The popup's screen rectangle.</summary>
+    public (Vector2 Min, Vector2 Max)? LayerRect(int depth) =>
+        depth < layers.Count && layers[depth].Visible ? (layers[depth].WindowPos, layers[depth].WindowPos + layers[depth].WindowSize) : null;
+
+    /// <summary>The scannable definition text of popup <paramref name="depth"/>, in reading order.</summary>
+    public List<RichBlock> ScanBlocks(int depth)
+    {
+        var blocks = new List<RichBlock>();
+        if (depth >= layers.Count || layers[depth].Showing is not { } shown)
+            return blocks;
+        foreach (var entry in shown.Entries)
+            foreach (var (_, group) in entry.Definitions)
+                blocks.AddRange(group.Where(b => b.Image is null && !b.IsEmpty));
+        return blocks;
+    }
+
+    /// <summary>Moves the controller's entry selection in popup <paramref name="depth"/> and scrolls to it.</summary>
+    public void SelectEntry(int depth, int delta)
+    {
+        if (depth >= layers.Count || layers[depth].Showing is not { Entries.Count: > 0 } shown)
+            return;
+        var layer = layers[depth];
+        layer.SelectedEntry = Math.Clamp(layer.SelectedEntry + delta, 0, shown.Entries.Count - 1);
+        layer.ScrollToSelected = true;
+    }
+
+    public EntryView? SelectedEntry(int depth) =>
+        depth < layers.Count && layers[depth].Showing is { Entries.Count: > 0 } shown
+            ? shown.Entries[Math.Clamp(layers[depth].SelectedEntry, 0, shown.Entries.Count - 1)]
+            : null;
+
+    public void MineSelected(int depth) => SelectedEntry(depth)?.RequestAnki();
+
+    public void PlaySelected(int depth)
+    {
+        if (SelectedEntry(depth) is { } entry)
+            audio.PlayTerm(service, entry.Result.Term.Expression, entry.Result.Term.Reading);
+    }
+
+    /// <summary>Scrolls popup <paramref name="depth"/> by <paramref name="pixels"/> on its next draw.</summary>
+    public void Scroll(int depth, float pixels)
+    {
+        if (depth < layers.Count)
+            layers[depth].PendingScroll += pixels;
+    }
+
+    /// <summary>Closes the deepest popup (controller "back").</summary>
+    public void CloseFrom(int depth)
+    {
+        if (depth < layers.Count)
+            layers.RemoveRange(depth, layers.Count - depth);
+    }
 
     /// <summary>A text area reports the hovered character. Depth is 0 outside popups, N+1 inside popup N.</summary>
-    public void Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context = null, bool keepPrevious = true)
+    public void Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context = null,
+        bool forced = false, bool keepPrevious = true)
     {
         if (hit is not { } h)
+            return;
+        // While the controller drives, a resting mouse must not fight its cursor.
+        if (ControllerActive && !forced && !MouseRecentlyMoved)
             return;
         int? tokenEnd = null;
         if (config.TokenizedHover)
@@ -80,7 +154,7 @@ public sealed class PopupManager : IDisposable
             }
         }
         var ctx = context?.Invoke(h.Block, h.CharIndex) ?? new ScanContext(h.Block.ScanText, h.CharIndex, config.DocumentTitle);
-        frameHit = new PendingHit(h, depth, ctx, false, tokenEnd, keepPrevious);
+        frameHit = new PendingHit(h, depth, ctx, false, tokenEnd, forced, keepPrevious);
     }
 
     /// <summary>Opens a popup for a query from a command or a button, anchored at the mouse.</summary>
@@ -124,6 +198,12 @@ public sealed class PopupManager : IDisposable
 
         var now = DateTime.UtcNow;
         var mouse = ImGui.GetMousePos();
+        if (Vector2.DistanceSquared(mouse, lastMouse) > 4)
+        {
+            lastMouse = mouse;
+            mouseMovedAt = now;
+        }
+
         var hit = frameHit;
         frameHit = null;
 
@@ -136,12 +216,13 @@ public sealed class PopupManager : IDisposable
             var sameSpot = existing is not null && existing.Source == hit.Hit.Block && existing.SourceIndex == index && existing.IsKanji == hit.Kanji;
             var insideMatch = existing is not null && existing.Source == hit.Hit.Block
                               && index >= existing.SourceIndex && index < existing.SourceIndex + Math.Max(1, existing.MatchLength);
-            if (sameSpot || (insideMatch && !ModifierHeld()))
+            var scanning = hit.Forced || ModifierHeld();
+            if (sameSpot || (insideMatch && !scanning))
             {
                 existing!.SustainedAt = now;
                 if (sameSpot) existing.MoveAnchor(hit.Hit);
             }
-            else if (ModifierHeld() && index < text.Length)
+            else if (scanning && index < text.Length)
             {
                 var cp = Japanese.CodePointAt(text, index);
                 if (!config.ScanOnlyJapanese || Japanese.IsJapanese(cp))
@@ -176,6 +257,13 @@ public sealed class PopupManager : IDisposable
                     layers[j].SustainedAt = now;
                 break;
             }
+        }
+
+        if (sustainDepth >= 0)
+        {
+            for (var j = 0; j <= Math.Min(sustainDepth, layers.Count - 1); j++)
+                layers[j].SustainedAt = now;
+            sustainDepth = -1;
         }
 
         // Clicking anywhere outside closes everything.
@@ -293,6 +381,13 @@ public sealed class PopupManager : IDisposable
             {
                 ImGui.SetScrollY(0);
                 layer.ResetScroll = false;
+                layer.SelectedEntry = 0;
+            }
+
+            if (layer.PendingScroll != 0)
+            {
+                ImGui.SetScrollY(Math.Clamp(ImGui.GetScrollY() + layer.PendingScroll, 0, ImGui.GetScrollMaxY()));
+                layer.PendingScroll = 0;
             }
 
             if (shown?.Error is { } error)
@@ -309,6 +404,22 @@ public sealed class PopupManager : IDisposable
 
                     var entry = shown.Entries[e];
                     using var entryId = ImRaii.PushId(e);
+                    entry.TopY = ImGui.GetCursorPosY();
+                    if (ControllerActive && e == layer.SelectedEntry && shown.Entries.Count > 1)
+                    {
+                        // The controller's selected entry: a bar in the margin.
+                        var top = ImGui.GetCursorScreenPos();
+                        ImGui.GetWindowDrawList().AddRectFilled(top - new Vector2(ImGui.GetStyle().WindowPadding.X * 0.6f, 0),
+                            top - new Vector2(ImGui.GetStyle().WindowPadding.X * 0.6f - 3, -ImGui.GetFontSize() * 2.2f),
+                            ImGui.GetColorU32(ImGuiCol.ScrollbarGrabActive), 2f);
+                    }
+
+                    if (layer.ScrollToSelected && e == layer.SelectedEntry)
+                    {
+                        ImGui.SetScrollY(Math.Max(0, entry.TopY - ImGui.GetStyle().WindowPadding.Y));
+                        layer.ScrollToSelected = false;
+                    }
+
                     var entryHit = DrawEntry(theme, entry, depth, contentWidth, reply, shown.Context);
                     if (entryHit is { } eh)
                     {
@@ -590,6 +701,9 @@ public sealed class PopupManager : IDisposable
         public float ContentHeight { get; set; }
         public Vector2 WindowPos { get; set; }
         public Vector2 WindowSize { get; set; }
+        public int SelectedEntry { get; set; }
+        public bool ScrollToSelected { get; set; }
+        public float PendingScroll { get; set; }
 
         /// <summary>
         /// The highlighted length in the source text. Hachidori measures the match as

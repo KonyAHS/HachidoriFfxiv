@@ -107,6 +107,15 @@ public sealed class Configuration : IPluginConfiguration
     public bool PublishChat { get; set; } = false;
     public bool PublishSpeaker { get; set; } = false;
 
+    // Controller reading mode (/hachidori pad, or hold a button).
+    public bool ControllerEnabled { get; set; } = true;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerHoldButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.Select;
+    public float ControllerHoldSeconds { get; set; } = 0.6f;
+    public bool ControllerStartInWordMode { get; set; } = true;
+    public bool ControllerExitWhenDialogueCloses { get; set; } = true;
+    public bool ControllerShowHints { get; set; } = true;
+    public bool ControllerPlayStationLabels { get; set; } = false;
+
     // Settings window: everyday options only, unless the user asks for all of them.
     public bool AdvancedSettings { get; set; } = false;
 
