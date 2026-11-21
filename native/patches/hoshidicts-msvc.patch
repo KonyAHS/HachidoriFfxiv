@@ -12,3 +12,80 @@ index 2c0ba7f..0ab9883 100644
    const uint64_t invert_mask = sequences_starting_on_even_bits << 1;
    return (even_bits ^ invert_mask) & follows_escape;
  }
+diff --git a/src/lookup.cpp b/src/lookup.cpp
+index 016ede5..e5adb1b 100644
+--- a/src/lookup.cpp
++++ b/src/lookup.cpp
+@@ -20,6 +20,11 @@
+ #include "query_internal.hpp"
+ #include "scan_index.hpp"
+ 
++#if defined(_MSC_VER)
++// Sort as Hachidori's Emscripten (libc++) build does, ties included.
++#include "hdw_libcxx_sort.hpp"
++#endif
++
+ namespace {
+ using hoshidicts::lang::Deinflection;
+ using hoshidicts::lang::Deinflections;
+@@ -1047,15 +1052,27 @@ std::vector<LookupResult> Lookup::lookup_impl(const std::string& lookup_string,
+         order, [&](uint32_t i) { return candidates[i].term->first_glossary != UINT32_MAX; });
+   }
+   const auto ordinary_end = metadata.begin();
++#if defined(_MSC_VER)
++  hdw::libcxx::sort(order.begin(), ordinary_end, by_key);
++#else
+   std::ranges::sort(order.begin(), ordinary_end, by_key);
++#endif
+   const auto ordinary_middle = std::ranges::next(
+       order.begin(),
+       static_cast<std::ptrdiff_t>(std::min(retained_count, static_cast<size_t>(ordinary_end - order.begin()))));
++#if defined(_MSC_VER)
++  hdw::libcxx::partial_sort(order.begin(), ordinary_middle, ordinary_end, by_rank);
++#else
+   std::ranges::partial_sort(order.begin(), ordinary_middle, ordinary_end, by_rank);
++#endif
+   std::span<const uint32_t> kept(order.begin(), ordinary_middle);
+   std::vector<uint32_t> merged;
+   if (!metadata.empty()) {
++#if defined(_MSC_VER)
++    hdw::libcxx::sort(metadata.begin(), metadata.end(), by_key);
++#else
+     std::ranges::sort(metadata, by_key);
++#endif
+     std::ranges::stable_sort(metadata, by_rank);
+     // A metadata-only term goes after the terms with glossaries that read as
+     // far and before those that read less, so it moves none of them: it comes
+diff --git a/src/query.cpp b/src/query.cpp
+index dd43f36..d41d055 100644
+--- a/src/query.cpp
++++ b/src/query.cpp
+@@ -27,6 +27,11 @@
+ #include "query_internal.hpp"
+ #include "scan_index.hpp"
+ 
++#if defined(_MSC_VER)
++// Sort as Hachidori's Emscripten (libc++) build does, ties included.
++#include "hdw_libcxx_sort.hpp"
++#endif
++
+ namespace {
+ template <typename T>
+ T read_val(const uint8_t*& addr) {
+@@ -543,9 +548,14 @@ std::vector<TermResult> DictionaryQuery::query(const std::string& expression) co
+   for (auto& term : raw.terms) {
+     results.push_back(build_term(raw, term, pins));
+   }
+-  std::ranges::sort(results, [](const TermResult& a, const TermResult& b) {
++  const auto by_headword = [](const TermResult& a, const TermResult& b) {
+     return a.expression != b.expression ? a.expression < b.expression : a.reading < b.reading;
+-  });
++  };
++#if defined(_MSC_VER)
++  hdw::libcxx::sort(results.begin(), results.end(), by_headword);
++#else
++  std::ranges::sort(results, by_headword);
++#endif
+   for (auto& term : results) {
+     materialize(term);
+   }

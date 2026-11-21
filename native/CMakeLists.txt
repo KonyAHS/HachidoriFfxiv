@@ -22,6 +22,8 @@ set_target_properties(libzstd_static PROPERTIES C_STANDARD 11)
 target_compile_options(libzstd_static PRIVATE /experimental:c11atomics)
 # utfcpp picks its std::string overloads from __cplusplus.
 target_compile_options(hoshidicts PRIVATE /Zc:__cplusplus)
+# hdw_libcxx_sort.hpp, which the MSVC patch includes in src/lookup.cpp and src/query.cpp.
+target_include_directories(hoshidicts PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/compat")
 
 add_library(hdw_native SHARED
     "${HDW_SOURCE_DIR}/hachidori/wasm/bindings.cpp"
