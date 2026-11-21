@@ -74,7 +74,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                 LastHoveredAddon = name;
                 // The ChatLog window and its text panels are separate addons, and the
                 // collision hit can be the window, which has no chat text of its own.
-                if (IsChat(name)) ReadChat();
+                if (IsChat(name)) ReadChat(hovered);
                 else if (Allowed(name) && name != "TalkSubtitle") ReadAddon(hovered, name);
             }
             else
@@ -86,7 +86,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                     var addon = Plugin.GameGui.GetAddonByName(name);
                     if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name);
                 }
-                ReadChat();
+                ReadChat(null);
             }
             regions = next.ToArray();
             foreach (var key in cache.Keys.Where(k => !seen.Contains(k)).ToArray()) cache.Remove(key);
@@ -107,30 +107,52 @@ public sealed unsafe class NativeTextHover : IDisposable
 
         void ReadAddon(AtkUnitBase* addon, string name) => ReadNodes(&addon->UldManager, name, 0);
 
-        void ReadChat()
+        void ReadChat(AtkUnitBase* hovered)
         {
             if (!Allowed("ChatLog")) return;
-            var before = next.Count;
-            var probe = new StringBuilder($"hovered='{LastHoveredAddon}'");
-            foreach (var name in ChatPanels)
+            var addon = Plugin.GameGui.GetAddonByName("ChatLog");
+            var chatLog = (AddonChatLog*)addon.Address;
+            var selectedTab = addon.IsNull || !addon.IsVisible ? -1 : chatLog->TabIndex;
+            var hoverInMain = chatLog != null && (hovered == &chatLog->AtkUnitBase
+                || (hovered != null && hovered->HostId == chatLog->Id));
+            AddonChatLogPanel* target = null;
+            var targetName = string.Empty;
+            for (var i = 0; i < ChatPanels.Length; i++)
             {
-                var addon = Plugin.GameGui.GetAddonByName(name);
-                if (addon.IsNull || !addon.IsVisible) continue;
-                var text = ((AddonChatLogPanel*)addon.Address)->ChatText;
-                if (text == null)
+                var panelAddon = Plugin.GameGui.GetAddonByName(ChatPanels[i]);
+                if (panelAddon.IsNull || !panelAddon.IsVisible) continue;
+                var panel = (AddonChatLogPanel*)panelAddon.Address;
+                var attached = chatLog != null && panel->HostId == chatLog->Id;
+                // Inactive tabs retain their text and can still report visible.
+                if (attached)
                 {
-                    probe.Append($" {name}:no-node");
-                    ReadAddon((AtkUnitBase*)addon.Address, name);
-                    continue;
+                    if (i != selectedTab || (hovered != null && !hoverInMain)) continue;
                 }
-                var visible = Visible((AtkResNode*)text);
-                probe.Append($" {name}:visible={visible},size={text->Width}x{text->Height},bytes={text->NodeText.AsSpan().Length}");
-                if (visited.Add((nint)text) && visible) ReadText(text, name);
+                else if (hovered != null && hovered != &panel->AtkUnitBase) continue;
+
+                // When there is no collision hit, use the frontmost panel under the
+                // mouse. Choose the panel before looking for readable text in it.
+                if (hovered == null)
+                {
+                    var textNode = panel->ChatText;
+                    if (textNode == null || !Visible((AtkResNode*)textNode)) continue;
+                    Bounds bounds;
+                    textNode->GetBounds(&bounds);
+                    if (!NativeTextLayout.Contains(new(bounds.Pos1.X, bounds.Pos1.Y), new(bounds.Pos2.X, bounds.Pos2.Y), lastMouse)) continue;
+                    if (target != null && target->DrawOrderIndex >= panel->DrawOrderIndex) continue;
+                }
+                target = panel;
+                targetName = ChatPanels[i];
             }
-            if (LastHoveredAddon.Length > 0 && next.Count == before && (DateTime.UtcNow - lastChatProbe).TotalSeconds > 5)
+
+            var before = next.Count;
+            var text = target == null ? null : target->ChatText;
+            if (text != null && visited.Add((nint)text) && Visible((AtkResNode*)text))
+                ReadText(text, targetName);
+            if (hovered != null && next.Count == before && (DateTime.UtcNow - lastChatProbe).TotalSeconds > 5)
             {
                 lastChatProbe = DateTime.UtcNow;
-                DiagnosticLog.Write("chat-hover", $"No chat text under mouse: {probe}");
+                DiagnosticLog.Write("chat-hover", $"No chat text under mouse: hovered='{LastHoveredAddon}', tab={selectedTab}, panel='{targetName}'");
             }
         }
 
