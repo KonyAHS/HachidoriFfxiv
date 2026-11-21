@@ -7,6 +7,8 @@
 // requests to both and diffs the JSON. Exits 1 on any difference.
 //
 //   dotnet run -c Release --project tests/HachidoriFfxiv.Parity [--store DIR] [--lines FILE] [--verbose]
+//   ... --show TEXT        both result lists for one lookup
+//   ... --audio TERM|READING  offline pronunciation from the saved audio sources
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System.Diagnostics;
@@ -112,6 +114,16 @@ T Local<T>(Func<T> call)
     var reply = call();
     localMs += timer.Elapsed.TotalMilliseconds;
     return reply;
+}
+
+if (Argument("--audio") is { } audioTerm)
+{
+    // Offline pronunciation straight from the saved Audio URL / Yomitan JSON sources.
+    var parts = audioTerm.Split('|');
+    var bytes = await OfflineAudio.FetchAsync(http, (link.Snapshot["options"] as JsonObject)?["audioSources"], parts[0],
+        parts.Length > 1 ? parts[1] : parts[0], CancellationToken.None);
+    Console.WriteLine(bytes is null ? "offline audio: none" : $"offline audio: {bytes.Length} bytes, starts {Convert.ToHexString(bytes.AsSpan(0, Math.Min(4, bytes.Length)))}");
+    return bytes is null ? 1 : 0;
 }
 
 if (Argument("--show") is { } shown)
