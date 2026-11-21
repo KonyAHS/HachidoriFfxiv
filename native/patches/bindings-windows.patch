@@ -1,0 +1,41 @@
+--- a/wasm/bindings.cpp
++++ b/wasm/bindings.cpp
+@@ -959,30 +959,15 @@
+ };
+ 
+ std::optional<FileStart> read_file_start(const std::filesystem::path &path, uintmax_t count) {
+-  const int fd = open(path.c_str(), O_RDONLY);
+-  if (fd < 0) {
+-    return std::nullopt;
+-  }
+-  struct stat st{};
+-  if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+-    close(fd);
+-    return std::nullopt;
+-  }
+-  FileStart file{.size = static_cast<uintmax_t>(st.st_size)};
++  std::error_code ec;
++  if (!std::filesystem::is_regular_file(path, ec)) return std::nullopt;
++  FileStart file{.size = std::filesystem::file_size(path, ec)};
++  if (ec) return std::nullopt;
++  std::ifstream in(path, std::ios::binary);
++  if (!in) return std::nullopt;
+   file.bytes.resize(static_cast<size_t>(std::min(count, file.size)));
+-  size_t done = 0;
+-  while (done < file.bytes.size()) {
+-    const ssize_t n = pread(fd, file.bytes.data() + done, file.bytes.size() - done, static_cast<off_t>(done));
+-    if (n < 0 && errno == EINTR) {
+-      continue;
+-    }
+-    if (n <= 0) {
+-      break;
+-    }
+-    done += static_cast<size_t>(n);
+-  }
+-  close(fd);
+-  file.bytes.resize(done);
++  in.read(file.bytes.data(), static_cast<std::streamsize>(file.bytes.size()));
++  file.bytes.resize(static_cast<size_t>(in.gcount()));
+   return file;
+ }
+ 

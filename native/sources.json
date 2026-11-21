@@ -1,0 +1,14 @@
+{
+  "hachidori": {
+    "repository": "https://github.com/bee-san/hachidori",
+    "version": "0.5.2",
+    "commit": "6cd6124abaa1b222828d8ee3ab5b9ced3169605e",
+    "bindings": "wasm/bindings.cpp",
+    "bindingsSha256": "5977f947073ac27df03d5907de01b70fabe3bba96a8e27af9f739b7683f55270"
+  },
+  "hoshidicts": {
+    "repository": "https://github.com/bee-san/hoshidicts",
+    "commit": "088ac5ded9e4de62a0c3f434f3f72350945459a3",
+    "newestDictionaryFormat": 6
+  }
+}

@@ -1,0 +1,14 @@
+diff --git a/src/json/json_skip.cpp b/src/json/json_skip.cpp
+index 2c0ba7f..0ab9883 100644
+--- a/src/json/json_skip.cpp
++++ b/src/json/json_skip.cpp
+@@ -85,7 +85,8 @@ inline uint64_t find_escaped(uint64_t backslash, uint64_t& next_escaped) noexcep
+   constexpr uint64_t even_bits = 0x5555555555555555ULL;
+   const uint64_t odd_sequence_starts = backslash & ~even_bits & ~follows_escape;
+   uint64_t sequences_starting_on_even_bits = 0;
+-  next_escaped = __builtin_add_overflow(odd_sequence_starts, backslash, &sequences_starting_on_even_bits) ? 1 : 0;
++  sequences_starting_on_even_bits = odd_sequence_starts + backslash;
++  next_escaped = sequences_starting_on_even_bits < odd_sequence_starts ? 1 : 0;
+   const uint64_t invert_mask = sequences_starting_on_even_bits << 1;
+   return (even_bits ^ invert_mask) & follows_escape;
+ }

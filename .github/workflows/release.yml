@@ -22,6 +22,13 @@ jobs:
           if ($version.AssemblyVersion -notlike '15.*') { throw 'Dalamud has moved beyond API 15; update the plugin SDK before releasing.' }
           Invoke-WebRequest https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile "$env:RUNNER_TEMP/dalamud.zip"
           Expand-Archive "$env:RUNNER_TEMP/dalamud.zip" -DestinationPath "$env:APPDATA/XIVLauncher/addon/Hooks/dev" -Force
+      # The offline engine takes a few minutes to compile; reuse it while its
+      # pinned sources, patches and build script are unchanged.
+      - name: Cache the offline engine
+        uses: actions/cache@v4
+        with:
+          path: native/bin
+          key: hdw-native-${{ runner.os }}-${{ hashFiles('native/sources.json', 'native/CMakeLists.txt', 'native/*.cpp', 'native/build.ps1', 'native/patches/**', 'native/compat/**') }}
       - name: Build and verify
         shell: pwsh
         run: ./build.ps1 -Verify

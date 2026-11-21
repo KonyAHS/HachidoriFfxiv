@@ -1,4 +1,4 @@
-param([switch]$Verify)
+param([switch]$Verify, [switch]$SkipNative)
 
 $ErrorActionPreference = 'Stop'
 $taskDotnet = Join-Path $env:USERPROFILE '.dotnet/dotnet.exe'
@@ -8,6 +8,10 @@ if (-not (Test-Path -LiteralPath $taskDotnet)) {
 
 Push-Location $PSScriptRoot
 try {
+    # The offline engine (hdw_native.dll). Skipped only when asked and already built.
+    if (-not ($SkipNative -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'native/bin/hdw_native.dll')))) {
+        & (Join-Path $PSScriptRoot 'native/build.ps1')
+    }
     & $taskDotnet build HachidoriFfxiv.sln -c Release -p:RestoreLockedMode=true
     if ($LASTEXITCODE -ne 0) { throw 'Plugin build failed.' }
     if ($Verify) {
@@ -21,7 +25,7 @@ try {
     $taskRuntime = $taskDeps.targets.PSObject.Properties[$taskDeps.runtimeTarget.name].Value
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LICENSE') -Destination $taskOutput
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'THIRD-PARTY-NOTICES.txt') -Destination $taskOutput
-    $taskPackageFiles = @('HachidoriFfxiv.json', 'HachidoriFfxiv.deps.json', 'LICENSE', 'THIRD-PARTY-NOTICES.txt')
+    $taskPackageFiles = @('HachidoriFfxiv.json', 'HachidoriFfxiv.deps.json', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'hdw_native.dll', 'hdw_native.json')
     foreach ($taskLibrary in $taskRuntime.PSObject.Properties) {
         foreach ($taskAsset in $taskLibrary.Value.runtime.PSObject.Properties) {
             $taskPackageFiles += [IO.Path]::GetFileName($taskAsset.Name)

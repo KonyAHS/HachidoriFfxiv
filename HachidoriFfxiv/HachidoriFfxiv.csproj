@@ -19,6 +19,14 @@
   <ItemGroup>
     <!-- Hachidori's popup theme stylesheets, synced by scripts/sync_hachidori_themes.py. -->
     <EmbeddedResource Include="Themes\*.css" LogicalName="HachidoriFfxiv.Themes.%(Filename).css" />
+    <!-- KANJIDIC and Jitendex kanwa readings for offline furigana, as Hachidori bundles them. -->
+    <EmbeddedResource Include="Offline\Data\*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The offline engine, built by native/build.ps1 (build.ps1 runs it first). -->
+    <None Include="../native/bin/hdw_native.dll" Link="hdw_native.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" Condition="Exists('../native/bin/hdw_native.dll')" />
+    <None Include="../native/bin/hdw_native.json" Link="hdw_native.json" CopyToOutputDirectory="PreserveNewest" Visible="false" Condition="Exists('../native/bin/hdw_native.json')" />
   </ItemGroup>
 
   <ItemGroup>
