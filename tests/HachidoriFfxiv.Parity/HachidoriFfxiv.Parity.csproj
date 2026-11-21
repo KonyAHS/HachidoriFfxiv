@@ -13,6 +13,7 @@
     <Compile Include="../../HachidoriFfxiv/Hachidori/HachidoriPayloads.cs" Link="HachidoriPayloads.cs" />
     <Compile Include="../../HachidoriFfxiv/Hachidori/WordSpans.cs" Link="WordSpans.cs" />
     <Compile Include="../../HachidoriFfxiv/DiagnosticLog.cs" Link="DiagnosticLog.cs" />
+    <Compile Include="../../HachidoriFfxiv/Rendering/SvgImage.cs" Link="SvgImage.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="ScreenshotMedia.cs" />
     <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs" Link="Offline/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Anki/*.cs" Exclude="../../HachidoriFfxiv/Anki/OfflineAnkiMiner.cs" Link="Anki/%(Filename)%(Extension)" />

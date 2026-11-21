@@ -181,6 +181,70 @@ if (args.Contains("--anki"))
 static string WithoutStyles(string html) => System.Text.RegularExpressions.Regex.Replace(html, @"<style[^>]*>[\s\S]*?</style>", "<style/>");
 static string StyleText(string html) => string.Join("\n", System.Text.RegularExpressions.Regex.Matches(html, @"<style[^>]*>([\s\S]*?)</style>").Select(m => m.Groups[1].Value));
 
+if (Argument("--svg-probe") is { } svgWords)
+{
+    // Each SVG image the words' glossaries name, as the browser draws it beside the
+    // plugin's interpretation (redrawn from its primitives), in one HTML page.
+    var html = new StringBuilder("<!doctype html><meta charset=utf-8><body style='background:#f3ead6;font-family:sans-serif'>");
+    var seen = new HashSet<string>();
+    foreach (var word in svgWords.Split(','))
+    {
+        var reply = engine.Lookup(HachidoriPayloads.Lookup(word, 4, 16, lookupOptions));
+        foreach (var glossary in (reply["results"] as JsonArray ?? []).SelectMany(r => r?["term"]?["glossaries"] as JsonArray ?? []))
+        {
+            var dictionary = glossary?["dictionary"]?.ToString() ?? "";
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(glossary?["glossary"]?.ToString() ?? "", "\"path\":\"([^\"]+\\.svg)\""))
+            {
+                if (!seen.Add(dictionary + m.Groups[1].Value)) continue;
+                var bytes = engine.Media(dictionary, m.Groups[1].Value);
+                if (bytes is null) continue;
+                var image = HachidoriFfxiv.Rendering.SvgImage.Parse(bytes);
+                var size = new System.Numerics.Vector2(160, 160);
+                var redraw = new StringBuilder($"<svg width=160 height=160 style='background:#fff8'>");
+                string Css(uint c) => c == 0 ? "#222" : $"rgba({c & 0xFF},{(c >> 8) & 0xFF},{(c >> 16) & 0xFF},{(c >> 24) / 255.0:0.##})";
+                foreach (var primitive in image.Layout(System.Numerics.Vector2.Zero, size))
+                {
+                    if (primitive is HachidoriFfxiv.Rendering.SvgShape shape)
+                    {
+                        var t = shape.Triangles;
+                        for (var i = 0; shape.Fill is { } f && i + 2 < t.Count; i += 3)
+                            redraw.Append($"<polygon points='{string.Join(' ', new[] { t[i], t[i + 1], t[i + 2] }.Select(k => $"{shape.Points[k].X:0.#},{shape.Points[k].Y:0.#}"))}' fill='{Css(f)}'/>");
+                        if (shape.Stroke is { } s)
+                            redraw.Append($"<{(shape.Closed ? "polygon" : "polyline")} points='{string.Join(' ', shape.Points.Select(p => $"{p.X:0.#},{p.Y:0.#}"))}' fill='none' stroke='{Css(s)}' stroke-width='{shape.StrokeWidth:0.##}'/>");
+                    }
+                    else if (primitive is HachidoriFfxiv.Rendering.SvgText text && text.Fill is { } tf)
+                    {
+                        redraw.Append($"<text x='{text.Baseline.X:0.#}' y='{text.Baseline.Y:0.#}' font-size='{text.Size:0.#}' text-anchor='{text.Anchor}' fill='{Css(tf)}'>{System.Net.WebUtility.HtmlEncode(text.Text)}</text>");
+                    }
+                }
+                redraw.Append("</svg>");
+                html.Append($"<div style='display:inline-block;margin:6px;text-align:center'><img width=160 height=160 src='data:image/svg+xml;base64,{Convert.ToBase64String(bytes)}' style='background:#fff8'> {redraw}<br><small>{System.Net.WebUtility.HtmlEncode(m.Groups[1].Value)}</small></div>");
+            }
+        }
+    }
+    var output = Argument("--out") ?? Path.Combine(Path.GetTempPath(), "svg-probe.html");
+    File.WriteAllText(output, html.Append("</body>").ToString());
+    Console.WriteLine(output);
+    return 0;
+}
+
+if (Argument("--media-probe") is { } probe)
+{
+    // The images a lookup's glossaries name, with each file's leading bytes.
+    var reply = engine.Lookup(HachidoriPayloads.Lookup(probe, 4, 16, lookupOptions));
+    foreach (var glossary in (reply["results"] as JsonArray ?? []).SelectMany(r => r?["term"]?["glossaries"] as JsonArray ?? []))
+    {
+        var dictionary = glossary?["dictionary"]?.ToString() ?? "";
+        foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(glossary?["glossary"]?.ToString() ?? "", "\"path\":\"([^\"]+)\""))
+        {
+            var bytes = engine.Media(dictionary, m.Groups[1].Value);
+            var head = bytes is null ? "" : Encoding.UTF8.GetString(bytes.AsSpan(0, Math.Min(verbose ? bytes.Length : 60, bytes.Length))).ReplaceLineEndings(" ");
+            Console.WriteLine($"{dictionary} {m.Groups[1].Value}: {bytes?.Length ?? 0} bytes {head}");
+        }
+    }
+    return 0;
+}
+
 if (Argument("--audio") is { } audioTerm)
 {
     // Offline pronunciation straight from the saved Audio URL / Yomitan JSON sources.
