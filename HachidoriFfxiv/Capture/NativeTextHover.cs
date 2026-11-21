@@ -25,7 +25,7 @@ public sealed unsafe class NativeTextHover : IDisposable
 {
     private sealed record Part(RichBlock Block, NativeTextLayout Layout);
     private readonly record struct TextStyle(ushort Width, ushort Height, byte FontSize, byte AlignmentFontType,
-        byte LineSpacing, byte CharSpacing, TextFlags Flags);
+        byte LineSpacing, byte CharSpacing, TextFlags Flags, bool ChatBottomAligned);
     private sealed record Cached(TextStyle Style, byte[] Raw, Part[] Parts);
     private sealed record Region(string Addon, Part Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale);
     private readonly Configuration config;
@@ -165,7 +165,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             var before = next.Count;
             var text = target == null ? null : target->ChatText;
             if (text != null && visited.Add((nint)text) && Visible((AtkResNode*)text))
-                ReadText(text, targetName);
+                ReadText(text, targetName, target->LogViewer.IsScrolledBottom);
             if (hovered != null && next.Count == before && (DateTime.UtcNow - lastChatProbe).TotalSeconds > 5)
             {
                 lastChatProbe = DateTime.UtcNow;
@@ -189,7 +189,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             }
         }
 
-        void ReadText(AtkTextNode* node, string name)
+        void ReadText(AtkTextNode* node, string name, bool chatBottomAligned = false)
         {
             if (node->Width == 0 || node->Height == 0 || node->FontSize == 0) return;
             Bounds bounds;
@@ -212,7 +212,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             var chat = IsChat(name);
             if (raw.Length == 0 || raw.Length > (chat ? 65536 : 16384)) return;
             var style = new TextStyle(node->Width, node->Height, node->FontSize, node->AlignmentFontType,
-                node->LineSpacing, node->CharSpacing, node->TextFlags);
+                node->LineSpacing, node->CharSpacing, node->TextFlags, chatBottomAligned);
             var key = (nint)node;
             seen.Add(key);
             if (!cache.TryGetValue(key, out var cached) || cached.Style != style || !raw.SequenceEqual(cached.Raw))
@@ -226,7 +226,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                 if (chat)
                 {
                     parts = NativeChatLayout.Build(raw, style.Width, style.Height, (int)node->AlignmentType,
-                        glyphHeight, advance, prefix => Measure(node, prefix).X)
+                        glyphHeight, advance, style.ChatBottomAligned, prefix => Measure(node, prefix).X)
                         .Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray();
                 }
                 else

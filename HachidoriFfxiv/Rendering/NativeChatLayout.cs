@@ -13,7 +13,7 @@ internal static class NativeChatLayout
     // The log viewer has already wrapped the text and chosen the scroll position.
     // The node buffer can still include older rows above the visible window.
     public static IReadOnlyList<(string Text, NativeTextLayout Layout)> Build(ReadOnlySpan<byte> text,
-        float width, float height, int alignment, float glyphHeight, float lineAdvance,
+        float width, float height, int alignment, float glyphHeight, float lineAdvance, bool bottomAligned,
         Func<ReadOnlySpan<byte>, float> measure)
     {
         var lines = new List<(int Start, int End, string Text, (int Index, int Start, int End)[] Glyphs)>();
@@ -53,15 +53,19 @@ internal static class NativeChatLayout
             EndLine(text.Length, text.Length);
 
         var parts = new List<(string, NativeTextLayout)>();
-        // The game draws the last rows from the top of the node, including a
-        // partially visible bottom row. The final separator just ends the last row.
+        // While scrolling history, start with the first buffered row. At the live
+        // end, place the last row against the bottom and let the node clip the top.
         var visibleCount = Math.Min(lines.Count, (int)Math.Ceiling(height / lineAdvance));
         var contentHeight = glyphHeight + (visibleCount - 1) * lineAdvance;
-        var y = Math.Max(0, height - contentHeight) * Math.Clamp(alignment / 3, 0, 2) / 2f;
+        var firstRow = bottomAligned ? lines.Count - visibleCount : 0;
+        var y = bottomAligned
+            ? height - contentHeight
+            : Math.Max(0, height - contentHeight) * Math.Clamp(alignment / 3, 0, 2) / 2f;
         var horizontal = Math.Clamp(alignment % 3, 0, 2);
-        foreach (var line in lines.Skip(lines.Count - visibleCount))
+        for (var i = firstRow; i < firstRow + visibleCount; i++)
         {
             if (y >= height) break;
+            var line = lines[i];
             if (line.Text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value)))
             {
                 var x = horizontal == 0 ? 0 : Math.Max(0, width - measure(text[line.Start..line.End])) * horizontal / 2f;
