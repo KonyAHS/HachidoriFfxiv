@@ -44,6 +44,9 @@ public sealed class PopupManager : IDisposable
     public DictionaryImages Images { get; }
     public NpcImageCapture NpcImages { get; }
     public PopupThemeProvider Themes { get; }
+
+    /// <summary>Game screenshot, voice line or TTS, and GIF for mined notes; set by the plugin.</summary>
+    public Media.MediaMiner? Media { get; set; }
     public bool ContainsMouse(Vector2 mouse) => layers.Any(l => l.Visible && l.Contains(mouse));
 
     public void CloseAll() => layers.Clear();
@@ -487,12 +490,36 @@ public sealed class PopupManager : IDisposable
                 request["allowDuplicate"] = true;
             if (entry.Decision?.ClientSpeech is { } speech)
                 request["clientSpeech"] = speech.DeepClone();
-            var result = await service.AnkiSubmitAsync(request).ConfigureAwait(false);
+            // The Template maps {screenshot}: take the game picture now, without plugin windows.
+            Media.ScreenshotMedia? screenshot = null;
+            string? screenshotWarning = null;
+            if (Media is not null && config.CaptureScreenshot && entry.Decision?.Screenshot == true)
+            {
+                try { screenshot = await Media.ScreenshotAsync().ConfigureAwait(false); }
+                catch (Exception ex) { screenshotWarning = $" Screenshot skipped: {ex.Message}"; }
+            }
+
+            var result = await service.AnkiSubmitAsync(request, screenshot).ConfigureAwait(false);
             if (result.State is "added" or "updated")
             {
                 entry.Anki = AnkiState.Added;
                 entry.Decision = result;
-                entry.AnkiMessage = $"{(result.State == "added" ? "Added" : "Updated")} note {result.NoteIds.FirstOrDefault()}.";
+                var noteId = result.NoteIds.FirstOrDefault();
+                var added = $"{(result.State == "added" ? "Added" : "Updated")} note {noteId}.{screenshotWarning}";
+                entry.AnkiMessage = added;
+                if (Media is { AttachesMedia: true } media && noteId != 0)
+                {
+                    entry.AnkiMessage = $"{added} Adding voice and GIF…";
+                    try
+                    {
+                        var attached = await media.AttachAsync(noteId, state.Context.Sentence, screenshot?.Filename).ConfigureAwait(false);
+                        entry.AnkiMessage = attached.Length > 0 ? $"{added} {attached}" : added;
+                    }
+                    catch (Exception ex)
+                    {
+                        entry.AnkiMessage = $"{added} Media not attached: {ex.Message}";
+                    }
+                }
             }
             else if (result.State == "duplicate")
             {

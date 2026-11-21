@@ -320,8 +320,12 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
             .Where(d => d["enabled"] is not JsonValue e || !e.TryGetValue<bool>(out var en) || en)
             .Where(d => d["frequencyCount"] is JsonValue c && c.TryGetValue<double>(out var n) && n > 0)
             .Select(d => (JsonNode?)LookupResult.Str(d["title"])).ToArray());
-        // The game has no viewport screenshot Hachidori can take (yet), so the host leaves {screenshot} empty.
-        request["captureUnavailable"] = new JsonArray("screenshot", "sentence-audio", "gif");
+        // The plugin sends its own game screenshot when it can (see MediaMiner); sentence audio and the
+        // GIF are attached through AnkiConnect afterwards, so Hachidori leaves those markers empty
+        // ({gif} falls back to the screenshot until the GIF replaces it).
+        request["captureUnavailable"] = config.CaptureScreenshot
+            ? new JsonArray("sentence-audio", "gif")
+            : new JsonArray("screenshot", "sentence-audio", "gif");
         if (configKey is not null)
             request["configKey"] = configKey;
         if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId))
@@ -336,10 +340,10 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         return ParseDecision(reply);
     }
 
-    public async Task<AnkiDecision> AnkiSubmitAsync(JsonObject request)
+    public async Task<AnkiDecision> AnkiSubmitAsync(JsonObject request, Media.ScreenshotMedia? screenshot = null)
     {
-        DiagnosticLog.Write("anki", "Submitting note with explicit client-media envelope.");
-        var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_submit", HachidoriPayloads.Submit(request))
+        DiagnosticLog.Write("anki", $"Submitting note with explicit client-media envelope (screenshot={screenshot is not null}).");
+        var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_submit", HachidoriPayloads.Submit(request, screenshot))
             .ConfigureAwait(false);
         return ParseDecision(reply);
     }
@@ -372,6 +376,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
             Error = reply?["error"]?.ToString(),
             NoteIds = ids.ToArray(),
             ClientSpeech = reply?["clientSpeech"]?.DeepClone(),
+            Screenshot = reply?["screenshot"] is JsonValue shot && shot.TryGetValue<bool>(out var wants) && wants,
         };
     }
 

@@ -6,11 +6,33 @@ namespace HachidoriFfxiv.Hachidori;
 
 public static class HachidoriPayloads
 {
-    public static JsonObject Submit(JsonObject request)
+    /// <summary>
+    /// The submit envelope. With a screenshot, the request names it ({token, filename}) and the
+    /// client media carries the JPEG; without one, {screenshot} is declared unavailable.
+    /// </summary>
+    public static JsonObject Submit(JsonObject request, Media.ScreenshotMedia? screenshot = null)
     {
         if (request["clientSpeech"] is JsonObject)
             throw new HachidoriException("This audio source requires browser speech recording. Select a downloadable pronunciation source in Hachidori before mining from FFXIV.");
-        return new JsonObject { ["request"] = request.DeepClone(), ["clientMedia"] = new JsonObject() };
+        var copy = request.DeepClone().AsObject();
+        var media = new JsonObject();
+        if (screenshot is not null)
+        {
+            copy["screenshot"] = new JsonObject { ["token"] = screenshot.Token, ["filename"] = screenshot.Filename };
+            media["screenshot"] = new JsonObject { ["token"] = screenshot.Token, ["filename"] = screenshot.Filename, ["data"] = screenshot.Base64 };
+            if (copy["captureUnavailable"] is JsonArray unavailable)
+                copy["captureUnavailable"] = new JsonArray(unavailable.Where(n => n?.ToString() != "screenshot").Select(n => n?.DeepClone()).ToArray());
+        }
+        else
+        {
+            copy.Remove("screenshot");
+            var unavailable = copy["captureUnavailable"] as JsonArray ?? new JsonArray();
+            if (!unavailable.Any(n => n?.ToString() == "screenshot"))
+                unavailable.Add("screenshot");
+            copy["captureUnavailable"] = unavailable.DeepClone();
+        }
+
+        return new JsonObject { ["request"] = copy, ["clientMedia"] = media };
     }
 
     public static JsonObject Segment(string text, int scanLength, bool personal) => new()

@@ -107,6 +107,31 @@ public sealed class Configuration : IPluginConfiguration
     public bool PublishChat { get; set; } = false;
     public bool PublishSpeaker { get; set; } = false;
 
+    // Settings window: everyday options only, unless the user asks for all of them.
+    public bool AdvancedSettings { get; set; } = false;
+
+    // Card media from the game (replaces GSM): screenshot, voice line or TTS, GIF.
+    public bool CaptureScreenshot { get; set; } = true;
+    public int ScreenshotMaxWidth { get; set; } = 1600;
+    public float ScreenshotQuality { get; set; } = 0.85f;
+    public bool RecordVoiceLines { get; set; } = true;
+    public string SentenceAudioField { get; set; } = string.Empty;
+    public float VoiceDetectionRatio { get; set; } = 2f;
+    public int MaxLineSeconds { get; set; } = 20;
+    public int VoiceBufferSeconds { get; set; } = 120;
+    public Media.TtsMode TtsMode { get; set; } = Media.TtsMode.Off;
+    public string TtsUrl { get; set; } = "http://127.0.0.1:50021";
+    public string TtsSpeaker { get; set; } = "1";
+    public bool TtsPost { get; set; } = false;
+    public bool CaptureGif { get; set; } = true;
+    public string GifField { get; set; } = string.Empty;
+    public bool GifReplacesScreenshot { get; set; } = true;
+    public int GifWidth { get; set; } = 400;
+    public int GifFps { get; set; } = 8;
+    public int GifSeconds { get; set; } = 3;
+    public int GifBufferSeconds { get; set; } = 12;
+    public string AnkiConnectUrl { get; set; } = "http://127.0.0.1:8765";
+
     // Anki (mining is done by the Hachidori host with its own Anki Template)
     public string AnkiTemplateId { get; set; } = string.Empty;
     public string DocumentTitle { get; set; } = "FINAL FANTASY XIV";

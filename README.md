@@ -39,6 +39,8 @@ Once your Hachidori host is linked, try `/hachidori 冒険者` in game.
   its Grey, Beige and Retro blue colours), your opacity and your custom popup CSS.
 - **Pronunciation audio** from your Hachidori audio sources.
 - **Anki mining** with your Hachidori template. Each chat message is its own sentence.
+- **Card media from the game, no GSM needed:** a screenshot, the line's voice
+  recorded from the game (or TTS for unvoiced lines), and a GIF of the scene.
 - **Reader and search windows:** an optional line history overlay and a search box.
 - **Your character's name in katakana,** so it reads naturally in sentences and cards.
 - **GSM text feed (opt-in):** sends dialogue and interaction popups to
@@ -104,9 +106,31 @@ colours and sizes, and CSS custom properties (`var()`) apply. Layout rules
 popup keeps the plugin's layout. After a Hachidori update, refresh the bundled
 stylesheets with `python -I scripts/sync_hachidori_themes.py <extension folder>`.
 
+## Card media: screenshot, voice line, GIF
+
+Cards you add with **+** can get media straight from the game. Settings are in
+`/hachidori config` → **Mining**.
+
+- **Screenshot** fills `{screenshot}` in your Hachidori Anki Template. Plugin
+  windows (the popup, the reader) are never in the picture.
+- **Voice line**: the plugin records only FFXIV's own sound (Windows 10 2004 or
+  later) and cuts out the line you mined. Lower the in-game BGM volume for
+  cleaner clips.
+- **TTS for unvoiced lines**: when a line had no voice, the sentence is spoken by
+  a local engine with VOICEVOX's API (VOICEVOX, AivisSpeech…) or any URL you give
+  that returns audio.
+- **GIF**: a few seconds of the scene from when the line appeared.
+
+Voice lines, TTS audio and GIFs are added to the note through the
+[AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on right after
+Hachidori creates it. They go to a field named like *Sentence Audio* and a field
+named like *GIF*. Without a GIF field, the GIF replaces the screenshot in your
+picture field. You can name the fields yourself with **Advanced settings**.
+
 ## Send text to GSM
 
-GameSentenceMiner can read game text from a local WebSocket. This is off by
+You no longer need GSM for screenshots or audio (see above). If you still use
+it, GameSentenceMiner can read game text from a local WebSocket. This is off by
 default, and the feed is only reachable from your own computer.
 
 1. Run `/hachidori config`, open the **GSM** tab and enable **Publish text for GSM**.

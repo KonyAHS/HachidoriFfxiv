@@ -35,6 +35,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly NativeTextHover nativeHover;
     private readonly TextPublisher publisher;
     private readonly PopupManager popups;
+    private readonly Media.MediaMiner media;
     private readonly ReaderWindow reader;
     private readonly SearchWindow search;
     private readonly ConfigWindow configWindow;
@@ -53,9 +54,11 @@ public sealed class Plugin : IDalamudPlugin
         nativeHover = new NativeTextHover(config);
         publisher = new TextPublisher(config, capture);
         popups = new PopupManager(config, service, audio, fonts);
+        media = new Media.MediaMiner(config, capture);
+        popups.Media = media;
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
-        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, ExportLogs);
+        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs);
         windows.AddWindow(reader);
         windows.AddWindow(search);
         windows.AddWindow(configWindow);
@@ -101,6 +104,7 @@ public sealed class Plugin : IDalamudPlugin
     private void Draw()
     {
         using var sizedFonts = fonts.LockFrame();
+        media.Draw();
         popups.NpcImages.PollOperations();
         nativeHover.Draw(popups);
         reader.IsOpen = config.ReaderEnabled;
@@ -156,6 +160,7 @@ public sealed class Plugin : IDalamudPlugin
         capture.Dispose();
         nativeHover.Dispose();
         popups.Dispose();
+        media.Dispose();
         audio.Dispose();
         fonts.Dispose();
         service.Dispose();

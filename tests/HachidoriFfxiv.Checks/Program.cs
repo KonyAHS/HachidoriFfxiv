@@ -35,6 +35,7 @@ async Task Until(Func<bool> condition)
 // The actual native popup scope, tested outside FFXIV against local cimgui.
 // A style-stack underflow used to crash the game when the first popup opened.
 CheckPopupThemes(Check);
+await MediaChecks.RunAsync(Check);
 CheckPopupScopes(Check);
 PopupTheme.Current = ThemeFor("crystal", "crystal", "blue");
 CheckPopupScopes((ok, name) => Check(ok, $"Crystal theme: {name}"));
