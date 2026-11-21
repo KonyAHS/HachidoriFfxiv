@@ -14,6 +14,9 @@ plugin, with no official Dalamud listing.
 - **Yomitan-style popups:** nested lookups inside definitions, whole-word hover,
   pitch accent, frequencies, deinflection and kanji info, using your Hachidori
   dictionaries.
+- **Hachidori popup themes:** popups follow the theme picked in Hachidori
+  (Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme, Crystal with
+  its Grey, Beige and Retro blue colours), your opacity and your custom popup CSS.
 - **Pronunciation audio** from your Hachidori audio sources.
 - **Anki mining** with your Hachidori template. Each chat message is its own sentence.
 - **Reader and search windows:** an optional line history overlay and a search box.
@@ -61,6 +64,21 @@ No compiling or manual DLL installation is needed.
   host. This requires host support for linked dictionary imports.
 - Optional: import [the FFXIV Japanese–English dictionary](dictionaries/ffxiv/README.md)
   into Hachidori for game names and vocabulary. **Contains expansion spoilers.**
+
+## Popup themes
+
+Popups use the theme selected in Hachidori **Settings → Design**. Run
+`/hachidori config` and open the **Theme** tab to pick a different theme or
+colours for the game only, use the plugin's original look, or add CSS that only
+applies in FFXIV.
+
+Hachidori's themes are web pages, so the plugin interprets their stylesheets
+rather than running them: colours, backgrounds and vertical gradients, borders,
+corner radius, padding, shadows, Crystal's frame and crest, headword and reading
+colours and sizes, and CSS custom properties (`var()`) apply. Layout rules
+(flex, grid, positioning), images in CSS, and theme JavaScript do not; the
+popup keeps the plugin's layout. After a Hachidori update, refresh the bundled
+stylesheets with `python -I scripts/sync_hachidori_themes.py <extension folder>`.
 
 ## Send text to GSM
 

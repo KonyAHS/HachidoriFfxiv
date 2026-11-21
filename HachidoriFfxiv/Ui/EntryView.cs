@@ -10,6 +10,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Rendering;
+using HachidoriFfxiv.Rendering.Css;
 
 namespace HachidoriFfxiv.Ui;
 
@@ -28,6 +29,8 @@ public enum AnkiState
 public sealed class EntryView
 {
     private readonly Configuration config;
+    private readonly PopupTheme theme = PopupTheme.Current;
+    private readonly Dictionary<int, float> sectionHeights = new();
 
     public EntryView(LookupResult result, Configuration config, bool isKanji)
     {
@@ -40,13 +43,13 @@ public sealed class EntryView
         {
             var header = new RichBlock { MarginTopEm = 0.25f };
             if (config.ShowDictionaryNames && group.Dictionary.Length > 0)
-                header.Add(new RichRun { Text = group.Dictionary.StartsWith("FFXIV picture · ", StringComparison.Ordinal) ? "Your NPC picture" : group.Dictionary, Chip = true, Background = Colors.DictionaryChip, Color = 0xFFFFFFFF, Scale = 0.75f }).Add(" ");
+                header.Add(ThemePainter.Chip(group.Dictionary.StartsWith("FFXIV picture · ", StringComparison.Ordinal) ? "Your NPC picture" : group.Dictionary, theme.DictionaryChip, theme)).Add(" ");
             if (config.ShowDefinitionTags)
             {
                 foreach (var tag in group.Tags.Count > 0
                              ? group.Tags.Select(t => t.Name)
                              : group.DefinitionTags.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                    header.Add(new RichRun { Text = tag, Chip = true, Background = Colors.TagChip, Color = 0xFFFFFFFF, Scale = 0.75f }).Add(" ");
+                    header.Add(ThemePainter.Chip(tag, theme.TagChip, theme)).Add(" ");
             }
 
             Definitions.Add((header.IsEmpty ? null : header, GlossaryBuilder.Build(group.Content, 0.4f, config.ShowAttribution, group.Dictionary)));
@@ -58,6 +61,9 @@ public sealed class EntryView
     public RichBlock Headword { get; }
     public RichBlock Meta { get; private set; }
     public List<(RichBlock? Header, List<RichBlock> Blocks)> Definitions { get; } = new();
+
+    /// <summary>The entry card's height last frame, so the card can be painted behind its content.</summary>
+    public float CardHeight { get; set; }
 
     public int? LookupCount { get; set; }
     public DateTime? BlurUntil { get; set; }
@@ -77,7 +83,9 @@ public sealed class EntryView
     private RichBlock BuildHeadword(TermInfo term)
     {
         var block = new RichBlock();
-        var scale = 1.7f;
+        var scale = theme.HeadwordScale;
+        var color = theme.Headword is { } h ? CssColor.ToAbgr(h) : 0;
+        var rubyColor = theme.Reading is { } r ? CssColor.ToAbgr(r) : 0;
         var segments = term.Furigana ?? Japanese.DistributeFurigana(term.Expression, term.Reading);
         foreach (var segment in segments)
         {
@@ -86,11 +94,13 @@ public sealed class EntryView
                 Text = segment.Text,
                 Ruby = segment.Reading.Length > 0 ? segment.Reading : null,
                 Scale = scale,
+                Color = color,
+                RubyColor = rubyColor,
             });
         }
 
         if (block.IsEmpty)
-            block.Add(term.Expression, scale: scale);
+            block.Add(term.Expression, color, scale);
         return block;
     }
 
@@ -99,14 +109,7 @@ public sealed class EntryView
         var block = new RichBlock();
         if (config.ShowInflections && Result.Trace.Count > 0)
         {
-            block.Add(new RichRun
-            {
-                Text = "« " + string.Join(" « ", Result.Trace),
-                Chip = true,
-                Background = Colors.InflectionChip,
-                Color = 0xFFFFFFFF,
-                Scale = 0.75f,
-            }).Add(" ");
+            block.Add(ThemePainter.Chip("« " + string.Join(" « ", Result.Trace), theme.InflectionChip, theme)).Add(" ");
         }
 
         if (config.ShowFrequencies)
@@ -116,27 +119,13 @@ public sealed class EntryView
                 if (group.Values.Count == 0)
                     continue;
                 var values = string.Join(", ", group.Values.Select(v => v.Display).Distinct());
-                block.Add(new RichRun
-                {
-                    Text = $"{group.Dictionary}  {values}",
-                    Chip = true,
-                    Background = Colors.FrequencyChip,
-                    Color = 0xFFFFFFFF,
-                    Scale = 0.75f,
-                }).Add(" ");
+                block.Add(ThemePainter.Chip($"{group.Dictionary}  {values}", theme.FrequencyChip, theme)).Add(" ");
             }
         }
 
         if (config.ShowLookupCounts && LookupCount is > 0)
         {
-            block.Add(new RichRun
-            {
-                Text = $"looked up {LookupCount}×",
-                Chip = true,
-                Background = Colors.CountChip,
-                Color = 0xFFFFFFFF,
-                Scale = 0.75f,
-            });
+            block.Add(ThemePainter.Chip($"looked up {LookupCount}×", theme.CountChip, theme));
         }
 
         return block;
@@ -171,19 +160,47 @@ public sealed class EntryView
 
         var blurred = !Revealed && BlurUntil is { } until && DateTime.UtcNow < until;
         var defsStart = ImGui.GetCursorScreenPos();
-        foreach (var (header, blocks) in Definitions)
+        var section = theme.IsPlugin ? null : theme.Section;
+        for (var g = 0; g < Definitions.Count; g++)
         {
+            var (header, blocks) = Definitions[g];
+            // A themed section (Crystal's framed block, Default's glossary card) is painted
+            // behind its content from last frame's height; the first frame is invisible anyway.
+            var top = ImGui.GetCursorScreenPos();
+            var pad = Vector4.Zero;
+            var innerWidth = width;
+            if (section is not null)
+            {
+                pad = section.Padding * theme.Scale;
+                ImGui.Dummy(new Vector2(1, 3 * theme.Scale));
+                top = ImGui.GetCursorScreenPos();
+                if (sectionHeights.TryGetValue(g, out var height))
+                    ThemePainter.Paint(ImGui.GetWindowDrawList(), top, top + new Vector2(width, height), section, theme.Scale);
+                ImGui.Dummy(new Vector2(1, MathF.Max(pad.X, 2)));
+                pad.W = MathF.Max(pad.W, 4 * theme.Scale);
+                pad.Y = MathF.Max(pad.Y, 4 * theme.Scale);
+                ImGui.Indent(pad.W);
+                innerWidth = width - pad.W - pad.Y;
+            }
+
             if (header is not null)
-                RichText.Draw(header, width, null, false);
+                RichText.Draw(header, innerWidth, null, false);
             foreach (var block in blocks)
             {
                 if (block.Image is { } image)
                 {
-                    manager.Images.Draw(image, reply.Generation, width);
+                    manager.Images.Draw(image, reply.Generation, innerWidth);
                     continue;
                 }
-                var h = RichText.Draw(block, width, manager.HighlightFor(block, depth), !blurred);
+                var h = RichText.Draw(block, innerWidth, manager.HighlightFor(block, depth), !blurred);
                 hit = h ?? hit;
+            }
+
+            if (section is not null)
+            {
+                ImGui.Unindent(pad.W);
+                ImGui.Dummy(new Vector2(1, MathF.Max(pad.Z, 2)));
+                sectionHeights[g] = ImGui.GetCursorScreenPos().Y - top.Y;
             }
         }
 
@@ -271,6 +288,7 @@ public sealed class EntryView
         var (labelFont, labelSize) = RichText.Sized(size * 0.8f);
         var drawList = ImGui.GetWindowDrawList();
         var textColor = ImGui.GetColorU32(ImGuiCol.Text);
+        var pitchColor = CssColor.ToAbgr(theme.PitchLine);
         var x0 = ImGui.GetCursorScreenPos().X;
         var lineStart = true;
         foreach (var group in Result.Term.Pitches)
@@ -294,13 +312,13 @@ public sealed class EntryView
                     drawList.AddText(font, size, new Vector2(x, top + 2), textColor, morae[i]);
                     if (high)
                     {
-                        drawList.AddLine(new Vector2(x, top), new Vector2(x + widths[i], top), Colors.PitchLine, 2f);
+                        drawList.AddLine(new Vector2(x, top), new Vector2(x + widths[i], top), pitchColor, 2f);
                         if (!Japanese.IsMoraHigh(i + 1, pitch))
-                            drawList.AddLine(new Vector2(x + widths[i], top), new Vector2(x + widths[i], top + size * 0.45f), Colors.PitchLine, 2f);
+                            drawList.AddLine(new Vector2(x + widths[i], top), new Vector2(x + widths[i], top + size * 0.45f), pitchColor, 2f);
                     }
 
                     if (pitch.Nasal.Contains(i + 1))
-                        drawList.AddCircle(new Vector2(x + widths[i] - 2, top + 4), 2.5f, Colors.PitchLine);
+                        drawList.AddCircle(new Vector2(x + widths[i] - 2, top + 4), 2.5f, pitchColor);
                     x += widths[i];
                 }
 

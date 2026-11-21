@@ -17,6 +17,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Hachidori's popup theme stylesheets, synced by scripts/sync_hachidori_themes.py. -->
+    <EmbeddedResource Include="Themes\*.css" LogicalName="HachidoriFfxiv.Themes.%(Filename).css" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
