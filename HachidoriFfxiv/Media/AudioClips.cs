@@ -12,12 +12,14 @@ namespace HachidoriFfxiv.Media;
 /// <summary>Voice-line clips: detection, trimming, levelling and Ogg Opus encoding.</summary>
 public static class AudioClips
 {
-    private const float FrameSeconds = 0.02f;
+    internal const int FramesPerSecond = 50;
+    internal const int VoiceOnsetFrames = 75; // 1.2 s after the text appears, plus 300 ms of pre-roll
+    private const int VoicePauseFrames = 60; // allow 1.2 s between phrases
 
     /// <summary>RMS of consecutive 20 ms frames.</summary>
     public static float[] FrameLevels(ReadOnlySpan<float> samples, int sampleRate)
     {
-        var frame = Math.Max(1, (int)(sampleRate * FrameSeconds));
+        var frame = Math.Max(1, sampleRate / FramesPerSecond);
         var levels = new float[samples.Length / frame];
         for (var f = 0; f < levels.Length; f++)
         {
@@ -39,19 +41,47 @@ public static class AudioClips
     }
 
     /// <summary>
-    /// Whether a line was voiced: its loud parts stand out from the sound just before it
-    /// (music and ambience) by <paramref name="ratio"/>, and are not near-silent themselves.
+    /// Finds the first voice near the text onset, relative to the preceding music and ambience.
+    /// Returns frame indices with an exclusive end. More frames can extend the end until a pause confirms it.
     /// </summary>
-    public static bool IsVoiced(ReadOnlySpan<float> before, ReadOnlySpan<float> line, int sampleRate, float ratio)
+    internal static (int Start, int End, bool Finished)? FindVoice(float[] before, ReadOnlySpan<float> levels, float ratio)
     {
-        var lineLevels = FrameLevels(line, sampleRate);
-        if (lineLevels.Length == 0)
-            return false;
-        var loud = Percentile(lineLevels, 0.85f);
-        if (loud < 0.01f)
-            return false;
-        var baseline = Percentile(FrameLevels(before, sampleRate), 0.5f);
-        return baseline < 0.004f || loud >= baseline * ratio;
+        var baseline = Percentile(before, 0.5f);
+        var loudBackground = Percentile(before, 0.9f);
+        var onsetLevel = Math.Max(0.01f, Math.Max(baseline * ratio, loudBackground * 1.15f));
+        var speechLevel = Math.Max(0.006f, Math.Max(baseline * 1.2f, loudBackground * 1.05f));
+        const int sustainedFrames = 3;
+        var run = 0;
+        var start = -1;
+        for (var i = 0; i < Math.Min(levels.Length, VoiceOnsetFrames); i++)
+        {
+            run = levels[i] >= onsetLevel ? run + 1 : 0;
+            if (run == sustainedFrames)
+            {
+                start = i + 1 - run;
+                break;
+            }
+        }
+
+        if (start < 0)
+            return null;
+
+        var end = start + sustainedFrames;
+        // Include soft sounds just before and after louder speech.
+        var leadIn = Math.Max(0, start - FramesPerSecond / 5);
+        while (start > leadIn && levels[start - 1] >= speechLevel)
+            start--;
+
+        for (var i = end; i < levels.Length; i++)
+        {
+            run = levels[i] >= speechLevel ? run + 1 : 0;
+            if (run >= sustainedFrames)
+                end = i + 1;
+            if (run == 0 && i + 1 - end >= VoicePauseFrames)
+                return (start, end, true);
+        }
+
+        return (start, end, false);
     }
 
     /// <summary>Cuts leading and trailing quiet (relative to the clip's loudest part), keeping a little padding.</summary>
@@ -65,7 +95,7 @@ public static class AudioClips
         var last = Array.FindLastIndex(levels, l => l >= threshold);
         if (first < 0)
             return samples;
-        var frame = (int)(sampleRate * FrameSeconds);
+        var frame = Math.Max(1, sampleRate / FramesPerSecond);
         var pad = (int)(sampleRate * padSeconds);
         var start = Math.Max(0, first * frame - pad);
         var end = Math.Min(samples.Length, (last + 1) * frame + pad);

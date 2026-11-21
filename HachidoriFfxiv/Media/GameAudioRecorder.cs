@@ -15,6 +15,7 @@ public sealed class GameAudioRecorder : IDisposable
     private const int Channels = 2;
     private Thread? thread;
     private volatile bool stopping;
+    private volatile bool running;
 
     public GameAudioRecorder(double bufferSeconds)
     {
@@ -22,7 +23,7 @@ public sealed class GameAudioRecorder : IDisposable
     }
 
     public AudioRing Ring { get; }
-    public bool Running { get; private set; }
+    public bool Running => running && !stopping;
     public string? Error { get; private set; }
 
     public void Start()
@@ -62,8 +63,8 @@ public sealed class GameAudioRecorder : IDisposable
             Check(client.GetService(ref captureId, out var service), "GetService");
             capture = (IAudioCaptureClient)service;
             Check(client.Start(), "Start");
-            Running = true;
             Error = null;
+            running = true;
             var mono = new float[SampleRate];
             while (!stopping)
             {
@@ -99,7 +100,7 @@ public sealed class GameAudioRecorder : IDisposable
         }
         finally
         {
-            Running = false;
+            running = false;
             if (capture is not null) Marshal.ReleaseComObject(capture);
             if (client is not null) Marshal.ReleaseComObject(client);
         }

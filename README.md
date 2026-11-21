@@ -133,8 +133,8 @@ Cards you add with **+** can get media straight from the game. Settings are in
 - **Screenshot** fills `{screenshot}` in your Hachidori Anki Template. Plugin
   windows (the popup, the reader) are never in the picture.
 - **Voice line**: the plugin records only FFXIV's own sound (Windows 10 2004 or
-  later) and cuts out the line you mined. Lower the in-game BGM volume for
-  cleaner clips.
+  later) and adds one second of padding before and after the detected speech.
+  Lower the in-game BGM volume for cleaner clips.
 - **TTS for unvoiced lines**: when a line had no voice, the sentence is spoken by
   a local engine with VOICEVOX's API (VOICEVOX, AivisSpeech…) or any URL you give
   that returns audio.

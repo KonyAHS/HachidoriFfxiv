@@ -51,6 +51,12 @@ public sealed class LineTimeline
         }
     }
 
+    public long? EndOf(LineSpan span)
+    {
+        lock (gate)
+            return span.End;
+    }
+
     /// <summary>The newest line whose text is the mined sentence (or contains it, or is contained by it).</summary>
     public LineSpan? Find(string sentence)
     {

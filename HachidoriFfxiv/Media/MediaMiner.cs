@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using HachidoriFfxiv.Capture;
 
@@ -157,7 +158,7 @@ public sealed class MediaMiner : IDisposable
     {
         if (config.RecordVoiceLines && recorder is { Running: true } rec && span is not null)
         {
-            var clip = await Task.Run(() => VoiceClip(rec.Ring, span)).ConfigureAwait(false);
+            var clip = await Task.Run(() => VoiceClipAsync(rec, span)).ConfigureAwait(false);
             if (clip is not null)
                 return (clip, "ogg", "voice line");
         }
@@ -176,17 +177,58 @@ public sealed class MediaMiner : IDisposable
     }
 
     /// <summary>The line's audio from the game recording, or null when the line was not voiced.</summary>
-    private byte[]? VoiceClip(AudioRing ring, LineSpan span)
+    private async Task<byte[]?> VoiceClipAsync(GameAudioRecorder rec, LineSpan span)
     {
-        var rate = ring.SampleRate;
-        var start = ring.IndexAt(span.Start) - rate * 3 / 10;
-        var endTicks = span.End ?? Stopwatch.GetTimestamp();
-        var end = Math.Min(ring.IndexAt(endTicks) + rate / 2, start + rate * (long)Math.Clamp(config.MaxLineSeconds, 3, 60));
-        var before = ring.Read(start - rate * 2, start);
-        var clip = ring.Read(start, end);
-        if (!AudioClips.IsVoiced(before, clip, rate, Math.Clamp(config.VoiceDetectionRatio, 1.1f, 10f)))
+        var ring = rec.Ring;
+        if (ring.Written == 0)
             return null;
-        return AudioClips.EncodeOpus(AudioClips.Normalize(AudioClips.Trim(clip, rate)), rate);
+
+        var rate = ring.SampleRate;
+        var frameSize = rate / AudioClips.FramesPerSecond;
+        var start = ring.IndexAt(span.Start) - rate * 3 / 10;
+        var maxEnd = start + rate * (long)Math.Clamp(config.MaxLineSeconds, 3, 60);
+        var before = AudioClips.FrameLevels(ring.Read(start - rate * 2, start), rate);
+        var ratio = Math.Clamp(config.VoiceDetectionRatio, 1.1f, 10f);
+        var levels = new List<float>();
+        while (rec.Running && Math.Max(0, ring.Written - ring.Capacity) <= Math.Max(0, start))
+        {
+            var lineEnd = Timeline.EndOf(span);
+            var boundary = lineEnd is { } ticks ? ring.IndexAt(ticks) : long.MaxValue;
+            var limit = Math.Min(boundary, maxEnd);
+            // Allow packets to arrive before treating missing samples as quiet.
+            var recordedThrough = ring.IndexAt(Stopwatch.GetTimestamp() - Stopwatch.Frequency / 10);
+            var scanEnd = Math.Min(limit, recordedThrough);
+            var count = (int)(Math.Max(0, scanEnd - start) / frameSize);
+            if (count > levels.Count)
+            {
+                var samples = ring.Read(start + levels.Count * frameSize, start + count * frameSize);
+                levels.AddRange(AudioClips.FrameLevels(samples, rate));
+            }
+
+            var voice = AudioClips.FindVoice(before, CollectionsMarshal.AsSpan(levels)[..count], ratio);
+            if (voice is { } range && (scanEnd >= limit || range.Finished))
+            {
+                var from = start + range.Start * frameSize - rate;
+                var to = start + range.End * frameSize + rate;
+                var availableEnd = Math.Min(to, boundary);
+                if (recordedThrough >= availableEnd)
+                {
+                    var clip = ring.Read(from, availableEnd);
+                    // Fill any padding after the dialogue ends with silence.
+                    Array.Resize(ref clip, (int)(to - from));
+                    return AudioClips.EncodeOpus(AudioClips.Normalize(clip), rate);
+                }
+            }
+            else if (voice is null && (scanEnd >= limit || count >= AudioClips.VoiceOnsetFrames))
+            {
+                return null;
+            }
+
+            // If mined during playback, wait for the rest of the line and its padding.
+            await Task.Delay(150).ConfigureAwait(false);
+        }
+
+        return null;
     }
 
     /// <summary>The line with GSM-style dialogue context: up to N captured lines before and after it.</summary>

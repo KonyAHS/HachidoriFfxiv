@@ -32,14 +32,37 @@ static class MediaChecks
         // ------------------------------------------------------- voice detection
         var music = Tone(2, 0.05f, 220);
         var voiced = Mix(Tone(2, 0.05f, 220), Tone(2, 0.3f, 180));
-        check(AudioClips.IsVoiced(music, voiced, rate, 2f), "a voice over music counts as voiced");
-        check(!AudioClips.IsVoiced(music, Tone(2, 0.05f, 220), rate, 2f), "music alone is not a voice line");
-        check(!AudioClips.IsVoiced(new float[rate], new float[rate], rate, 2f), "silence is not a voice line");
-        check(AudioClips.IsVoiced(new float[rate], Tone(1, 0.2f, 200), rate, 2f), "a voice after silence counts as voiced");
+        (int Start, int End, bool Finished)? FindVoice(float[] before, float[] samples) =>
+            AudioClips.FindVoice(AudioClips.FrameLevels(before, rate), AudioClips.FrameLevels(samples, rate), 2f);
+        check(FindVoice(music, voiced) is { Start: 0, End: 100, Finished: false }, "a voice over music is detected while it is still playing");
+        check(FindVoice(music, music) is null, "music alone is not a voice line");
+        check(FindVoice(new float[rate], new float[rate]) is null, "silence is not a voice line");
+        check(FindVoice(new float[rate], Tone(1, 0.2f, 200)) is { Start: 0, End: 50 }, "a voice after silence counts as voiced");
+
+        // A line starts just after its text, pauses mid-sentence, and ends quietly. The
+        // music continues through a late card click and a loud sound unrelated to the line.
+        var speech = new float[rate * 4 / 10]
+            .Concat(Tone(0.6, 0.3f, 180))
+            .Concat(new float[rate * 8 / 10])
+            .Concat(Tone(0.4, 0.3f, 180))
+            .Concat(Tone(0.4, 0.06f, 180))
+            .ToArray();
+        var recording = Mix(Tone(8, 0.05f, 220), speech);
+        var effect = Tone(0.5, 0.5f, 200);
+        for (var i = 0; i < effect.Length; i++)
+            recording[rate * 6 + i] += effect[i];
+        var early = FindVoice(music, recording[..(rate * 3 / 2)]);
+        var afterSpeech = FindVoice(music, recording[..(rate * 4)]);
+        var late = FindVoice(music, recording);
+        check(early is { Finished: false }, "mining during a pause keeps waiting for the voice line to finish");
+        check(afterSpeech is { Start: 20, End: 130, Finished: true } && late == afterSpeech,
+            "a late card click keeps the same speech boundaries over music and ignores later sound effects");
+        check(FindVoice(music, Mix(Tone(3, 0.05f, 220), Tone(0.02, 0.6f, 200))) is null,
+            "a brief sound effect near the start does not count as a voice line");
 
         var padded = new float[rate].Concat(Tone(1, 0.3f, 200)).Concat(new float[rate]).ToArray();
         var trimmed = AudioClips.Trim(padded, rate);
-        check(trimmed.Length < rate * 1.5 && trimmed.Length > rate, "voice clips are trimmed to the speech with a little padding");
+        check(trimmed.Length < rate * 1.5 && trimmed.Length > rate, "TTS clips are trimmed to the speech with a little padding");
         check(AudioClips.Normalize(Tone(1, 0.1f, 200)).Max() is > 0.38f and < 0.41f, "quiet clips are levelled up, at most 4×");
 
         // ------------------------------------------------------------------ Opus
