@@ -25,6 +25,7 @@
     <Compile Include="../../HachidoriFfxiv/Media/AudioRing.cs" Link="Media/AudioRing.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AudioClips.cs" Link="Media/AudioClips.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GifEncoder.cs" Link="Media/GifEncoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/AnimationEncoder.cs" Link="Media/AnimationEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="Media/ScreenshotMedia.cs" />

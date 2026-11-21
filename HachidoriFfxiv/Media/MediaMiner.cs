@@ -26,6 +26,7 @@ public sealed class MediaMiner : IDisposable
         Tts = new TtsClient(config);
         Anki = new AnkiConnect(() => config.AnkiConnectUrl);
         capture.LineCaptured += OnLine;
+        Frames.ClipReady += OnClip;
     }
 
     public GameFrames Frames { get; }
@@ -37,7 +38,13 @@ public sealed class MediaMiner : IDisposable
     /// <summary>Whether anything beyond Hachidori's own note needs AnkiConnect.</summary>
     public bool AttachesMedia => config.RecordVoiceLines || Tts.Enabled || config.CaptureGif;
 
-    private void OnLine(GameLine line) => Timeline.OnLine(line, Stopwatch.GetTimestamp());
+    private void OnLine(GameLine line)
+    {
+        var now = Stopwatch.GetTimestamp();
+        Timeline.OnLine(line, now);
+        if (line.Source is LineSource.Talk or LineSource.BattleTalk)
+            Frames.OnLineStarted(now);
+    }
 
     /// <summary>Call once per frame from UiBuilder.Draw.</summary>
     public void Draw()
@@ -73,9 +80,9 @@ public sealed class MediaMiner : IDisposable
         var warnings = new List<string>();
 
         var audioTask = SentenceAudioAsync(span, sentence);
-        var gifTask = config.CaptureGif ? GifAsync(span) : Task.FromResult<byte[]?>(null);
+        var gifTask = config.CaptureGif ? AnimationAsync(span) : Task.FromResult<(byte[] Data, string Ext, string? Note)?>(null);
         (byte[] Data, string Ext, string Kind)? audio = null;
-        byte[]? gif = null;
+        (byte[] Data, string Ext, string? Note)? gif = null;
         try { audio = await audioTask.ConfigureAwait(false); }
         catch (Exception ex) { warnings.Add($"audio: {ex.Message}"); }
         try { gif = await gifTask.ConfigureAwait(false); }
@@ -101,8 +108,10 @@ public sealed class MediaMiner : IDisposable
             }
         }
 
-        if (gif is not null)
+        if (gif is { } anim)
         {
+            if (anim.Note is not null)
+                warnings.Add(anim.Note);
             var field = MediaFields.GifField(fields, config.GifField, screenshotFile, config.GifReplacesScreenshot);
             if (field is null)
             {
@@ -110,10 +119,10 @@ public sealed class MediaMiner : IDisposable
             }
             else
             {
-                var file = await Anki.StoreMediaAsync($"hachidori-ffxiv-{Guid.NewGuid():N}.gif", gif).ConfigureAwait(false);
+                var file = await Anki.StoreMediaAsync($"hachidori-ffxiv-{Guid.NewGuid():N}.{anim.Ext}", anim.Data).ConfigureAwait(false);
                 var current = updates.TryGetValue(field, out var pending) ? pending : fields.First(f => f.Name == field).Value;
                 updates[field] = MediaFields.WithGif(current, file, screenshotFile);
-                notes.Add("GIF");
+                notes.Add($"{anim.Ext.ToUpperInvariant()} ({anim.Data.Length / 1024} KB)");
             }
         }
 
@@ -160,19 +169,67 @@ public sealed class MediaMiner : IDisposable
         return AudioClips.EncodeOpus(AudioClips.Normalize(AudioClips.Trim(clip, rate)), rate);
     }
 
-    private async Task<byte[]?> GifAsync(LineSpan? span)
+    private string? ffmpegPath;
+    private string? ffmpegConfigured;
+    private readonly LinkedList<(long Start, Task<(byte[] Data, string Ext, string? Note)> Encoded)> clips = new();
+
+    /// <summary>Encodes each line's clip as soon as it is complete, so only small files are kept and mining is instant.</summary>
+    private void OnClip(long start, List<GifFrame> frames)
     {
+        var task = Task.Run(() => EncodeAsync(frames));
+        lock (clips)
+        {
+            clips.AddLast((start, task));
+            while (clips.Count > 6)
+                clips.RemoveFirst();
+        }
+    }
+
+    private async Task<(byte[] Data, string Ext, string? Note)> EncodeAsync(IReadOnlyList<GifFrame> frames)
+    {
+        var ffmpeg = config.AnimationFormat == AnimationFormat.Avif ? FfmpegPath : null;
+        return await AnimationEncoder.EncodeAsync(frames, Math.Clamp(config.GifFps, 2, 24), config.AnimationFormat, ffmpeg,
+            Math.Clamp(config.AvifCrf, 10, 55), Math.Clamp(config.WebpQuality, 30, 100)).ConfigureAwait(false);
+    }
+
+    /// <summary>FFmpeg for AVIF, looked up once per configured path.</summary>
+    public string? FfmpegPath
+    {
+        get
+        {
+            if (ffmpegConfigured != config.FfmpegPath)
+            {
+                ffmpegConfigured = config.FfmpegPath;
+                ffmpegPath = Ffmpeg.Find(config.FfmpegPath);
+            }
+
+            return ffmpegPath;
+        }
+    }
+
+    private async Task<(byte[] Data, string Ext, string? Note)?> AnimationAsync(LineSpan? span)
+    {
+        if (span is not null)
+        {
+            Task<(byte[] Data, string Ext, string? Note)>? encoded = null;
+            lock (clips)
+                encoded = clips.FirstOrDefault(c => c.Start == span.Start).Encoded;
+            if (encoded is not null)
+                return await encoded.ConfigureAwait(false);
+        }
+
+        // Mined within the line's first seconds (or an old line): use what is buffered now.
         var from = span?.Start ?? Stopwatch.GetTimestamp() - Stopwatch.Frequency * (long)Math.Clamp(config.GifSeconds, 1, 10);
         var frames = Frames.FramesFrom(from);
         if (frames.Count < 2)
             throw new InvalidOperationException(Frames.Error ?? "no frames recorded yet");
-        var delay = 1000 / Math.Clamp(config.GifFps, 2, 20);
-        return await Task.Run(() => GifEncoder.Encode(frames, delay)).ConfigureAwait(false);
+        return await Task.Run(() => EncodeAsync(frames)).ConfigureAwait(false);
     }
 
     public void Dispose()
     {
         capture.LineCaptured -= OnLine;
+        Frames.ClipReady -= OnClip;
         recorder?.Dispose();
         Frames.Dispose();
         Tts.Dispose();

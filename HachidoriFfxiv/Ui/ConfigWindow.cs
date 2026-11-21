@@ -394,8 +394,32 @@ public sealed class ConfigWindow : Window
                 ImGui.TextDisabled("Recording game audio.");
         }
 
-        Toggle("GIF of the line", config.CaptureGif, v => config.CaptureGif = v);
-        HelpMarker("A short animated GIF from when the line appeared. Without a GIF field it replaces the screenshot in your picture field.");
+        Toggle("Animation of the line", config.CaptureGif, v => config.CaptureGif = v);
+        HelpMarker("A few seconds of the scene from when the line appeared. Without a GIF field it replaces the screenshot in your picture field.");
+        if (config.CaptureGif)
+        {
+            using var indent = ImRaii.PushIndent();
+            var formats = new[] { "AVIF (smallest, best quality)", "WebP", "GIF (plays everywhere, large)" };
+            var format = (int)config.AnimationFormat;
+            if (ImGui.Combo("Format", ref format, formats, formats.Length))
+            {
+                config.AnimationFormat = (AnimationFormat)format;
+                Save();
+            }
+
+            if (config.AnimationFormat != AnimationFormat.Gif)
+            {
+                var ffmpeg = media.FfmpegPath;
+                var caps = ffmpeg is null ? default : Ffmpeg.Capabilities(ffmpeg);
+                var ready = config.AnimationFormat == AnimationFormat.Avif ? caps.Av1 is not null : caps.Webp;
+                if (ready)
+                    ImGui.TextDisabled($"FFmpeg: {ffmpeg}");
+                else
+                    ImGui.TextColored(new Vector4(1f, 0.75f, 0.4f, 1f), ffmpeg is null
+                        ? "FFmpeg not found: saving GIF instead. Install FFmpeg (GSM includes one) or set its path under Advanced."
+                        : $"This FFmpeg cannot write {(config.AnimationFormat == AnimationFormat.Avif ? "AVIF" : "WebP")}: saving {(caps.Webp ? "WebP" : "GIF")} instead.");
+            }
+        }
 
         ImGui.Separator();
         var modes = new[] { "Off", "VOICEVOX-compatible (VOICEVOX, AivisSpeech…)", "Custom URL" };
@@ -462,7 +486,7 @@ public sealed class ConfigWindow : Window
             config.GifField = gifField.Trim();
         if (ImGui.IsItemDeactivatedAfterEdit())
             Save();
-        Toggle("The GIF may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v);
+        Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v);
 
         ImGui.Separator();
         var maxWidth = config.ScreenshotMaxWidth;
@@ -477,18 +501,33 @@ public sealed class ConfigWindow : Window
             Save();
 
         var gifWidth = config.GifWidth;
-        if (ImGui.SliderInt("GIF width", ref gifWidth, 200, 800))
+        if (ImGui.SliderInt("Animation width", ref gifWidth, 320, 1280))
             config.GifWidth = gifWidth;
         if (ImGui.IsItemDeactivatedAfterEdit())
             Save();
         var fps = config.GifFps;
-        if (ImGui.SliderInt("GIF frames per second", ref fps, 4, 15))
+        if (ImGui.SliderInt("Animation frames per second", ref fps, 4, 24))
             config.GifFps = fps;
         if (ImGui.IsItemDeactivatedAfterEdit())
             Save();
         var seconds = config.GifSeconds;
-        if (ImGui.SliderInt("GIF length (s)", ref seconds, 1, 8))
+        if (ImGui.SliderInt("Animation length (s)", ref seconds, 1, 8))
             config.GifSeconds = seconds;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+        var crf = config.AvifCrf;
+        if (ImGui.SliderInt("AVIF quality (CRF, lower is better)", ref crf, 18, 50))
+            config.AvifCrf = crf;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+        var webp = config.WebpQuality;
+        if (ImGui.SliderInt("WebP quality", ref webp, 40, 95))
+            config.WebpQuality = webp;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            Save();
+        var ffmpegPath = config.FfmpegPath;
+        if (ImGui.InputTextWithHint("FFmpeg path", "blank: find automatically", ref ffmpegPath, 512))
+            config.FfmpegPath = ffmpegPath.Trim();
         if (ImGui.IsItemDeactivatedAfterEdit())
             Save();
 

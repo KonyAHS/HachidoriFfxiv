@@ -91,6 +91,43 @@ static class MediaChecks
                     worst = Math.Max(worst, Math.Abs(decodedFrames[f][p * 3 + c] - frames[f].Rgba[p * 4 + c]));
         check(worst <= 24, $"GIF frames decode back to their colours (worst channel error {worst})");
 
+        // ------------------------------------------------------ AVIF / WebP / GIF
+        var noFfmpeg = await AnimationEncoder.EncodeAsync(frames, 8, AnimationFormat.Avif, null, 32, 75);
+        check(noFfmpeg.Extension == "gif" && noFfmpeg.Note?.Contains("FFmpeg not found") == true,
+            "without FFmpeg, AVIF falls back to the built-in GIF and says so");
+        var ffmpeg = Ffmpeg.Find(string.Empty);
+        if (ffmpeg is null || Ffmpeg.Capabilities(ffmpeg).Av1 is null)
+        {
+            Console.WriteLine("SKIP: AVIF and WebP encoding (no FFmpeg with AV1 on this machine)");
+        }
+        else
+        {
+            var big = Enumerable.Range(0, 24).Select(f =>
+            {
+                var rgba = new byte[640 * 360 * 4];
+                for (var p = 0; p < 640 * 360; p++)
+                {
+                    rgba[p * 4] = (byte)((p % 640 + f * 8) % 256);
+                    rgba[p * 4 + 1] = (byte)(p / 640 * 255 / 360);
+                    rgba[p * 4 + 2] = (byte)(f * 10);
+                    rgba[p * 4 + 3] = 255;
+                }
+
+                return new GifFrame(rgba, 640, 360);
+            }).ToList();
+            var avif = await AnimationEncoder.EncodeAsync(big, 12, AnimationFormat.Avif, ffmpeg, 32, 75);
+            var webp = await AnimationEncoder.EncodeAsync(big, 12, AnimationFormat.Webp, ffmpeg, 32, 75);
+            var gif2 = await AnimationEncoder.EncodeAsync(big, 12, AnimationFormat.Gif, ffmpeg, 32, 75);
+            Console.WriteLine($"  640x360x24: AVIF {avif.Data.Length / 1024} KB, WebP {webp.Data.Length / 1024} KB, GIF {gif2.Data.Length / 1024} KB");
+            check(avif.Extension == "avif" && avif.Note is null && avif.Data.AsSpan(4, 8).SequenceEqual("ftypavis"u8),
+                "AVIF animations are AV1 image sequences (avis)");
+            check(webp.Extension == "webp" && webp.Data.AsSpan(0, 4).SequenceEqual("RIFF"u8) && webp.Data.AsSpan(8, 4).SequenceEqual("WEBP"u8)
+                  && System.Text.Encoding.ASCII.GetString(webp.Data).Contains("ANIM"),
+                "WebP animations are animated WebP");
+            check(avif.Data.Length < webp.Data.Length && webp.Data.Length < gif2.Data.Length,
+                "AVIF is smaller than WebP, which is smaller than GIF");
+        }
+
         // --------------------------------------------------------------- fields
         var fields = new List<(string Name, string Value)>
         {

@@ -47,6 +47,8 @@ public sealed class Plugin : IDalamudPlugin
         // plugin drawing. Keep dictionary popups usable there; retain user/Gpose hiding.
         PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
         config = LoadConfiguration();
+        if (config.Migrate())
+            config.Save();
         service = new HachidoriService(config);
         audio = new AudioPlayer(config);
         fonts = new Fonts(config);

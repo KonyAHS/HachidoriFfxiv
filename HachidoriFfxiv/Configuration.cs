@@ -126,10 +126,27 @@ public sealed class Configuration : IPluginConfiguration
     public bool CaptureGif { get; set; } = true;
     public string GifField { get; set; } = string.Empty;
     public bool GifReplacesScreenshot { get; set; } = true;
-    public int GifWidth { get; set; } = 400;
-    public int GifFps { get; set; } = 8;
+    public Media.AnimationFormat AnimationFormat { get; set; } = Media.AnimationFormat.Avif;
+    public string FfmpegPath { get; set; } = string.Empty;
+    public int AvifCrf { get; set; } = 32;
+    public int WebpQuality { get; set; } = 75;
+    public int GifWidth { get; set; } = 720;
+    public int GifFps { get; set; } = 12;
     public int GifSeconds { get; set; } = 3;
-    public int GifBufferSeconds { get; set; } = 12;
+
+    /// <summary>1 once the low early animation defaults (400 px, 8 fps) were raised.</summary>
+    public int AnimationDefaults { get; set; } = 0;
+
+    /// <summary>Raises settings saved by earlier builds to the current defaults; true if anything changed.</summary>
+    public bool Migrate()
+    {
+        if (AnimationDefaults >= 1)
+            return false;
+        if (GifWidth <= 400) GifWidth = 720;
+        if (GifFps <= 8) GifFps = 12;
+        AnimationDefaults = 1;
+        return true;
+    }
     public string AnkiConnectUrl { get; set; } = "http://127.0.0.1:8765";
 
     // Anki (mining is done by the Hachidori host with its own Anki Template)

@@ -20,6 +20,10 @@ public sealed class GameFrames : IDisposable
 
     private readonly Configuration config;
     private readonly LinkedList<(long Ticks, GifFrame Frame)> frames = new();
+    private readonly List<long> pendingLines = new();
+
+    /// <summary>A line's first seconds are complete: (line start, frames). Raised off the draw thread.</summary>
+    public event Action<long, List<GifFrame>>? ClipReady;
     private readonly object gate = new();
     private Task<IDalamudTextureWrap>? viewport;
     private long lastFrameTicks;
@@ -63,7 +67,7 @@ public sealed class GameFrames : IDisposable
         if (!config.CaptureGif || !viewport.IsCompletedSuccessfully || readingFrame)
             return;
         var now = Stopwatch.GetTimestamp();
-        var interval = Stopwatch.Frequency / Math.Clamp(config.GifFps, 2, 20);
+        var interval = Stopwatch.Frequency / Math.Clamp(config.GifFps, 2, 24);
         if (now - lastFrameTicks < interval)
             return;
         lastFrameTicks = now;
@@ -75,7 +79,7 @@ public sealed class GameFrames : IDisposable
     {
         try
         {
-            var width = Math.Clamp(config.GifWidth, 160, 960);
+            var width = Math.Clamp(config.GifWidth, 160, 1280);
             var height = Math.Max(2, (int)Math.Round(width * source.Height / (double)Math.Max(1, source.Width)) & ~1);
             var (spec, data) = await Plugin.TextureReadback.GetRawImageAsync(source, new TextureModificationArgs
             {
@@ -84,12 +88,31 @@ public sealed class GameFrames : IDisposable
                 MakeOpaque = true,
             }, true).ConfigureAwait(false);
             var frame = await Task.Run(() => ToRgba(spec.Width, spec.Height, spec.Pitch, spec.DxgiFormat, data)).ConfigureAwait(false);
+            var ready = new List<(long, List<GifFrame>)>();
             lock (gate)
             {
                 frames.AddLast((ticks, frame));
-                var keep = Stopwatch.Frequency * (long)Math.Clamp(config.GifBufferSeconds, 4, 30);
+                var length = ClipLength;
+                // Each new line's first seconds are kept as a clip of their own; the rolling buffer
+                // only covers the current moment. Memory stays at a few clips however long you read.
+                for (var i = pendingLines.Count - 1; i >= 0; i--)
+                {
+                    var start = pendingLines[i];
+                    if (ticks < start + length)
+                        continue;
+                    ready.Add((start, frames.Where(f => f.Ticks >= start && f.Ticks <= start + length).Select(f => f.Frame).ToList()));
+                    pendingLines.RemoveAt(i);
+                }
+
+                var keep = length + Stopwatch.Frequency;
                 while (frames.First is { } first && ticks - first.Value.Ticks > keep)
                     frames.RemoveFirst();
+            }
+
+            foreach (var (start, clip) in ready)
+            {
+                if (clip.Count >= 2)
+                    ClipReady?.Invoke(start, clip);
             }
         }
         catch (Exception ex)
@@ -124,10 +147,25 @@ public sealed class GameFrames : IDisposable
         return new GifFrame(rgba, width, height);
     }
 
-    /// <summary>The buffered frames from <paramref name="fromTicks"/> for at most the GIF length; the latest ones if those are gone.</summary>
+    private long ClipLength => (long)(Stopwatch.Frequency * Math.Clamp(config.GifSeconds, 1, 10));
+
+    /// <summary>A dialogue line appeared: keep its first seconds for the animation.</summary>
+    public void OnLineStarted(long ticks)
+    {
+        if (!config.CaptureGif)
+            return;
+        lock (gate)
+        {
+            pendingLines.Add(ticks);
+            if (pendingLines.Count > 8)
+                pendingLines.RemoveAt(0);
+        }
+    }
+
+    /// <summary>Buffered frames from <paramref name="fromTicks"/>, else the latest ones.</summary>
     public List<GifFrame> FramesFrom(long fromTicks)
     {
-        var length = (long)(Stopwatch.Frequency * Math.Clamp(config.GifSeconds, 1, 10));
+        var length = ClipLength;
         lock (gate)
         {
             var list = frames.Where(f => f.Ticks >= fromTicks && f.Ticks <= fromTicks + length).Select(f => f.Frame).ToList();
@@ -176,7 +214,10 @@ public sealed class GameFrames : IDisposable
             viewport.Result.Dispose();
         viewport = null;
         lock (gate)
+        {
             frames.Clear();
+            pendingLines.Clear();
+        }
     }
 
     public void Dispose() => Release();
