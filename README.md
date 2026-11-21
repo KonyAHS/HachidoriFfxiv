@@ -44,6 +44,8 @@ Once your Hachidori host is linked, try `/hachidori 冒険者` in game.
 - **GSM text feed (opt-in):** sends dialogue and interaction popups to
   [GameSentenceMiner](https://github.com/bpwhelan/GameSentenceMiner).
 - **NPC images:** crop screenshots into one picture dictionary on your host.
+- **Optional offline mode:** keep looking words up with Chrome closed, from a
+  local copy of your Hachidori dictionaries that stays in sync.
 - **Optional FFXIV dictionary** of game names and vocabulary.
 
 ## First setup
@@ -88,6 +90,30 @@ No compiling or manual DLL installation is needed.
   change. This requires host support for linked dictionary imports.
 - Optional: import [the FFXIV Japanese–English dictionary](dictionaries/ffxiv/README.md)
   into Hachidori for game names and vocabulary. **Contains expansion spoilers.**
+
+## Offline mode
+
+By default every lookup goes to Hachidori in Chrome. Offline mode keeps a copy
+of your dictionaries and Hachidori settings in the plugin's config folder, so
+lookups keep working when Chrome is closed. Offline lookups need nothing else
+running; setting up and syncing need Hachidori linked through Anki as usual.
+
+1. With Hachidori linked, run `/hachidori config`, open **Connection**, and
+   choose **Set up offline mode**. Your dictionaries download once (about as
+   much disk space as Hachidori uses for them).
+2. Live Hachidori is always used while it is linked. Each time it links again,
+   the plugin compares dictionary revisions and downloads only what changed, and
+   removes dictionaries you deleted in Hachidori. Settings such as dictionary
+   order, theme and audio sources are saved as you change them.
+3. The **Connection** tab shows which one is answering lookups, the disk space
+   used, the last sync, and **Turn off and delete offline data**.
+
+Offline lookups use the same engine and settings as Hachidori, so results match
+the browser's. Offline, pronunciation uses your Audio URL and Yomitan JSON
+sources directly (browser speech needs Chrome), lookup counts are recorded once
+Hachidori is linked again, and Anki mining and NPC pictures need Chrome. The
+plugin warns when your Hachidori is newer than its built-in engine; a
+dictionary in a format it cannot read stays live-only until the plugin updates.
 
 ## Popup themes
 
@@ -141,6 +167,8 @@ pages and programs on your computer can connect.
   Lines containing icons can place the hover slightly off the character.
 - **GSM not connecting:** the GSM tab reports a port in use; pick another slot.
 - **No audio:** check port `19633` and pronunciation sources in Hachidori.
+- **Offline mode not answering:** check the **Connection** tab for warnings, then
+  open Chrome with Hachidori once and use **Sync now**.
 - **Old development build:** disable it before installing this version; `/hoshi`
   remains an alias, and old `Hoshidori.json` settings are migrated when possible.
 - `/hachidori logs` exports diagnostics locally. Review exports before attaching
@@ -163,7 +191,10 @@ under their own licenses, and their authors don't endorse or maintain this plugi
   [Hachidori Relay](https://github.com/bee-san/hachidori-anki): dictionaries, lookups,
   templates and Anki mining all come from your Hachidori host.
 - [hoshidicts](https://github.com/Manhhao/hoshidicts): the dictionary engine behind
-  Hachidori, and the lookup format used here.
+  Hachidori, and the lookup format used here. Offline mode bundles Hachidori's
+  build of it ([bee-san/hoshidicts](https://github.com/bee-san/hoshidicts)) with
+  Hachidori's engine bindings, compiled for Windows, and Hachidori's KANJIDIC and
+  Jitendex kanwa reading tables for furigana.
 - [GameSentenceMiner](https://github.com/bpwhelan/GameSentenceMiner): the optional
   text feed is built to fit how GSM reads WebSocket sources.
 

@@ -25,7 +25,24 @@ try {
     git archive --format=zip --output=dist/source.zip HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Source archive failed.' }
 } finally { Pop-Location }
-$taskChecksums = foreach ($taskName in @('latest.zip', 'pluginmaster.json', 'source.zip')) {
+# hdw_native.dll's corresponding source: the pinned hoshidicts and Hachidori
+# sources exactly as native/build.ps1 fetched and patched them for this build.
+$taskNativeSource = Join-Path $taskRoot 'native/src'
+if (!(Test-Path -LiteralPath (Join-Path $taskNativeSource 'hoshidicts'))) { throw 'native/src is missing; run native/build.ps1 first.' }
+$taskNativeZip = [IO.Compression.ZipFile]::Open((Join-Path $taskDist 'native-source.zip'), [IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($taskFile in @('native/sources.json', 'native/CMakeLists.txt', 'native/build.ps1', 'native/hdw_native_windows.cpp')) {
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($taskNativeZip, (Join-Path $taskRoot $taskFile), $taskFile) | Out-Null
+    }
+    Get-ChildItem -LiteralPath (Join-Path $taskRoot 'native/patches'), (Join-Path $taskRoot 'native/compat'), $taskNativeSource -Recurse -File -Force |
+        Where-Object { $_.FullName -notmatch '[\\/]\.git([\\/]|$)' } |
+        ForEach-Object {
+            $taskEntry = [IO.Path]::GetRelativePath($taskRoot, $_.FullName).Replace('\', '/')
+            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($taskNativeZip, $_.FullName, $taskEntry) | Out-Null
+        }
+}
+finally { $taskNativeZip.Dispose() }
+$taskChecksums = foreach ($taskName in @('latest.zip', 'pluginmaster.json', 'source.zip', 'native-source.zip')) {
     $taskHash = (Get-FileHash (Join-Path $taskDist $taskName) -Algorithm SHA256).Hash.ToLowerInvariant()
     "$taskHash  $taskName"
 }
