@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
@@ -120,6 +121,13 @@ public sealed class ConfigWindow : Window
             ImGui.TextColored(new Vector4(0.5f, 0.9f, 0.5f, 1f), "●");
             ImGui.SameLine();
             ImGui.TextUnformatted($"Linked to Hachidori in {link.HostName} (v{link.HostVersion}), {link.DictionaryCount} dictionaries.");
+        }
+        else if (service.UsingOffline && service.Offline is { } offline)
+        {
+            ImGui.TextColored(new Vector4(0.95f, 0.8f, 0.4f, 1f), "●");
+            ImGui.SameLine();
+            ImGui.TextWrapped($"Offline: answering from {offline.Store.Manifest.Dictionaries.Count} local dictionaries"
+                + $" (synced {Ago(offline.Store.Manifest.SyncedAt)}). Anki mining and lookup counts return when Hachidori is linked.");
         }
         else
         {
@@ -490,6 +498,8 @@ public sealed class ConfigWindow : Window
         if (ImGui.Button("Reconnect"))
             service.Link.Reconnect();
 
+        DrawOfflineMode();
+
         if (service.Link.Connected)
         {
             ImGui.Spacing();
@@ -500,6 +510,104 @@ public sealed class ConfigWindow : Window
                 ImGui.BulletText($"{LookupResult.Str(d["title"])}{(enabled ? string.Empty : " (disabled)")}");
             }
         }
+    }
+
+    private bool confirmRemoveOffline;
+
+    private void DrawOfflineMode()
+    {
+        if (service.Offline is not { } offline)
+            return;
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.TextUnformatted("Offline mode");
+        ImGui.TextWrapped("Keeps a copy of your Hachidori dictionaries and settings so lookups work with only Anki "
+            + "(and the Hachidori Relay) running. Live Hachidori is always used while it is linked; the copy is "
+            + "brought up to date on every connection, downloading only dictionaries that changed.");
+
+        var link = service.Link;
+        var running = offline.Sync.Running;
+        if (!config.OfflineMode)
+        {
+            using (ImRaii.Disabled(!link.Connected || running))
+            {
+                if (ImGui.Button("Set up offline mode"))
+                    _ = offline.SetUpAsync();
+            }
+            if (!link.Connected)
+                ImGui.TextDisabled("Link Hachidori (Chrome with Sharing on) to set up offline mode.");
+        }
+        else
+        {
+            ImGui.TextUnformatted($"Answering lookups: {service.Backend.Name}");
+            var manifest = offline.Store.Manifest;
+            ImGui.TextUnformatted($"{manifest.Dictionaries.Count} dictionaries, {FormatBytes(offline.Store.DiskBytes)} on disk, synced {Ago(manifest.SyncedAt)}.");
+            if (offline.EngineVersion is { } engine)
+                ImGui.TextDisabled(engine.Short);
+
+            using (ImRaii.Disabled(!link.Connected || running))
+            {
+                if (ImGui.Button("Sync now"))
+                    _ = offline.SyncNowAsync();
+            }
+            ImGui.SameLine();
+            using (ImRaii.Disabled(running))
+            {
+                if (ImGui.Button(confirmRemoveOffline ? "Click again to delete the offline copy" : "Turn off and delete offline data"))
+                {
+                    if (confirmRemoveOffline)
+                    {
+                        confirmRemoveOffline = false;
+                        _ = offline.RemoveAsync().ContinueWith(_ => service.ClearCache(), TaskScheduler.Default);
+                    }
+                    else
+                    {
+                        confirmRemoveOffline = true;
+                    }
+                }
+                else if (confirmRemoveOffline && !ImGui.IsItemHovered())
+                {
+                    confirmRemoveOffline = false;
+                }
+            }
+
+            if (manifest.Dictionaries.Count > 0 && ImGui.TreeNode("Offline dictionaries"))
+            {
+                foreach (var d in manifest.Dictionaries)
+                    ImGui.BulletText($"{d.Title} ({d.Revision}, {FormatBytes(d.Bytes)})");
+                ImGui.TreePop();
+            }
+        }
+
+        if (running)
+            ImGui.TextWrapped(offline.Sync.Progress ?? "Syncing…");
+        else if (offline.LastSync is { } last)
+            ImGui.TextDisabled($"Last sync: {last}.");
+        if (offline.LastSyncError is { } error)
+            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), error);
+        foreach (var warning in offline.Warnings())
+        {
+            ImGui.TextColored(new Vector4(0.95f, 0.8f, 0.4f, 1f), "!");
+            ImGui.SameLine();
+            ImGui.TextWrapped(warning);
+        }
+    }
+
+    private static string FormatBytes(long bytes) => bytes switch
+    {
+        >= 1L << 30 => $"{bytes / (double)(1L << 30):0.0} GB",
+        >= 1L << 20 => $"{bytes / (double)(1L << 20):0} MB",
+        _ => $"{bytes / 1024.0:0} KB",
+    };
+
+    private static string Ago(DateTimeOffset? time)
+    {
+        if (time is not { } t) return "never";
+        var age = DateTimeOffset.UtcNow - t;
+        return age.TotalMinutes < 1 ? "just now"
+            : age.TotalHours < 1 ? $"{(int)age.TotalMinutes} min ago"
+            : age.TotalDays < 1 ? $"{(int)age.TotalHours} h ago"
+            : t.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
     }
 
     private void Checkbox(string label, Func<bool> get, Action<bool> set)

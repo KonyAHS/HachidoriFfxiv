@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Live-versus-offline parity; needs a linked Hachidori. Usage: see Program.cs. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../HachidoriFfxiv/Hachidori/HachidoriLink.cs" Link="HachidoriLink.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/Models.cs" Link="Models.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/HachidoriPayloads.cs" Link="HachidoriPayloads.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/WordSpans.cs" Link="WordSpans.cs" />
+    <Compile Include="../../HachidoriFfxiv/DiagnosticLog.cs" Link="DiagnosticLog.cs" />
+    <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs" Link="Offline/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../HachidoriFfxiv/Offline/Data/*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />
+    <None Include="../../native/bin/hdw_native.dll" Link="hdw_native.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

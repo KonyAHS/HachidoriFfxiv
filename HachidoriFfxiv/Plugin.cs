@@ -46,7 +46,9 @@ public sealed class Plugin : IDalamudPlugin
         // plugin drawing. Keep dictionary popups usable there; retain user/Gpose hiding.
         PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
         config = LoadConfiguration();
-        service = new HachidoriService(config);
+        service = new HachidoriService(config,
+            System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "offline"),
+            PluginInterface.AssemblyLocation.DirectoryName);
         audio = new AudioPlayer(config);
         fonts = new Fonts(config);
         capture = new TextCapture(config);
@@ -169,6 +171,12 @@ public sealed class Plugin : IDalamudPlugin
             ["connected"] = service.Link.Connected,
             ["hostVersion"] = service.Link.HostVersion,
             ["dictionaryCount"] = service.Link.DictionaryCount,
+            ["backend"] = service.Backend.Name,
+            ["offlineMode"] = config.OfflineMode,
+            ["offlineEngine"] = service.Offline?.EngineVersion?.Short,
+            ["offlineDictionaries"] = service.Offline?.Store.Manifest.Dictionaries.Count,
+            ["offlineSyncedAt"] = service.Offline?.Store.Manifest.SyncedAt?.ToString("O"),
+            ["offlineWarnings"] = service.Offline is { } offline ? offline.Warnings().Count : 0,
             ["linkError"] = service.Link.Error is null ? null : "See relay events below",
             ["relayPort"] = config.RelayPort,
             ["audioApiPort"] = config.ApiPort,

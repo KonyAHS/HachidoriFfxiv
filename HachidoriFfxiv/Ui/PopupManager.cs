@@ -431,6 +431,11 @@ public sealed class PopupManager : IDisposable
     {
         try
         {
+            if (service.UsingOffline)
+            {
+                entry.Anki = AnkiState.Offline;
+                return;
+            }
             entry.Anki = AnkiState.Checking;
             var status = await AnkiStatus().ConfigureAwait(false);
             if (!status.Available)

@@ -55,6 +55,9 @@ public sealed class HachidoriLink : IDisposable
 
     public event Action? SnapshotChanged;
 
+    /// <summary>The link came up (after its hello) or went down.</summary>
+    public event Action? ConnectionChanged;
+
     /// <summary>Hachidori's Anki index revision changed (notes added, statuses changed).</summary>
     public event Action? WordStatusChanged;
 
@@ -213,6 +216,7 @@ public sealed class HachidoriLink : IDisposable
     {
         if (socket == ws)
             socket = null;
+        var wasConnected = Connected;
         if (Connected)
             Error ??= "Hachidori is not reachable.";
         Connected = false;
@@ -225,6 +229,8 @@ public sealed class HachidoriLink : IDisposable
         }
 
         ws.Dispose();
+        if (wasConnected)
+            ConnectionChanged?.Invoke();
     }
 
     private async Task ReceiveLoopAsync(ClientWebSocket ws, CancellationTokenSource handshakeDeadline)
@@ -280,6 +286,7 @@ public sealed class HachidoriLink : IDisposable
                 Error = null;
                 attempt = 0;
                 ready.TrySetResult();
+                ConnectionChanged?.Invoke();
                 SnapshotChanged?.Invoke();
                 WordStatusChanged?.Invoke();
                 break;

@@ -30,6 +30,10 @@ public sealed class Configuration : IPluginConfiguration
     public int RelayPort { get; set; } = 8771;
     public int ApiPort { get; set; } = 19633;
 
+    // Offline mode: a local copy of Hachidori's dictionaries and settings, used
+    // only while Hachidori is not linked. Off until set up in the settings.
+    public bool OfflineMode { get; set; } = false;
+
     // Scanning
     public ScanModifier ScanModifier { get; set; } = ScanModifier.None;
     public int ScanLength { get; set; } = 16;

@@ -7,14 +7,14 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using HachidoriFfxiv.Offline;
 
 namespace HachidoriFfxiv.Hachidori;
 
 /// <summary>Everything the plugin asks Hachidori for, on top of <see cref="HachidoriLink"/>.</summary>
 public sealed class HachidoriService : IDisposable, INpcPictureHost
 {
-    private const string EngineTarget = "hoshidicts-offscreen";
-    private const string WorkerTarget = "hoshidicts-worker";
+    private const string EngineTarget = LiveBackend.EngineTarget;
     private const string AnkiTarget = "hachidori-anki";
     private const int CacheLimit = 512;
 
@@ -24,21 +24,55 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     private readonly ConcurrentQueue<string> cacheOrder = new();
     private readonly ConcurrentDictionary<string, Task<byte[]?>> audioCache = new();
     private readonly ConcurrentDictionary<string, Task<IReadOnlyList<WordSpan>>> segmentCache = new();
+    private readonly LiveBackend live;
+    private readonly LocalBackend? local;
 
-    public HachidoriService(Configuration config)
+    /// <param name="offlineRoot">Where offline mode keeps its copy; null leaves offline mode out.</param>
+    /// <param name="libraryDirectory">The folder holding hdw_native.dll.</param>
+    public HachidoriService(Configuration config, string? offlineRoot = null, string? libraryDirectory = null)
     {
         this.config = config;
         Link = new HachidoriLink(() => new UriBuilder("ws", config.RelayHost, config.RelayPort, "/link").Uri,
             ex => Plugin.Log.Warning(ex, "Dropped a sharing frame"));
         Link.SnapshotChanged += ClearCache;
+        Link.ConnectionChanged += OnConnectionChanged;
+        live = new LiveBackend(Link, http, () => $"http://{config.RelayHost}:{config.ApiPort}/");
+        if (offlineRoot is not null && libraryDirectory is not null)
+        {
+            Offline = new OfflineMode(config, Link, offlineRoot, libraryDirectory);
+            Offline.Changed += ClearCache;
+            local = new LocalBackend(Offline, http, () => Options);
+        }
     }
 
     public HachidoriLink Link { get; }
 
-    public JsonObject Options => Link.Snapshot["options"] as JsonObject ?? new JsonObject();
+    public OfflineMode? Offline { get; }
+
+    /// <summary>
+    /// Live Hachidori whenever it is linked; the offline copy only while it is
+    /// not and offline mode is set up; otherwise live, which reports why it is unreachable.
+    /// </summary>
+    public IDictionaryBackend Backend => !Link.Connected && local is not null && Offline!.Ready ? local : live;
+
+    public bool UsingOffline => !Backend.IsLive;
+
+    /// <summary>Hachidori's settings: the host's, or the copy offline mode saved when it is not linked.</summary>
+    public JsonObject Snapshot => Link.Connected || Link.Snapshot.Count > 0 || Offline?.Store.Snapshot is not { } saved
+        ? Link.Snapshot
+        : saved;
+
+    public JsonObject Options => Snapshot["options"] as JsonObject ?? new JsonObject();
 
     public IEnumerable<JsonObject> Dictionaries =>
-        (Link.Snapshot["dictionaryState"]?["dictionaries"] as JsonArray)?.OfType<JsonObject>() ?? [];
+        (Snapshot["dictionaryState"]?["dictionaries"] as JsonArray)?.OfType<JsonObject>() ?? [];
+
+    private void OnConnectionChanged()
+    {
+        ClearCache();
+        if (Link.Connected && local is not null)
+            _ = local.FlushLookupStatsAsync(live, CancellationToken.None);
+    }
 
     public bool OptionBool(string name, bool fallback) =>
         Options[name] is JsonValue v && v.TryGetValue<bool>(out var b) ? b : fallback;
@@ -71,21 +105,18 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     private async Task<IReadOnlyList<WordSpan>> SegmentUncachedAsync(string text)
     {
-        var response = await Link.RequestAsync(EngineTarget, "hd_segment",
-            HachidoriPayloads.Segment(text, config.ScanLength, config.UsePersonalDictionary && OptionBool("personalDictionaryEnabled", true))).ConfigureAwait(false);
-        var spans = WordSpan.Parse(response, text);
-        DiagnosticLog.Write("segment", $"characters={text.Length}, words={spans.Count}");
+        var backend = Backend;
+        var spans = await backend.SegmentAsync(
+            HachidoriPayloads.Segment(text, config.ScanLength, config.UsePersonalDictionary && OptionBool("personalDictionaryEnabled", true)), text).ConfigureAwait(false);
+        DiagnosticLog.Write("segment", $"characters={text.Length}, words={spans.Count}, live={backend.IsLive}");
         return spans;
     }
 
     public async Task<byte[]?> GetImageAsync(string dictionary, string path, long generation, CancellationToken ct)
     {
-        var reply = await Link.RequestAsync(EngineTarget, "hd_media", new JsonObject
-        {
-            ["dictionary"] = dictionary, ["path"] = path, ["generation"] = generation,
-        }, ct).ConfigureAwait(false);
-        var bytes = HachidoriPayloads.Media(reply);
-        DiagnosticLog.Write("image", $"generation={generation}, bytes={bytes?.Length ?? 0}");
+        var backend = Backend;
+        var bytes = await backend.MediaAsync(dictionary, path, generation, ct).ConfigureAwait(false);
+        DiagnosticLog.Write("image", $"generation={generation}, bytes={bytes?.Length ?? 0}, live={backend.IsLive}");
         return bytes;
     }
 
@@ -138,145 +169,29 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         return task;
     }
 
-    private async Task<LookupReply> LookupUncachedAsync(string text)
-    {
-        var options = new JsonObject
-        {
-            ["personalDictionary"] = config.UsePersonalDictionary && OptionBool("personalDictionaryEnabled", true),
-        };
-        if (Options["frequencyDictionary"] is JsonValue fd)
-            options["frequencyDictionary"] = fd.DeepClone();
-        if (Options["frequencyOrder"] is JsonValue fo)
-            options["frequencyOrder"] = fo.DeepClone();
+    private Task<LookupReply> LookupUncachedAsync(string text) =>
+        Backend.LookupAsync(HachidoriPayloads.Lookup(text, config.MaxResults, config.ScanLength,
+            HachidoriPayloads.LookupOptions(config.UsePersonalDictionary && OptionBool("personalDictionaryEnabled", true), Options)));
 
-        var reply = await Link.RequestAsync(EngineTarget, "hd_lookup", new JsonObject
-        {
-            ["text"] = text,
-            ["maxResults"] = config.MaxResults,
-            ["scanLength"] = config.ScanLength,
-            ["options"] = options,
-        }).ConfigureAwait(false);
-
-        var results = (reply?["results"] as JsonArray)?.OfType<JsonObject>()
-            .Select(r => LookupResult.Parse((JsonObject)r.DeepClone()))
-            .ToList() ?? [];
-        return new LookupReply
-        {
-            Query = text,
-            Results = results,
-            Generation = reply?["generation"] is JsonValue g && g.TryGetValue<long>(out var gen) ? gen : 0,
-        };
-    }
-
-    private async Task<LookupReply> KanjiUncachedAsync(string character)
-    {
-        var reply = await Link.RequestAsync(EngineTarget, "hd_kanji", new JsonObject { ["character"] = character })
-            .ConfigureAwait(false);
-        var results = new List<LookupResult>();
-        if (reply?["kanji"]?["entries"] is JsonArray entries)
-        {
-            foreach (var entry in entries.OfType<JsonObject>())
-                results.Add(LookupResult.Parse(KanjiEntryResult(character, entry)));
-        }
-
-        return new LookupReply { Query = character, Results = results, IsKanji = true };
-    }
-
-    /// <summary>A native kanji entry as a LookupResult, as Hachidori's popup does (kanjiEntryResult).</summary>
-    private static JsonObject KanjiEntryResult(string character, JsonObject entry)
-    {
-        static IEnumerable<string> Tokens(JsonNode? node) => node switch
-        {
-            JsonArray array => array.Select(LookupResult.Str).Where(s => s.Length > 0),
-            JsonValue value => LookupResult.Str(value).Split(' ', StringSplitOptions.RemoveEmptyEntries),
-            _ => [],
-        };
-
-        var content = new JsonArray();
-        var tags = Tokens(entry["tags"]).ToList();
-        if (tags.Count > 0)
-            content.Add(new JsonObject { ["tag"] = "div", ["data"] = new JsonObject { ["content"] = "tags" }, ["content"] = string.Join(" ", tags) });
-        foreach (var (label, key) in new[] { ("On", "onyomi"), ("Kun", "kunyomi") })
-        {
-            var values = Tokens(entry[key]).ToList();
-            if (values.Count > 0)
-            {
-                content.Add(new JsonObject
-                {
-                    ["tag"] = "div",
-                    ["content"] = new JsonArray(
-                        new JsonObject { ["tag"] = "strong", ["content"] = label },
-                        $" {string.Join(" · ", values)}"),
-                });
-            }
-        }
-
-        if (entry["definitions"] is JsonArray definitions && definitions.Count > 0)
-        {
-            content.Add(new JsonObject
-            {
-                ["tag"] = "ol",
-                ["content"] = new JsonArray(definitions.Select(d => (JsonNode)new JsonObject { ["tag"] = "li", ["content"] = d?.DeepClone() }).ToArray()),
-            });
-        }
-
-        if (entry["stats"] is JsonArray stats && stats.Count > 0)
-        {
-            content.Add(new JsonObject
-            {
-                ["tag"] = "table",
-                ["content"] = new JsonArray(stats.OfType<JsonObject>().Select(s => (JsonNode)new JsonObject
-                {
-                    ["tag"] = "tr",
-                    ["content"] = new JsonArray(
-                        new JsonObject { ["tag"] = "th", ["content"] = LookupResult.Str(s["name"]) },
-                        new JsonObject { ["tag"] = "td", ["content"] = LookupResult.Str(s["value"]) }),
-                }).ToArray()),
-            });
-        }
-
-        var glossary = new JsonArray(new JsonObject { ["type"] = "structured-content", ["content"] = content });
-        return new JsonObject
-        {
-            ["matched"] = character,
-            ["deinflected"] = character,
-            ["trace"] = new JsonArray(),
-            ["preprocessorSteps"] = 0,
-            ["term"] = new JsonObject
-            {
-                ["expression"] = character,
-                ["reading"] = string.Empty,
-                ["rules"] = string.Empty,
-                ["score"] = 0,
-                ["frequencies"] = entry["frequencies"]?.DeepClone() ?? new JsonArray(),
-                ["pitches"] = new JsonArray(),
-                ["glossaries"] = new JsonArray(new JsonObject
-                {
-                    ["dictionary"] = LookupResult.Str(entry["dictionary"]),
-                    ["glossary"] = glossary.ToJsonString(),
-                    ["definitionTags"] = string.Empty,
-                    ["termTags"] = string.Empty,
-                }),
-            },
-        };
-    }
+    private Task<LookupReply> KanjiUncachedAsync(string character) => Backend.KanjiAsync(character);
 
     // ------------------------------------------------------- lookup statistics
 
     /// <summary>Reads (or records) Hachidori's lookup count for a headword. Null when counts are off or unavailable.</summary>
-    public async Task<int?> LookupStatsAsync(string term, string reading, bool record)
-    {
-        var reply = await Link.RequestAsync(WorkerTarget, record ? "hd_lookup_stats_record" : "hd_lookup_stats_read",
-            new JsonObject { ["term"] = term, ["reading"] = reading }).ConfigureAwait(false);
-        return reply?["statistics"]?["lookupCount"] is JsonValue v && v.TryGetValue<int>(out var count) ? count : null;
-    }
+    public Task<int?> LookupStatsAsync(string term, string reading, bool record) =>
+        Backend.LookupStatsAsync(term, reading, record);
 
     // -------------------------------------------------------------------- Anki
 
     public sealed record AnkiStatus(bool Available, string? ConfigKey, string? Error);
 
+    public const string OfflineMiningMessage =
+        "Anki mining needs Hachidori in Chrome. Offline mode covers lookups only; open Chrome to add notes.";
+
     public async Task<AnkiStatus> AnkiStatusAsync()
     {
+        if (UsingOffline)
+            return new AnkiStatus(false, null, OfflineMiningMessage);
         var payload = new JsonObject();
         if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId))
             payload["templateId"] = config.AnkiTemplateId;
@@ -377,10 +292,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     // ------------------------------------------------------------------- audio
 
-    /// <summary>
-    /// Pronunciation audio from the user's Hachidori audio sources, through the relay's
-    /// Yomitan-compatible API (<c>POST /ankiFields</c> with the <c>audio</c> marker).
-    /// </summary>
+    /// <summary>Pronunciation audio: Hachidori's sources through the relay, or fetched directly offline.</summary>
     public Task<byte[]?> GetAudioAsync(string expression, string reading)
     {
         var key = $"{expression}\u0001{reading}";
@@ -395,27 +307,17 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     private async Task<byte[]?> FetchAudioAsync(string expression, string reading)
     {
-        var body = new JsonObject
-        {
-            ["text"] = expression,
-            ["type"] = "term",
-            ["markers"] = new JsonArray("audio"),
-            ["maxEntries"] = 8,
-            ["includeMedia"] = true,
-        };
-        using var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-        using var response = await http.PostAsync($"http://{config.RelayHost}:{config.ApiPort}/ankiFields", content).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-            throw new HachidoriException($"Audio unavailable ({(int)response.StatusCode}).");
-        var json = JsonNode.Parse(await response.Content.ReadAsStringAsync().ConfigureAwait(false));
-        var data = HachidoriPayloads.Audio(json, expression, reading);
-        DiagnosticLog.Write("audio", $"Host audio sources resolved; returnedBytes={data?.Length ?? 0}");
+        var backend = Backend;
+        var data = await backend.AudioAsync(expression, reading).ConfigureAwait(false);
+        DiagnosticLog.Write("audio", $"Audio sources resolved; live={backend.IsLive}, returnedBytes={data?.Length ?? 0}");
         return data;
     }
 
     public void Dispose()
     {
         Link.SnapshotChanged -= ClearCache;
+        Link.ConnectionChanged -= OnConnectionChanged;
+        Offline?.Dispose();
         Link.Dispose();
         http.Dispose();
     }
