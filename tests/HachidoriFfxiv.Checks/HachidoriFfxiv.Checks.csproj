@@ -19,6 +19,8 @@
     <Compile Include="../../HachidoriFfxiv/DiagnosticLog.cs" Link="DiagnosticLog.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/PronunciationDecoder.cs" Link="PronunciationDecoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Rendering/*.cs" Link="Rendering/%(Filename)%(Extension)" />
+    <Compile Include="../../HachidoriFfxiv/Rendering/Css/*.cs" Exclude="../../HachidoriFfxiv/Rendering/Css/PopupThemeProvider.cs" Link="Rendering/Css/%(Filename)%(Extension)" />
+    <Compile Include="../../HachidoriFfxiv/Ui/ThemePainter.cs" Link="ThemePainter.cs" />
     <Compile Include="../../HachidoriFfxiv/Ui/PopupWindowScope.cs" Link="PopupWindowScope.cs" />
     <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)/Dalamud.Bindings.ImGui.dll" />
     <Reference Include="HexaGen.Runtime" HintPath="$(DalamudLibPath)/HexaGen.Runtime.dll" />
