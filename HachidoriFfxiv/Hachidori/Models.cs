@@ -179,4 +179,7 @@ public sealed class AnkiDecision
     public string? Error { get; init; }
     public long[] NoteIds { get; init; } = [];
     public JsonNode? ClientSpeech { get; init; }
+
+    /// <summary>The Template maps {screenshot}: the client sends the picture with the note.</summary>
+    public bool Screenshot { get; init; }
 }

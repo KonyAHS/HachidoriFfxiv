@@ -25,6 +25,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
+    [PluginService] internal static IGamepadState Gamepad { get; private set; } = null!;
 
     private readonly WindowSystem windows = new("HachidoriFfxiv");
     private readonly Configuration config;
@@ -35,6 +36,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly NativeTextHover nativeHover;
     private readonly TextPublisher publisher;
     private readonly PopupManager popups;
+    private readonly Media.MediaMiner media;
+    private readonly GamepadNavigator gamepad;
     private readonly ReaderWindow reader;
     private readonly SearchWindow search;
     private readonly ConfigWindow configWindow;
@@ -46,6 +49,8 @@ public sealed class Plugin : IDalamudPlugin
         // plugin drawing. Keep dictionary popups usable there; retain user/Gpose hiding.
         PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
         config = LoadConfiguration();
+        if (config.Migrate())
+            config.Save();
         service = new HachidoriService(config,
             System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "offline"),
             PluginInterface.AssemblyLocation.DirectoryName);
@@ -55,9 +60,12 @@ public sealed class Plugin : IDalamudPlugin
         nativeHover = new NativeTextHover(config);
         publisher = new TextPublisher(config, capture);
         popups = new PopupManager(config, service, audio, fonts);
+        media = new Media.MediaMiner(config, capture);
+        popups.Media = media;
+        gamepad = new GamepadNavigator(config, popups, nativeHover, service);
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
-        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, ExportLogs);
+        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs);
         windows.AddWindow(reader);
         windows.AddWindow(search);
         windows.AddWindow(configWindow);
@@ -65,7 +73,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori config · /hachidori logs",
+            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori config · /hachidori logs",
         });
         CommandManager.AddHandler(LegacyCommand, new CommandInfo(OnCommand)
         {
@@ -103,8 +111,10 @@ public sealed class Plugin : IDalamudPlugin
     private void Draw()
     {
         using var sizedFonts = fonts.LockFrame();
+        media.Draw();
         popups.NpcImages.PollOperations();
         nativeHover.Draw(popups);
+        gamepad.Draw();
         reader.IsOpen = config.ReaderEnabled;
         windows.Draw();
         // After every scannable window, so this frame's hover decides the popups.
@@ -132,6 +142,10 @@ public sealed class Plugin : IDalamudPlugin
             case "pictures":
                 popups.NpcImages.Open();
                 return;
+            case "pad":
+            case "controller":
+                gamepad.Toggle();
+                return;
             case "reconnect":
                 service.Link.Reconnect();
                 return;
@@ -157,7 +171,9 @@ public sealed class Plugin : IDalamudPlugin
         publisher.Dispose();
         capture.Dispose();
         nativeHover.Dispose();
+        gamepad.Dispose();
         popups.Dispose();
+        media.Dispose();
         audio.Dispose();
         fonts.Dispose();
         service.Dispose();

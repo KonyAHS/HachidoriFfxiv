@@ -111,6 +111,75 @@ public sealed class Configuration : IPluginConfiguration
     public bool PublishChat { get; set; } = false;
     public bool PublishSpeaker { get; set; } = false;
 
+    // Controller reading mode (/hachidori pad, or hold a button).
+    public bool ControllerEnabled { get; set; } = true;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerHoldButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.Select;
+    public float ControllerHoldSeconds { get; set; } = 0.6f;
+    public bool ControllerStartInWordMode { get; set; } = true;
+    public bool ControllerExitWhenDialogueCloses { get; set; } = true;
+    public bool ControllerShowHints { get; set; } = true;
+    public bool ControllerPlayStationLabels { get; set; } = false;
+
+    // Settings window: everyday options only, unless the user asks for all of them.
+    public bool AdvancedSettings { get; set; } = false;
+
+    // Card media from the game (replaces GSM): screenshot, voice line or TTS, GIF.
+    public bool CaptureScreenshot { get; set; } = true;
+    public int ScreenshotMaxWidth { get; set; } = 1600;
+    public float ScreenshotQuality { get; set; } = 0.85f;
+    public bool RecordVoiceLines { get; set; } = true;
+    public string SentenceAudioField { get; set; } = string.Empty;
+    public float VoiceDetectionRatio { get; set; } = 2f;
+    public int MaxLineSeconds { get; set; } = 20;
+    public int VoiceBufferSeconds { get; set; } = 120;
+    public Media.TtsMode TtsMode { get; set; } = Media.TtsMode.Off;
+    public string TtsUrl { get; set; } = "http://127.0.0.1:50021";
+    public string TtsSpeaker { get; set; } = "1";
+    public bool TtsPost { get; set; } = false;
+    public bool CaptureGif { get; set; } = true;
+    public string GifField { get; set; } = string.Empty;
+    public bool GifReplacesScreenshot { get; set; } = true;
+    public Media.AnimationFormat AnimationFormat { get; set; } = Media.AnimationFormat.Avif;
+    public string FfmpegPath { get; set; } = string.Empty;
+    public int AvifCrf { get; set; } = 32;
+    public int WebpQuality { get; set; } = 75;
+    public int GifWidth { get; set; } = 720;
+    public int GifFps { get; set; } = 12;
+    public int GifSeconds { get; set; } = 3;
+
+    /// <summary>1 once the low early animation defaults (400 px, 8 fps) were raised.</summary>
+    public int AnimationDefaults { get; set; } = 0;
+
+    /// <summary>Raises settings saved by earlier builds to the current defaults; true if anything changed.</summary>
+    public bool Migrate()
+    {
+        if (AnimationDefaults >= 1)
+            return false;
+        if (GifWidth <= 400) GifWidth = 720;
+        if (GifFps <= 8) GifFps = 12;
+        AnimationDefaults = 1;
+        return true;
+    }
+    public string AnkiConnectUrl { get; set; } = "http://127.0.0.1:8765";
+
+    // Sentence translation, with GameSentenceMiner's parameters (Settings → Mining).
+    public bool TranslationEnabled { get; set; } = false;
+    public Media.TranslationProvider TranslationProvider { get; set; } = Media.TranslationProvider.Gemini;
+    public string TranslationField { get; set; } = "SentenceTranslation";
+    public string TranslationLanguage { get; set; } = "English";
+    public string DeepLTargetLanguage { get; set; } = "EN-US";
+    public bool UseCannedTranslationPrompt { get; set; } = true;
+    public bool UseCannedContextPrompt { get; set; } = false;
+    public string CustomTranslationPrompt { get; set; } = string.Empty;
+    public string CustomFullPrompt { get; set; } = string.Empty;
+    public int DialogueContextLength { get; set; } = 5;
+    public double TranslationTemperature { get; set; } = 0.3;
+    public double TranslationTopP { get; set; } = 0.9;
+    public int TranslationMaxTokens { get; set; } = 4096;
+    public Dictionary<Media.TranslationProvider, Media.AiProviderSettings> AiProviders { get; set; } = new();
+    public string CodexPath { get; set; } = string.Empty;
+    public string ClaudeCodePath { get; set; } = string.Empty;
+
     // Anki (mining is done by the Hachidori host with its own Anki Template)
     public string AnkiTemplateId { get; set; } = string.Empty;
     public string DocumentTitle { get; set; } = "FINAL FANTASY XIV";

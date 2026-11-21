@@ -267,6 +267,12 @@ public sealed class EntryView
 
     public event Action<EntryView, bool>? OnAnkiClicked;
 
+    /// <summary>The + button's action, for the controller.</summary>
+    public void RequestAnki(bool force = false) => OnAnkiClicked?.Invoke(this, force);
+
+    /// <summary>The entry's top in its popup's content (window-local Y), from the last draw.</summary>
+    public float TopY { get; set; }
+
     private static bool Button(FontAwesomeIcon icon, string tooltip)
     {
         var clicked = ImGui.Button(icon.ToIconString(), new Vector2(ImGui.GetFrameHeight()));

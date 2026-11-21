@@ -24,7 +24,9 @@ namespace HachidoriFfxiv.Capture;
 public sealed unsafe class NativeTextHover : IDisposable
 {
     private sealed record Part(RichBlock Block, NativeTextLayout Layout);
-    private sealed record Cached(string Signature, Part[] Parts);
+    private readonly record struct TextStyle(ushort Width, ushort Height, byte FontSize, byte AlignmentFontType,
+        byte LineSpacing, byte CharSpacing, TextFlags Flags);
+    private sealed record Cached(TextStyle Style, byte[] Raw, Part[] Parts);
     private sealed record Region(string Addon, Part Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale);
     private readonly Configuration config;
     private readonly Dictionary<nint, Cached> cache = new();
@@ -32,6 +34,12 @@ public sealed unsafe class NativeTextHover : IDisposable
     private Vector2 lastMouse = new(-10000);
     private DateTime lastError;
     private DateTime lastChatProbe;
+    /// <summary>A scannable native text block with its glyph cells on screen, for controller navigation.</summary>
+    public sealed record TextTarget(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext> Context);
+
+    /// <summary>Set while controller mode is on: read all visible dialogue text, not only the text under the mouse.</summary>
+    public bool ControllerScan { get; set; }
+
     public string? LastError { get; private set; }
     public int RegionCount => regions.Length;
     public bool SubtitleVisible { get; private set; }
@@ -68,7 +76,16 @@ public sealed unsafe class NativeTextHover : IDisposable
             var stage = AtkStage.Instance();
             var hovered = stage == null || stage->AtkCollisionManager == null ? null : stage->AtkCollisionManager->IntersectingAddon;
             // Collision selection limits us to the topmost native addon when available.
-            if (hovered != null && hovered->IsVisible)
+            if (ControllerScan)
+            {
+                foreach (var name in new[] { "Talk", "_BattleTalk" })
+                {
+                    if (!Allowed(name)) continue;
+                    var addon = Plugin.GameGui.GetAddonByName(name);
+                    if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name);
+                }
+            }
+            else if (hovered != null && hovered->IsVisible)
             {
                 var name = hovered->NameString;
                 LastHoveredAddon = name;
@@ -179,7 +196,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             node->GetBounds(&bounds);
             var min = new Vector2(bounds.Pos1.X, bounds.Pos1.Y);
             var max = new Vector2(bounds.Pos2.X, bounds.Pos2.Y);
-            if (max.X <= min.X || max.Y <= min.Y || !NativeTextLayout.Contains(min, max, lastMouse)) return;
+            if (max.X <= min.X || max.Y <= min.Y || (!ControllerScan && !NativeTextLayout.Contains(min, max, lastMouse))) return;
             var clipMin = min;
             var clipMax = max;
             for (var parent = node->ParentNode; parent != null; parent = parent->ParentNode)
@@ -190,30 +207,40 @@ public sealed unsafe class NativeTextHover : IDisposable
                 clipMin = Vector2.Max(clipMin, new(clip.Pos1.X, clip.Pos1.Y));
                 clipMax = Vector2.Min(clipMax, new(clip.Pos2.X, clip.Pos2.Y));
             }
-            if (!NativeTextLayout.Contains(clipMin, clipMax, lastMouse)) return;
+            if (clipMax.X <= clipMin.X || clipMax.Y <= clipMin.Y || (!ControllerScan && !NativeTextLayout.Contains(clipMin, clipMax, lastMouse))) return;
             var raw = node->NodeText.AsSpan();
             var chat = IsChat(name);
             if (raw.Length == 0 || raw.Length > (chat ? 65536 : 16384)) return;
-            // NodeText already contains the game's applied line flow. Preserve newlines
-            // and UTF-16 offsets so highlighting and Anki matchOffset use the same text.
-            var text = SeString.Parse(raw).TextValue;
-            if (text.Length == 0 || text.Length > (chat ? 16384 : 2048) || !text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value))) return;
-            var signature = $"{node->Width}|{node->Height}|{node->FontSize}|{node->AlignmentFontType}|{node->LineSpacing}|{node->CharSpacing}|{node->TextFlags}|{text}";
+            var style = new TextStyle(node->Width, node->Height, node->FontSize, node->AlignmentFontType,
+                node->LineSpacing, node->CharSpacing, node->TextFlags);
             var key = (nint)node;
             seen.Add(key);
-            if (!cache.TryGetValue(key, out var cached) || cached.Signature != signature)
+            if (!cache.TryGetValue(key, out var cached) || cached.Style != style || !raw.SequenceEqual(cached.Raw))
             {
                 // Use the game's own font measurement, never an approximate ImGui font.
-                var glyphHeight = Measure(node, "国").Y;
+                var glyphHeight = Measure(node, "国"u8).Y;
                 if (glyphHeight <= 0) return;
-                var advance = Measure(node, "国\n国").Y - glyphHeight;
+                var advance = Measure(node, chat ? "国\r国"u8 : "国\n国"u8).Y - glyphHeight;
                 if (advance <= 0) advance = Math.Max(node->FontSize, node->LineSpacing);
-                var layout = NativeTextLayout.Build(text, node->Width, node->Height, (int)node->AlignmentType,
-                    glyphHeight, advance, (node->TextFlags & TextFlags.WordWrap) != 0, prefix => Measure(node, prefix));
-                Part[] parts = chat
-                    ? layout.SplitLines(text).Where(p => p.Text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value))).Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray()
-                    : [new Part(new RichBlock().Add(text), layout)];
-                cached = new Cached(signature, parts);
+                Part[] parts = [];
+                if (chat)
+                {
+                    parts = NativeChatLayout.Build(raw, style.Width, style.Height, (int)node->AlignmentType,
+                        glyphHeight, advance, prefix => Measure(node, prefix).X)
+                        .Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray();
+                }
+                else
+                {
+                    var text = SeString.Parse(raw).TextValue;
+                    if (text.Length is > 0 and <= 2048 && text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value)))
+                    {
+                        var layout = NativeTextLayout.Build(text, style.Width, style.Height, (int)node->AlignmentType,
+                            glyphHeight, advance, (style.Flags & TextFlags.WordWrap) != 0,
+                            prefix => Measure(node, Encoding.UTF8.GetBytes(prefix)));
+                        parts = [new Part(new RichBlock().Add(text), layout)];
+                    }
+                }
+                cached = new Cached(style, raw.ToArray(), parts);
                 cache[key] = cached;
             }
             var scale = new Vector2((max.X - min.X) / node->Width, (max.Y - min.Y) / node->Height);
@@ -245,13 +272,47 @@ public sealed unsafe class NativeTextHover : IDisposable
         return true;
     }
 
-    private static Vector2 Measure(AtkTextNode* node, string text)
+    private static Vector2 Measure(AtkTextNode* node, ReadOnlySpan<byte> text)
     {
-        var bytes = Encoding.UTF8.GetBytes(text + '\0');
+        Span<byte> bytes = text.Length < 1024 ? stackalloc byte[text.Length + 1] : new byte[text.Length + 1];
+        text.CopyTo(bytes);
+        bytes[^1] = 0;
         ushort width = 0, height = 0;
         fixed (byte* pointer = bytes)
             node->GetTextDrawSize(&width, &height, pointer);
         return new Vector2(width, height);
+    }
+
+    /// <summary>The visible dialogue text blocks with on-screen glyph cells (controller mode).</summary>
+    public List<TextTarget> Targets()
+    {
+        var viewport = ImGui.GetMainViewport();
+        var list = new List<TextTarget>();
+        foreach (var region in regions)
+        {
+            var origin = region.Min + viewport.Pos;
+            var clipMin = region.ClipMin + viewport.Pos;
+            var clipMax = region.ClipMax + viewport.Pos;
+            var cells = new List<(int, Vector2, Vector2)>();
+            foreach (var cell in region.Text.Layout.Cells)
+            {
+                var min = Vector2.Max(origin + cell.Min * region.Scale, clipMin);
+                var max = Vector2.Min(origin + cell.Max * region.Scale, clipMax);
+                if (max.X > min.X && max.Y > min.Y)
+                    cells.Add((cell.Index, min, max));
+            }
+
+            if (cells.Count == 0)
+                continue;
+            var addon = region.Addon;
+            list.Add(new TextTarget(addon, region.Text.Block, cells, (block, index) =>
+            {
+                var sentence = NameKana.Apply(block.ScanText, PlayerName.Replacements(config), ref index);
+                return new ScanContext(sentence, index, $"{config.DocumentTitle} — {addon}");
+            }));
+        }
+
+        return list;
     }
 
     public void Draw(PopupManager popups)
@@ -292,7 +353,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                     // The game draws the name in Latin letters; the sentence Hachidori gets uses katakana.
                     var sentence = NameKana.Apply(block.ScanText, PlayerName.Replacements(config), ref index);
                     return new ScanContext(sentence, index, $"{config.DocumentTitle} — {region.Addon}");
-                });
+                }, keepPrevious: !IsChat(region.Addon));
             return;
         }
     }

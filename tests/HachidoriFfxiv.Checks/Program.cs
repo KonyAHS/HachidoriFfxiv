@@ -15,6 +15,8 @@ using HachidoriFfxiv.Audio;
 using HachidoriFfxiv;
 using System.Net.Http.Json;
 using NAudio.Wave;
+using Lumina.Text.Payloads;
+using Lumina.Text.ReadOnly;
 
 var passed = 0;
 void Check(bool condition, string name)
@@ -33,6 +35,8 @@ async Task Until(Func<bool> condition)
 // The actual native popup scope, tested outside FFXIV against local cimgui.
 // A style-stack underflow used to crash the game when the first popup opened.
 CheckPopupThemes(Check);
+await MediaChecks.RunAsync(Check);
+CursorChecks.Run(Check);
 CheckPopupScopes(Check);
 PopupTheme.Current = ThemeFor("crystal", "crystal", "blue");
 CheckPopupScopes((ok, name) => Check(ok, $"Crystal theme: {name}"));
@@ -64,10 +68,24 @@ Check(native.HitScreen(new(205, 105), new(200, 100), Vector2.Zero, new(200, 100)
 Check(NativeTextLayout.Build("冒険者", 40, 40, 0, 12, 18, true, FixedMeasure).Hit(new(25, 5))?.Index == 2,
     "native targets reflow when text-box width changes");
 
-var chatLayout = NativeTextLayout.Build("冒険\nabc\r\n者𠮷", 40, 60, 0, 12, 18, false, FixedMeasure);
-var chatParts = chatLayout.SplitLines("冒険\nabc\r\n者𠮷");
-Check(chatParts.Count == 3 && chatParts[2].Text == "者𠮷", "chat text splits into one block per message");
-Check(chatParts[2].Layout.Hit(new(15, 40))?.Index == 1 && chatParts[0].Layout.Hit(new(15, 40)) is null,
+float MeasureChat(ReadOnlySpan<byte> bytes)
+{
+    var width = 0f;
+    foreach (var payload in new ReadOnlySeStringSpan(bytes))
+        if (payload.Type == ReadOnlySePayloadType.Text)
+            width += FixedMeasure(Encoding.UTF8.GetString(payload.Body)).X;
+        else if (payload.MacroCode == MacroCode.Icon)
+            width += 14;
+    return width;
+}
+
+byte[] chatText = [0x02, (byte)MacroCode.Icon, 0x02, 0x02, 0x03, .."冒険\rabc\r\n者𠮷\r隠"u8];
+var chatParts = NativeChatLayout.Build(chatText, 40, 54, 0, 12, 18, MeasureChat);
+Check(chatParts.Count == 2 && chatParts[0].Text == "冒険" && chatParts[1].Text == "者𠮷",
+    "chat targets use the game's row breaks and exclude rows outside the node");
+Check(chatParts[0].Layout.Hit(new(5, 4)) is null && chatParts[0].Layout.Hit(new(18, 4))?.Index == 0,
+    "an inline chat icon occupies screen space without creating a lookup target");
+Check(chatParts[1].Layout.Hit(new(15, 40))?.Index == 1 && chatParts[0].Layout.Hit(new(15, 40)) is null,
     "chat message offsets are local and keep their on-screen position");
 
 var mineRequest = new JsonObject { ["captureUnavailable"] = new JsonArray("screenshot", "sentence-audio", "gif") };

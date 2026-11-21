@@ -182,6 +182,14 @@ them to draw its popups in the theme selected in Hachidori. The JL, Nazeka and
 Bee themes adapt work by rampaa/JL and wareya/nazeka under the Apache License
 2.0; see the *.ATTRIBUTION.md and *.LICENSE.Apache-2.0 files beside them.
 
+--------------------------------------------------------------------------------
+GameSentenceMiner translation prompts (HachidoriFfxiv/Media/TranslationPrompt.cs)
+--------------------------------------------------------------------------------
+
+The sentence-translation prompt, context prompt and full-prompt template are
+adapted from GameSentenceMiner (https://github.com/bpwhelan/GameSentenceMiner),
+GameSentenceMiner/ai/prompts, GPL-3.0.
+
 --- glaze.txt ---
 MIT License
 

@@ -26,9 +26,19 @@
     <Compile Include="../../HachidoriFfxiv/Rendering/*.cs" Link="Rendering/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Rendering/Css/*.cs" Exclude="../../HachidoriFfxiv/Rendering/Css/PopupThemeProvider.cs" Link="Rendering/Css/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Ui/ThemePainter.cs" Link="ThemePainter.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/AudioRing.cs" Link="Media/AudioRing.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/AudioClips.cs" Link="Media/AudioClips.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/GifEncoder.cs" Link="Media/GifEncoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/AnimationEncoder.cs" Link="Media/AnimationEncoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/TranslationPrompt.cs" Link="Media/TranslationPrompt.cs" />
+    <Compile Include="../../HachidoriFfxiv/Ui/CursorMoves.cs" Link="Ui/CursorMoves.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="Media/ScreenshotMedia.cs" />
     <Compile Include="../../HachidoriFfxiv/Ui/PopupWindowScope.cs" Link="PopupWindowScope.cs" />
     <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)/Dalamud.Bindings.ImGui.dll" />
     <Reference Include="HexaGen.Runtime" HintPath="$(DalamudLibPath)/HexaGen.Runtime.dll" />
+    <Reference Include="Lumina" HintPath="$(DalamudLibPath)/Lumina.dll" />
     <None Include="$(DalamudLibPath)/cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
