@@ -615,12 +615,10 @@ public sealed class PopupManager : IDisposable
             var result = await service.AnkiSubmitAsync(request, screenshot).ConfigureAwait(false);
             if (result.State is "added" or "updated")
             {
-                entry.Anki = AnkiState.Added;
                 entry.Decision = result;
                 var noteId = result.NoteIds.FirstOrDefault();
                 var warnings = result.Warnings.Length > 0 ? " " + string.Join(" ", result.Warnings) : string.Empty;
                 var added = $"{(result.State == "added" ? "Added" : "Updated")} note {noteId}.{screenshotWarning}{warnings}";
-                entry.AnkiMessage = added;
                 if (Media is { AttachesMedia: true } media && noteId != 0)
                 {
                     entry.AnkiMessage = $"{added} Adding media…";
@@ -628,12 +626,19 @@ public sealed class PopupManager : IDisposable
                     {
                         var attached = await media.AttachAsync(noteId, state.Context.Sentence, screenshot?.Filename).ConfigureAwait(false);
                         entry.AnkiMessage = attached.Length > 0 ? $"{added} {attached}" : added;
+                        DiagnosticLog.Write("anki", $"Media attach for note {noteId}: {(attached.Length > 0 ? attached : "(nothing added)")}");
                     }
                     catch (Exception ex)
                     {
                         entry.AnkiMessage = $"{added} Media not attached: {ex.Message}";
+                        DiagnosticLog.Write("anki", $"Media attach failed for note {noteId}: {ex}");
                     }
                 }
+                else
+                {
+                    entry.AnkiMessage = added;
+                }
+                entry.Anki = AnkiState.Added;
             }
             else if (result.State == "duplicate")
             {

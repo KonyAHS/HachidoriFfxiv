@@ -13,15 +13,25 @@ namespace HachidoriFfxiv.Media;
 /// <summary>The AnkiConnect calls used to attach recorded media to a note Hachidori created.</summary>
 public sealed class AnkiConnect : IDisposable
 {
+    private static readonly HashSet<string> ReadOnlyActions = new(StringComparer.Ordinal)
+    {
+        "version", "deckNames", "modelNames", "modelNamesAndIds", "modelFieldNames",
+        "canAddNotesWithErrorDetail", "findNotes", "notesInfo", "cardsInfo", "guiSelectedNotes",
+    };
+
     private readonly Func<string> url;
     private readonly Func<string?>? key;
-    private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly HttpClient http;
 
     /// <param name="key">AnkiConnect's API key, when it requires one.</param>
     public AnkiConnect(Func<string> url, Func<string?>? key = null)
     {
         this.url = url;
         this.key = key;
+        http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        // AnkiConnect's Python HTTP server drops idle sockets; avoiding keep-alive reuse prevents
+        // transient "response ended prematurely" / connection-reset failures on the next request.
+        http.DefaultRequestHeaders.ConnectionClose = true;
     }
 
     public async Task<JsonNode?> InvokeAsync(string action, JsonObject? parameters = null, CancellationToken ct = default)
@@ -31,20 +41,30 @@ public sealed class AnkiConnect : IDisposable
             body["params"] = parameters;
         if (key?.Invoke() is { Length: > 0 } apiKey)
             body["key"] = apiKey;
-        using var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-        HttpResponseMessage response;
-        try
+        var json = body.ToJsonString();
+        var attempts = ReadOnlyActions.Contains(action) ? 2 : 1;
+        HttpResponseMessage? response = null;
+        for (var attempt = 1; attempt <= attempts; attempt++)
         {
-            response = await http.PostAsync(url(), content, ct).ConfigureAwait(false);
-        }
-        catch (HttpRequestException ex)
-        {
-            throw new InvalidOperationException($"AnkiConnect is not reachable at {url()}. Install the AnkiConnect add-on in Anki. ({ex.Message})", ex);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            try
+            {
+                response = await http.PostAsync(url(), content, ct).ConfigureAwait(false);
+                break;
+            }
+            catch (HttpRequestException) when (attempt < attempts && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(150, ct).ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new InvalidOperationException($"AnkiConnect is not reachable at {url()}. Install the AnkiConnect add-on in Anki. ({ex.Message})", ex);
+            }
         }
 
-        using (response)
+        using (response!)
         {
-            var reply = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+            var reply = JsonNode.Parse(await response!.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
             if (reply?["error"] is JsonValue error && error.ToString() is { Length: > 0 } message)
                 throw new InvalidOperationException($"AnkiConnect {action}: {message}");
             return reply?["result"];
@@ -74,15 +94,39 @@ public sealed class AnkiConnect : IDisposable
             .ToList();
     }
 
-    public Task UpdateFieldsAsync(long noteId, IReadOnlyDictionary<string, string> fields, CancellationToken ct = default) =>
-        InvokeAsync("updateNoteFields", new JsonObject
+    public async Task UpdateFieldsAsync(long noteId, IReadOnlyDictionary<string, string> fields, CancellationToken ct = default)
+    {
+        // AnkiConnect's updateNoteFields writes to SQLite without reloading an open Browser editor;
+        // if this note is currently selected in Anki's Browser, the stale editor can overwrite our
+        // update seconds later. Deselecting it before the write and reselecting it afterwards avoids
+        // the clobber and refreshes the Browser view.
+        var reselect = false;
+        try
+        {
+            if (await InvokeAsync("guiSelectedNotes", null, ct).ConfigureAwait(false) is JsonArray selected
+                && selected.Any(n => n is JsonValue v && v.TryGetValue<long>(out var id) && id == noteId))
+            {
+                await InvokeAsync("guiBrowse", new JsonObject { ["query"] = "nid:1" }, ct).ConfigureAwait(false);
+                reselect = true;
+            }
+        }
+        catch { /* best-effort: never block field updates on GUI calls */ }
+
+        await InvokeAsync("updateNoteFields", new JsonObject
         {
             ["note"] = new JsonObject
             {
                 ["id"] = noteId,
                 ["fields"] = new JsonObject(fields.Select(f => KeyValuePair.Create(f.Key, (JsonNode?)f.Value))),
             },
-        }, ct);
+        }, ct).ConfigureAwait(false);
+
+        if (reselect)
+        {
+            try { await InvokeAsync("guiBrowse", new JsonObject { ["query"] = $"nid:{noteId}" }, ct).ConfigureAwait(false); }
+            catch { }
+        }
+    }
 
     public void Dispose() => http.Dispose();
 }

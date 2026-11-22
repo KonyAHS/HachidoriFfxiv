@@ -80,7 +80,11 @@ foreach ($library in $runtime.PSObject.Properties) {
 }
 # Replace the DLL last so Dalamud reloads against the complete build.
 $files = @($files | Sort-Object -Unique) + 'HachidoriFfxiv.dll'
+$sameNativeEngine = (Test-Path -LiteralPath (Join-Path $gameDirectory 'hdw_native.dll') -PathType Leaf) -and
+    (Test-Path -LiteralPath (Join-Path $gameDirectory 'hdw_native.json') -PathType Leaf) -and
+    (Get-FileHash -LiteralPath (Join-Path $gameDirectory 'hdw_native.json')).Hash -eq (Get-FileHash -LiteralPath (Join-Path $output 'hdw_native.json')).Hash
 $changed = @($files | Where-Object {
+    if ($_ -eq 'hdw_native.dll' -and $sameNativeEngine) { return $false }
     $installed = Join-Path $gameDirectory $_
     !(Test-Path -LiteralPath $installed -PathType Leaf) -or
         (Get-FileHash -LiteralPath $installed).Hash -ne (Get-FileHash -LiteralPath (Join-Path $output $_)).Hash
@@ -103,8 +107,8 @@ foreach ($name in $changed) {
 $attempted = @()
 try {
     foreach ($name in $changed) {
-        $attempted += $name
         Copy-Item -LiteralPath (Join-Path $output $name) -Destination (Join-Path $gameDirectory $name) -Force
+        $attempted += $name
     }
     if ((Get-FileHash -LiteralPath $destination).Hash -ne $hash) {
         throw 'The installed DLL does not match the verified build.'

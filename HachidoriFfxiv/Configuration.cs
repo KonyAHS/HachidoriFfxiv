@@ -119,6 +119,16 @@ public sealed class Configuration : IPluginConfiguration
     public bool ControllerExitWhenDialogueCloses { get; set; } = true;
     public bool ControllerShowHints { get; set; } = true;
     public bool ControllerPlayStationLabels { get; set; } = false;
+    public bool ControllerUseTouchpad { get; set; } = false;
+    public float ControllerCursorSpeed { get; set; } = 900f;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerMineButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.South;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerAudioButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.West;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerWordModeButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.North;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerBackExitButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.East;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerPrevEntryButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.L2;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerNextEntryButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.R2;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerDiveButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.R1;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerWindowButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.L1;
 
     // Settings window: everyday options only, unless the user asks for all of them.
     public bool AdvancedSettings { get; set; } = false;

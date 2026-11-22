@@ -50,6 +50,7 @@ public sealed unsafe class NativeTextHover : IDisposable
     public int RegionCount => regions.Length;
     public bool SubtitleVisible { get; private set; }
     public string LastHoveredAddon { get; private set; } = string.Empty;
+    public string FocusedAddonName { get; private set; } = string.Empty;
 
     public NativeTextHover(Configuration config)
     {
@@ -87,11 +88,33 @@ public sealed unsafe class NativeTextHover : IDisposable
             // Collision selection limits us to the topmost native addon when available.
             if (ControllerScan)
             {
+                FocusedAddonName = string.Empty;
+                if (stage != null && stage->RaptureAtkUnitManager != null)
+                {
+                    var focusedAddon = stage->RaptureAtkUnitManager->FocusedAddon;
+                    if (focusedAddon != null && focusedAddon->IsVisible)
+                        FocusedAddonName = focusedAddon->NameString;
+                }
                 foreach (var name in DialogueAddons)
                 {
                     if (!Allowed(name)) continue;
                     var addon = Plugin.GameGui.GetAddonByName(name);
                     if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name);
+                }
+                if (next.Count == 0 && stage != null && stage->RaptureAtkUnitManager != null)
+                {
+                    // Scan all visible allowed UI addons plus the active chat panel so the user
+                    // can navigate any open window (Quest Accept, Journal, tooltips, ToDoList, Chat).
+                    ref var all = ref stage->RaptureAtkUnitManager->AllLoadedUnitsList;
+                    for (var i = (int)all.Count - 1; i >= 0; i--)
+                    {
+                        var unit = all.Entries[i].Value;
+                        if (unit == null || !unit->IsVisible) continue;
+                        var name = unit->NameString;
+                        if (string.IsNullOrEmpty(name) || IsChat(name) || name == "TalkSubtitle" || !Allowed(name)) continue;
+                        ReadAddon(unit, name);
+                    }
+                    ReadChat(null);
                 }
             }
             else if (hovered != null && hovered->IsVisible)
@@ -170,7 +193,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                     if (textNode == null || !Visible((AtkResNode*)textNode)) continue;
                     Bounds bounds;
                     textNode->GetBounds(&bounds);
-                    if (!NativeTextLayout.Contains(new(bounds.Pos1.X, bounds.Pos1.Y), new(bounds.Pos2.X, bounds.Pos2.Y), lastMouse)) continue;
+                    if (!ControllerScan && !NativeTextLayout.Contains(new(bounds.Pos1.X, bounds.Pos1.Y), new(bounds.Pos2.X, bounds.Pos2.Y), lastMouse)) continue;
                     if (target != null && target->DrawOrderIndex >= panel->DrawOrderIndex) continue;
                 }
                 target = panel;

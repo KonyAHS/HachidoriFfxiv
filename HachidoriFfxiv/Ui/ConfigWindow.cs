@@ -860,19 +860,20 @@ public sealed class ConfigWindow : Window
         ImGui.TextUnformatted("In the mode");
         using (ImRaii.PushIndent())
         {
-            string B(string xbox, string playstation) => ps ? playstation : xbox;
+            string L(Dalamud.Game.ClientState.GamePad.GamepadButtons b) => GamepadNavigator.ButtonLabel(b, ps);
             foreach (var (keys, action) in new[]
                      {
-                         ("D-pad ◀▶ / left stick", "previous / next word (or character)"),
-                         ("D-pad ▲▼ / left stick", "line above / below"),
-                         (B("A", "✕"), "add the selected entry to Anki"),
-                         (B("X", "□"), "play its pronunciation"),
-                         (B("LT / RT", "L2 / R2"), "previous / next dictionary entry"),
+                         ("Left stick", "move virtual cursor over any UI or dialogue text"),
+                         ("D-pad", "previous / next word and line"),
                          ("Right stick", "scroll the popup"),
-                         (B("RB", "R1"), "move the cursor into the popup to look up a word inside it"),
-                         (B("B / LB", "○ / L1"), "back out of the popup; B again leaves the mode"),
-                         (B("Y", "△"), "switch between words and characters"),
-                         (B("Back / Start", "Select / Options"), "leave the mode"),
+                         (L(config.ControllerMineButton), "add the selected entry to Anki"),
+                         (L(config.ControllerAudioButton), "play its pronunciation"),
+                         ($"{L(config.ControllerPrevEntryButton)} / {L(config.ControllerNextEntryButton)}", "previous / next dictionary entry"),
+                         (L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"),
+                         (L(config.ControllerWindowButton), "cycle between open UI windows (or back out of a nested popup)"),
+                         (L(config.ControllerWordModeButton), "switch between words and characters"),
+                         (L(config.ControllerBackExitButton), "back out of a nested popup, or leave the mode"),
+                         (ps ? "Select / Options" : "Back / Start", "leave the mode"),
                      })
                 ImGui.BulletText($"{keys}: {action}");
         }
@@ -882,6 +883,69 @@ public sealed class ConfigWindow : Window
         Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
         Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
         Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
+        Checkbox("Use DualSense/DS4 touchpad for virtual cursor", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v);
+
+        if (Advanced)
+        {
+            ImGui.Separator();
+            ImGui.TextUnformatted("Controller cursor & keybinds");
+            using (ImRaii.PushIndent())
+            {
+                var speed = config.ControllerCursorSpeed;
+                if (ImGui.SliderFloat("Left stick cursor speed (px/s)", ref speed, 300f, 2000f, "%.0f"))
+                    config.ControllerCursorSpeed = speed;
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                    Save();
+
+                Dalamud.Game.ClientState.GamePad.GamepadButtons[] bindChoices =
+                [
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.None,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.South,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.East,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.West,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.North,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L1,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R1,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L2,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R2,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L3,
+                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R3,
+                ];
+                var bindLabels = bindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
+                void BindCombo(string label, Func<Dalamud.Game.ClientState.GamePad.GamepadButtons> get, Action<Dalamud.Game.ClientState.GamePad.GamepadButtons> set)
+                {
+                    var idx = Math.Max(0, Array.IndexOf(bindChoices, get()));
+                    if (ImGui.Combo(label, ref idx, bindLabels, bindLabels.Length))
+                    {
+                        set(bindChoices[idx]);
+                        Save();
+                    }
+                }
+
+                BindCombo("Mine to Anki", () => config.ControllerMineButton, v => config.ControllerMineButton = v);
+                BindCombo("Play audio", () => config.ControllerAudioButton, v => config.ControllerAudioButton = v);
+                BindCombo("Word / char mode", () => config.ControllerWordModeButton, v => config.ControllerWordModeButton = v);
+                BindCombo("Back / exit", () => config.ControllerBackExitButton, v => config.ControllerBackExitButton = v);
+                BindCombo("Previous entry", () => config.ControllerPrevEntryButton, v => config.ControllerPrevEntryButton = v);
+                BindCombo("Next entry", () => config.ControllerNextEntryButton, v => config.ControllerNextEntryButton = v);
+                BindCombo("Look up inside popup", () => config.ControllerDiveButton, v => config.ControllerDiveButton = v);
+                BindCombo("Cycle UI window", () => config.ControllerWindowButton, v => config.ControllerWindowButton = v);
+
+                if (ImGui.SmallButton("Reset keybinds"))
+                {
+                    config.ControllerCursorSpeed = 900f;
+                    config.ControllerMineButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.South;
+                    config.ControllerAudioButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.West;
+                    config.ControllerWordModeButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.North;
+                    config.ControllerBackExitButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.East;
+                    config.ControllerPrevEntryButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.L2;
+                    config.ControllerNextEntryButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.R2;
+                    config.ControllerDiveButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.R1;
+                    config.ControllerWindowButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.L1;
+                    Save();
+                }
+            }
+        }
     }
 
     private void DrawReaderTab()
