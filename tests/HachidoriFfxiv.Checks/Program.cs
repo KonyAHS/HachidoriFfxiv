@@ -36,6 +36,7 @@ async Task Until(Func<bool> condition)
 // A style-stack underflow used to crash the game when the first popup opened.
 CheckPopupThemes(Check);
 await MediaChecks.RunAsync(Check);
+await TrimChecks.RunAsync(Check);
 CursorChecks.Run(Check);
 CheckPopupScopes(Check);
 PopupTheme.Current = ThemeFor("crystal", "crystal", "blue");

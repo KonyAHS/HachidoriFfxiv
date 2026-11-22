@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using HachidoriFfxiv.Hachidori;
 
 namespace HachidoriFfxiv.Rendering.Css;
@@ -20,7 +22,19 @@ public sealed class PopupThemeProvider
     private readonly Configuration config;
     private readonly HachidoriService service;
     private readonly Dictionary<string, string> sheets = new();
+
+    // Cheap inputs, compared every frame without allocating. The custom CSS is only rebuilt
+    // when one of them changes: the sharing snapshot is replaced whenever Hachidori's options change.
+    private object? inputSnapshot;
+    private bool inputFollow, inputApplyCustom, inputFollowOpacity;
+    private string? inputThemeOverride, inputVariantOverride, inputExtraCss;
+    private float inputAlpha;
+    private bool inputsKnown;
+
     private string? key;
+    private string? computedKey;
+    private Task<PopupTheme>? computing;
+    private string? computingKey;
 
     public PopupThemeProvider(Configuration config, HachidoriService service)
     {
@@ -40,17 +54,22 @@ public sealed class PopupThemeProvider
     /// <summary>Recomputes the theme when its inputs changed. Cheap otherwise; call once per frame.</summary>
     public void Update()
     {
+        ApplyFinished();
         if (!config.FollowHachidoriTheme)
         {
+            inputsKnown = false;
             if (key != "plugin")
             {
-                key = "plugin";
+                key = computedKey = "plugin";
                 PopupTheme.Current = PopupTheme.PluginDefault();
                 Error = null;
             }
 
             return;
         }
+
+        if (!InputsChanged())
+            return;
 
         var theme = config.HachidoriThemeOverride.Length > 0 ? config.HachidoriThemeOverride : service.OptionString("popupTheme", "default");
         var variant = config.HachidoriVariantOverride.Length > 0 ? config.HachidoriVariantOverride : service.OptionString("popupThemeVariant", "auto");
@@ -62,21 +81,76 @@ public sealed class PopupThemeProvider
         var custom = config.ApplyHachidoriCustomCss ? CustomCss() : string.Empty;
         custom += "\n" + config.ExtraPopupCss;
 
-        var next = $"{renderer}\u0001{theme}\u0001{variant}\u0001{opacity}\u0001{custom}";
-        if (next == key)
+        key = $"{renderer}\u0001{theme}\u0001{variant}\u0001{opacity}\u0001{custom}";
+        StartCompute(new PopupThemeEngine.Input(renderer, theme, variant, Sheet(renderer), custom, opacity));
+    }
+
+    private bool InputsChanged()
+    {
+        var snapshot = service.Link.Snapshot;
+        if (inputsKnown
+            && ReferenceEquals(snapshot, inputSnapshot)
+            && inputFollow == config.FollowHachidoriTheme
+            && inputApplyCustom == config.ApplyHachidoriCustomCss
+            && inputFollowOpacity == config.FollowHachidoriOpacity
+            && inputAlpha == config.PopupBackgroundAlpha
+            && string.Equals(inputThemeOverride, config.HachidoriThemeOverride, StringComparison.Ordinal)
+            && string.Equals(inputVariantOverride, config.HachidoriVariantOverride, StringComparison.Ordinal)
+            && string.Equals(inputExtraCss, config.ExtraPopupCss, StringComparison.Ordinal))
+            return false;
+        inputSnapshot = snapshot;
+        inputFollow = config.FollowHachidoriTheme;
+        inputApplyCustom = config.ApplyHachidoriCustomCss;
+        inputFollowOpacity = config.FollowHachidoriOpacity;
+        inputAlpha = config.PopupBackgroundAlpha;
+        inputThemeOverride = config.HachidoriThemeOverride;
+        inputVariantOverride = config.HachidoriVariantOverride;
+        inputExtraCss = config.ExtraPopupCss;
+        inputsKnown = true;
+        return true;
+    }
+
+    /// <summary>
+    /// The cascade over a large sheet takes tens of milliseconds the first time, so it runs off the
+    /// render thread; the previous theme stays on screen until the new one is ready.
+    /// </summary>
+    private void StartCompute(PopupThemeEngine.Input input)
+    {
+        if (key == computedKey || key == computingKey)
             return;
-        key = next;
-        try
+        if (computing is { IsCompleted: false })
+            return; // ApplyFinished starts the latest inputs when this one is done.
+        computingKey = key;
+        computing = Task.Run(() => PopupThemeEngine.Compute(input));
+    }
+
+    private void ApplyFinished()
+    {
+        if (computing is not { IsCompleted: true } done)
+            return;
+
+        computing = null;
+        var finishedKey = computingKey;
+        computingKey = null;
+        if (!config.FollowHachidoriTheme)
+            return;
+        if (done.IsCompletedSuccessfully)
         {
-            PopupTheme.Current = PopupThemeEngine.Compute(new PopupThemeEngine.Input(renderer, theme, variant, Sheet(renderer), custom, opacity));
+            PopupTheme.Current = done.Result;
             Error = null;
         }
-        catch (Exception ex)
+        else
         {
-            Error = ex.Message;
+            var ex = done.Exception?.GetBaseException();
+            Error = ex?.Message;
             Plugin.Log.Warning(ex, "Could not apply the Hachidori popup theme");
             PopupTheme.Current = PopupTheme.PluginDefault();
         }
+
+        computedKey = finishedKey;
+        // Inputs changed while this theme was being computed: compute the latest ones next frame.
+        if (key != computedKey)
+            inputsKnown = false;
     }
 
     /// <summary>Hachidori's own order: each enabled user script's CSS, then the custom popup CSS.</summary>
@@ -99,11 +173,25 @@ public sealed class PopupThemeProvider
 
     private string Sheet(string renderer)
     {
-        if (sheets.TryGetValue(renderer, out var css))
+        lock (sheets)
+        {
+            if (sheets.TryGetValue(renderer, out var css))
+                return css;
+            // Embedded minified and deflated by the PackThemeSheets build step.
+            using var stream = typeof(PopupThemeProvider).Assembly.GetManifestResourceStream($"HachidoriFfxiv.Themes.{renderer}.css.deflate");
+            if (stream is null)
+            {
+                css = string.Empty;
+            }
+            else
+            {
+                using var inflate = new DeflateStream(stream, CompressionMode.Decompress);
+                using var reader = new StreamReader(inflate, Encoding.UTF8);
+                css = reader.ReadToEnd();
+            }
+
+            sheets[renderer] = css;
             return css;
-        using var stream = typeof(PopupThemeProvider).Assembly.GetManifestResourceStream($"HachidoriFfxiv.Themes.{renderer}.css");
-        css = stream is null ? string.Empty : new StreamReader(stream, Encoding.UTF8).ReadToEnd();
-        sheets[renderer] = css;
-        return css;
+        }
     }
 }

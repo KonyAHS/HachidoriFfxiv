@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ILLink keeps only the members the plugin calls, but a COM interface is a vtable: removing an
+  unused method shifts every later slot, and calls land on the wrong native method. Keep every
+  [ComImport] interface of the trimmed audio libraries whole. Listed from the pinned package versions.
+-->
+<linker>
+  <assembly fullname="NAudio.Core">
+    <type fullname="NAudio.Wave.DirectSoundOut/IDirectSound" preserve="all" required="false" />
+    <type fullname="NAudio.Wave.DirectSoundOut/IDirectSoundBuffer" preserve="all" required="false" />
+    <type fullname="NAudio.Wave.DirectSoundOut/IDirectSoundNotify" preserve="all" required="false" />
+  </assembly>
+  <assembly fullname="NAudio.Wasapi">
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioAutoGainControl" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioCaptureClient" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioClient" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioClient2" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioClock" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioClock2" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioEndpointVolume" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioEndpointVolumeCallback" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioMeterInformation" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioMute" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioRenderClient" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioSessionControl" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioSessionControl2" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioSessionEnumerator" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioSessionEvents" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioSessionManager" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioSessionManager2" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioSessionNotification" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioStreamVolume" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IAudioVolumeLevel" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IConnector" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IControlInterface" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IDeviceTopology" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IKsJackDescription" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IMMDevice" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IMMDeviceCollection" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IMMDeviceEnumerator" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IMMEndpoint" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IMMNotificationClient" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IPart" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IPartsList" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IPerChannelDbLevel" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.IPropertyStore" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.ISimpleAudioVolume" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.ISubunit" preserve="all" required="false" />
+    <type fullname="NAudio.CoreAudioApi.Interfaces.MMDeviceEnumeratorComObject" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXChorus" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXCompressor" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXDistortion" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXEcho" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXFlanger" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXGargle" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXI3DL2Reverb" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFXWavesReverb" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.Effect.IDirectSoundFxParamEq" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.IEnumDmo" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.IMediaBuffer" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.IMediaObject" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.IMediaObjectInPlace" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.IMediaParamInfo" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.IWMResamplerProps" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.ResamplerMediaComObject" preserve="all" required="false" />
+    <type fullname="NAudio.Dmo.WindowsMediaMp3DecoderComObject" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFActivate" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFAttributes" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFByteStream" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFCollection" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFMediaBuffer" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFMediaEvent" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFMediaType" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFReadWriteClassFactory" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFSample" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFSinkWriter" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFSourceReader" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.IMFTransform" preserve="all" required="false" />
+    <type fullname="NAudio.MediaFoundation.MFReadWriteClassFactory" preserve="all" required="false" />
+    <type fullname="NAudio.Wasapi.CoreAudioApi.Interfaces.IActivateAudioInterfaceAsyncOperation" preserve="all" required="false" />
+    <type fullname="NAudio.Wasapi.CoreAudioApi.Interfaces.IActivateAudioInterfaceCompletionHandler" preserve="all" required="false" />
+    <type fullname="NAudio.Wasapi.CoreAudioApi.Interfaces.IAgileObject" preserve="all" required="false" />
+    <type fullname="NAudio.Wasapi.CoreAudioApi.Interfaces.IControlChangeNotify" preserve="all" required="false" />
+  </assembly>
+</linker>

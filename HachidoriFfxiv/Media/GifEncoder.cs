@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace HachidoriFfxiv.Media;
 
-/// <summary>One RGBA frame (tightly packed, 4 bytes per pixel).</summary>
+/// <summary>One RGBA frame: rows of Width × 4 bytes from the start of the array, which may be longer.</summary>
 public sealed record GifFrame(byte[] Rgba, int Width, int Height);
 
 /// <summary>
@@ -40,7 +40,7 @@ public static class GifEncoder
         {
             if (frame.Width != width || frame.Height != height)
                 throw new ArgumentException("All frames must be the same size.", nameof(frames));
-            var (palette, lookup) = BuildPalette(frame.Rgba);
+            var (palette, lookup) = BuildPalette(frame.Rgba, width * height * 4);
             var indices = Index(frame, lookup);
 
             w.Write([0x21, 0xF9, 0x04, 0x04]); // graphic control: dispose "do not dispose", no transparency
@@ -72,10 +72,11 @@ public static class GifEncoder
     }
 
     /// <summary>A median-cut palette over a 5-bit-per-channel histogram, and its 32768-entry lookup.</summary>
-    private static (List<int> Palette, byte[] Lookup) BuildPalette(byte[] rgba)
+    private static (List<int> Palette, byte[] Lookup) BuildPalette(byte[] rgba, int length)
     {
+        // Captured frames may be longer than the image (rows packed in place from a padded readback).
         var histogram = new int[32768];
-        for (var i = 0; i + 3 < rgba.Length; i += 4)
+        for (var i = 0; i + 3 < length; i += 4)
             histogram[(rgba[i] >> 3 << 10) | (rgba[i + 1] >> 3 << 5) | (rgba[i + 2] >> 3)]++;
         var colours = Enumerable.Range(0, 32768).Where(c => histogram[c] > 0).ToList();
 

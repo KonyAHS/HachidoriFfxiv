@@ -14,11 +14,15 @@
     <Tags>japanese;dictionary;yomitan;anki;language learning</Tags>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ThemePackDirectory>$(BaseIntermediateOutputPath)themes\</ThemePackDirectory>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Hachidori's popup theme stylesheets, synced by scripts/sync_hachidori_themes.py. -->
-    <EmbeddedResource Include="Themes\*.css" LogicalName="HachidoriFfxiv.Themes.%(Filename).css" />
+    <!-- Hachidori's popup theme stylesheets, synced by scripts/sync_hachidori_themes.py.
+         They are embedded minified and deflated (about a tenth of their size); see PackThemeSheets. -->
+    <ThemeSheet Include="Themes\*.css" />
+    <EmbeddedResource Include="@(ThemeSheet->'$(ThemePackDirectory)%(Filename).deflate')"
+                      LogicalName="HachidoriFfxiv.Themes.%(Filename).css.deflate" />
     <!-- KANJIDIC and Jitendex kanwa readings for offline furigana, as Hachidori bundles them. -->
     <EmbeddedResource Include="Offline\Data\*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />
     <!-- Yomitan's structured-content class styles, inlined into offline Anki glossaries. -->
@@ -36,5 +40,88 @@
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- Build-time only: trims the audio libraries above to the code the plugin calls. -->
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.13" PrivateAssets="all" IncludeAssets="none" GeneratePathProperty="true" />
   </ItemGroup>
+
+  <UsingTask TaskName="PackThemeSheets" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Sources ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputDirectory ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Using Namespace="System.Text" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Comments and layout whitespace only: strings are kept verbatim, and spaces inside
+        // selectors and values collapse to one. The theme engine's output is unchanged.
+        Directory.CreateDirectory(OutputDirectory);
+        foreach (var source in Sources)
+        {
+            var css = File.ReadAllText(source.ItemSpec, Encoding.UTF8);
+            var sb = new StringBuilder(css.Length);
+            for (var i = 0; i < css.Length; i++)
+            {
+                var c = css[i];
+                if (c == '"' || c == '\'')
+                {
+                    var j = i + 1;
+                    while (j < css.Length && css[j] != c) { if (css[j] == '\\') j++; j++; }
+                    var end = Math.Min(css.Length, j + 1);
+                    sb.Append(css, i, end - i);
+                    i = end - 1;
+                    continue;
+                }
+                if (c == '/' && i + 1 < css.Length && css[i + 1] == '*')
+                {
+                    var close = css.IndexOf("*/", i + 2, StringComparison.Ordinal);
+                    i = close < 0 ? css.Length : close + 1;
+                    sb.Append(' ');
+                    continue;
+                }
+                sb.Append(c);
+            }
+            var minified = Regex.Replace(sb.ToString(), @"\s+", " ");
+            minified = Regex.Replace(minified, @"\s*([{};])\s*", "$1").Trim();
+            var target = Path.Combine(OutputDirectory, Path.GetFileNameWithoutExtension(source.ItemSpec) + ".deflate");
+            using (var file = File.Create(target))
+            using (var deflate = new DeflateStream(file, CompressionLevel.Optimal))
+            {
+                var bytes = new UTF8Encoding(false).GetBytes(minified);
+                deflate.Write(bytes, 0, bytes.Length);
+            }
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="PackThemeSheets" BeforeTargets="BeforeBuild"
+          Inputs="@(ThemeSheet);$(MSBuildProjectFullPath)"
+          Outputs="@(ThemeSheet->'$(ThemePackDirectory)%(Filename).deflate')">
+    <PackThemeSheets Sources="@(ThemeSheet)" OutputDirectory="$(ThemePackDirectory)" />
+  </Target>
+
+  <!--
+    NAudio, NVorbis and Concentus ship far more than the plugin uses. Release builds trim them
+    against this assembly (every member of which is kept) and replace the copies in the output
+    folder before Dalamud's packager and build.ps1 zip it. The plugin assembly is left as built.
+  -->
+  <Target Name="TrimAudioLibraries" AfterTargets="CopyFilesToOutputDirectory" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <_TrimOutput>$(IntermediateOutputPath)trimmed\</_TrimOutput>
+      <_TrimDotnet>$(DOTNET_HOST_PATH)</_TrimDotnet>
+      <_TrimDotnet Condition="'$(_TrimDotnet)' == ''">dotnet</_TrimDotnet>
+    </PropertyGroup>
+    <ItemGroup>
+      <_TrimLibrary Include="Concentus;Concentus.Oggfile;NAudio.Core;NAudio.Vorbis;NAudio.Wasapi;NVorbis" />
+      <_TrimReference Include="@(ReferencePath)" Condition="'%(ReferencePath.NuGetPackageId)' != 'Concentus' and '%(ReferencePath.NuGetPackageId)' != 'Concentus.Oggfile' and '%(ReferencePath.NuGetPackageId)' != 'NAudio.Core' and '%(ReferencePath.NuGetPackageId)' != 'NAudio.Vorbis' and '%(ReferencePath.NuGetPackageId)' != 'NAudio.Wasapi' and '%(ReferencePath.NuGetPackageId)' != 'NVorbis'" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_TrimOutput)" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)trim.rsp" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="-a &quot;$(ProjectDir)$(OutDir)$(TargetFileName)&quot; all;-d &quot;$(ProjectDir)$(OutDir).&quot;;@(_TrimReference->'-reference &quot;%(FullPath)&quot;');@(_TrimLibrary->'--action link %(Identity)');-x &quot;$(ProjectDir)AudioInterop.trim.xml&quot;;--trim-mode skip;--action copy $(AssemblyName);--skip-unresolved true;--notrimwarn;--deterministic;-out &quot;$(ProjectDir)$(_TrimOutput).&quot;" />
+    <Exec Command="&quot;$(_TrimDotnet)&quot; &quot;$(PkgMicrosoft_NET_ILLink_Tasks)\tools\net\illink.dll&quot; @&quot;$(IntermediateOutputPath)trim.rsp&quot;" StandardOutputImportance="low" />
+    <Copy SourceFiles="@(_TrimLibrary->'$(_TrimOutput)%(Identity).dll')" DestinationFolder="$(OutDir)" />
+  </Target>
 </Project>

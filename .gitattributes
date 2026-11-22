@@ -7,6 +7,8 @@
 *.zip binary
 *.png binary
 *.jpg binary
+*.mp3 binary
+*.ogg binary
 *.tsv whitespace=-blank-at-eol
 *.patch text eol=lf
 *.cpp text eol=lf

@@ -31,6 +31,12 @@ public sealed unsafe class NativeTextHover : IDisposable
     private readonly Configuration config;
     private readonly Dictionary<nint, Cached> cache = new();
     private Region[] regions = [];
+    // Reused every frame; Update runs each game tick.
+    private readonly List<Region> frameRegions = new();
+    private readonly HashSet<nint> frameVisited = new();
+    private readonly HashSet<nint> frameSeen = new();
+    private readonly List<nint> staleKeys = new();
+    private static readonly string[] DialogueAddons = ["Talk", "_BattleTalk"];
     private Vector2 lastMouse = new(-10000);
     private DateTime lastError;
     private DateTime lastChatProbe;
@@ -60,9 +66,12 @@ public sealed unsafe class NativeTextHover : IDisposable
             cache.Clear();
             return;
         }
-        var next = new List<Region>();
-        var visited = new HashSet<nint>();
-        var seen = new HashSet<nint>();
+        var next = frameRegions;
+        var visited = frameVisited;
+        var seen = frameSeen;
+        next.Clear();
+        visited.Clear();
+        seen.Clear();
         try
         {
             // TalkSubtitle has no interactive backdrop. The native collision hit may
@@ -78,7 +87,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             // Collision selection limits us to the topmost native addon when available.
             if (ControllerScan)
             {
-                foreach (var name in new[] { "Talk", "_BattleTalk" })
+                foreach (var name in DialogueAddons)
                 {
                     if (!Allowed(name)) continue;
                     var addon = Plugin.GameGui.GetAddonByName(name);
@@ -97,7 +106,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             else
             {
                 LastHoveredAddon = string.Empty;
-                foreach (var name in new[] { "Talk", "_BattleTalk" })
+                foreach (var name in DialogueAddons)
                 {
                     if (!Allowed(name)) continue;
                     var addon = Plugin.GameGui.GetAddonByName(name);
@@ -105,8 +114,14 @@ public sealed unsafe class NativeTextHover : IDisposable
                 }
                 ReadChat(null);
             }
-            regions = next.ToArray();
-            foreach (var key in cache.Keys.Where(k => !seen.Contains(k)).ToArray()) cache.Remove(key);
+            regions = next.Count == 0 ? [] : next.ToArray();
+            if (cache.Count > 0)
+            {
+                staleKeys.Clear();
+                foreach (var key in cache.Keys)
+                    if (!seen.Contains(key)) staleKeys.Add(key);
+                foreach (var key in staleKeys) cache.Remove(key);
+            }
             LastError = null;
         }
         catch (Exception ex)

@@ -125,26 +125,33 @@ public sealed class GameFrames : IDisposable
         }
     }
 
-    /// <summary>Packs a readback into tight RGBA, whatever the swap chain's channel order.</summary>
-    private static GifFrame ToRgba(int width, int height, int pitch, int dxgiFormat, byte[] data)
+    /// <summary>
+    /// Packs a readback into tight RGBA, whatever the swap chain's channel order. It works in place:
+    /// each frame is over a megabyte, and a second copy a dozen times a second churns the large
+    /// object heap, which makes the garbage collector pause the game. Rows only move towards the
+    /// start, so converting front to back never overwrites a pixel before it is read.
+    /// </summary>
+    internal static GifFrame ToRgba(int width, int height, int pitch, int dxgiFormat, byte[] data)
     {
         // 87/91: B8G8R8A8 (UNORM/SRGB); 28/29: R8G8B8A8.
         var bgra = dxgiFormat is 87 or 88 or 91 or 93;
-        var rgba = new byte[width * height * 4];
+        var red = bgra ? 2 : 0;
+        var blue = bgra ? 0 : 2;
         for (var y = 0; y < height; y++)
         {
             var src = y * pitch;
             var dst = y * width * 4;
             for (var x = 0; x < width; x++, src += 4, dst += 4)
             {
-                rgba[dst] = data[src + (bgra ? 2 : 0)];
-                rgba[dst + 1] = data[src + 1];
-                rgba[dst + 2] = data[src + (bgra ? 0 : 2)];
-                rgba[dst + 3] = 255;
+                byte r = data[src + red], g = data[src + 1], b = data[src + blue];
+                data[dst] = r;
+                data[dst + 1] = g;
+                data[dst + 2] = b;
+                data[dst + 3] = 255;
             }
         }
 
-        return new GifFrame(rgba, width, height);
+        return new GifFrame(data, width, height);
     }
 
     private long ClipLength => (long)(Stopwatch.Frequency * Math.Clamp(config.GifSeconds, 1, 10));

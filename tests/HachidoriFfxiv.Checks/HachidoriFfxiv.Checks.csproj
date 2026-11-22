@@ -41,6 +41,7 @@
     <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)/Dalamud.Bindings.ImGui.dll" />
     <Reference Include="HexaGen.Runtime" HintPath="$(DalamudLibPath)/HexaGen.Runtime.dll" />
     <Reference Include="Lumina" HintPath="$(DalamudLibPath)/Lumina.dll" />
+    <None Include="Fixtures/*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="$(DalamudLibPath)/cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Chat;
@@ -44,6 +45,9 @@ public sealed unsafe class TextCapture : IDisposable
     private string lastBattleTalk = string.Empty;
     private string lastSubtitle = string.Empty;
     private readonly Dictionary<string, string> lastPopups = new();
+    // The raw text bytes each addon showed last frame. Text that hasn't changed is not parsed again.
+    private readonly Dictionary<string, byte[]> lastRaw = new();
+    private readonly ArrayBufferWriter<byte> rawScratch = new();
 
     public TextCapture(Configuration config)
     {
@@ -67,17 +71,24 @@ public sealed unsafe class TextCapture : IDisposable
         BattleTalkVisible = false;
         if (config.CaptureTalk)
         {
-            Poll("Talk", LineSource.Talk, ref lastTalk, v => TalkVisible = v);
-            Poll("TalkSubtitle", LineSource.Talk, ref lastSubtitle, v => TalkVisible |= v);
+            TalkVisible = Poll("Talk", LineSource.Talk, ref lastTalk);
+            TalkVisible |= Poll("TalkSubtitle", LineSource.Talk, ref lastSubtitle);
         }
         else
         {
             lastTalk = lastSubtitle = string.Empty;
+            lastRaw.Remove("Talk");
+            lastRaw.Remove("TalkSubtitle");
         }
         if (config.CaptureBattleTalk)
-            Poll("_BattleTalk", LineSource.BattleTalk, ref lastBattleTalk, v => BattleTalkVisible = v);
+        {
+            BattleTalkVisible = Poll("_BattleTalk", LineSource.BattleTalk, ref lastBattleTalk);
+        }
         else
+        {
             lastBattleTalk = string.Empty;
+            lastRaw.Remove("_BattleTalk");
+        }
         PollPopups();
     }
 
@@ -86,6 +97,8 @@ public sealed unsafe class TextCapture : IDisposable
     {
         if (!config.PublishEnabled || !config.PublishPopups)
         {
+            foreach (var name in PopupAddons)
+                lastRaw.Remove(name);
             lastPopups.Clear();
             return;
         }
@@ -95,8 +108,11 @@ public sealed unsafe class TextCapture : IDisposable
             if (addon.IsNull || !addon.IsVisible)
             {
                 lastPopups.Remove(name);
+                lastRaw.Remove(name);
                 continue;
             }
+            if (RawUnchanged(name, (AtkUnitBase*)addon.Address))
+                continue;
             var prompt = name switch
             {
                 "SelectYesno" => ((AddonSelectYesno*)addon.Address)->PromptText,
@@ -143,17 +159,20 @@ public sealed unsafe class TextCapture : IDisposable
         }
     }
 
-    private void Poll(string addonName, LineSource source, ref string last, Action<bool> setVisible)
+    /// <summary>Reads one dialogue addon. Returns whether it is visible.</summary>
+    private bool Poll(string addonName, LineSource source, ref string last)
     {
         var addon = Plugin.GameGui.GetAddonByName(addonName);
         if (addon.IsNull || !addon.IsVisible)
         {
             last = string.Empty;
-            setVisible(false);
-            return;
+            lastRaw.Remove(addonName);
+            return false;
         }
 
-        setVisible(true);
+        // Reading is a pure function of these bytes, so the same bytes give the same result as last frame.
+        if (RawUnchanged(addonName, (AtkUnitBase*)addon.Address))
+            return true;
         var (speaker, text) = addonName switch
         {
             "TalkSubtitle" => (string.Empty, ReadSeString(((AddonTalkSubtitle*)addon.Address)->SubtitleText.AsSpan())),
@@ -161,14 +180,100 @@ public sealed unsafe class TextCapture : IDisposable
             _ => ReadTexts((AtkUnitBase*)addon.Address),
         };
         if (text.Length == 0)
-            return;
+            return true;
         var key = speaker + "\u0001" + text;
         if (key == last)
-            return;
+            return true;
         last = key;
         if (addonName == "TalkSubtitle")
             DiagnosticLog.Write("capture", $"TalkSubtitle text read: characters={text.Length}");
         Add(source, speaker, text);
+        return true;
+    }
+
+    /// <summary>
+    /// Collects the raw bytes of every text node the readers below look at and compares them with
+    /// last frame's, so unchanged text is not parsed into strings again every frame.
+    /// </summary>
+    private bool RawUnchanged(string addonName, AtkUnitBase* unit)
+    {
+        rawScratch.ResetWrittenCount();
+        switch (addonName)
+        {
+            case "TalkSubtitle":
+                AppendRaw(((AddonTalkSubtitle*)unit)->SubtitleText.AsSpan());
+                break;
+            case "Talk" when ((AddonTalk*)unit)->AtkTextNode228 != null:
+            {
+                // ReadTalk: the text node, and the speaker node while it is visible.
+                var talk = (AddonTalk*)unit;
+                AppendRaw(talk->AtkTextNode228->NodeText.AsSpan());
+                var speaker = talk->AtkTextNode220;
+                var speakerVisible = speaker != null && speaker->IsVisible();
+                rawScratch.Write(speakerVisible ? (ReadOnlySpan<byte>)[1] : [0]);
+                if (speakerVisible)
+                    AppendRaw(speaker->NodeText.AsSpan());
+                break;
+            }
+            case "SelectYesno":
+            case "SelectOk":
+            {
+                var prompt = addonName == "SelectYesno" ? ((AddonSelectYesno*)unit)->PromptText : ((AddonSelectOk*)unit)->PromptText;
+                if (prompt != null)
+                    AppendRaw(prompt->NodeText.AsSpan());
+                else
+                    AppendTree(&unit->UldManager, 0);
+                break;
+            }
+            default:
+                if (Array.IndexOf(PopupAddons, addonName) >= 0)
+                {
+                    AppendTree(&unit->UldManager, 0);
+                }
+                else
+                {
+                    // ReadTexts: the addon's own visible text nodes.
+                    var manager = unit->UldManager;
+                    for (var i = 0; i < manager.NodeListCount; i++)
+                    {
+                        var node = manager.NodeList[i];
+                        if (node != null && node->Type == NodeType.Text && node->IsVisible())
+                            AppendRaw(((AtkTextNode*)node)->NodeText.AsSpan());
+                    }
+                }
+                break;
+        }
+
+        var raw = rawScratch.WrittenSpan;
+        if (lastRaw.TryGetValue(addonName, out var previous) && raw.SequenceEqual(previous))
+            return true;
+        lastRaw[addonName] = raw.ToArray();
+        return false;
+
+        // Mirrors ReadAllTexts.
+        void AppendTree(AtkUldManager* manager, int depth)
+        {
+            if (depth > 8 || manager->NodeList == null)
+                return;
+            for (var i = 0; i < manager->NodeListCount; i++)
+            {
+                var node = manager->NodeList[i];
+                if (node == null || !node->IsVisible())
+                    continue;
+                if (node->Type == NodeType.Text)
+                    AppendRaw(((AtkTextNode*)node)->NodeText.AsSpan());
+                else if ((int)node->Type >= 1000 && ((AtkComponentNode*)node)->Component != null)
+                    AppendTree(&((AtkComponentNode*)node)->Component->UldManager, depth + 1);
+            }
+        }
+    }
+
+    /// <summary>Length-prefixed, so node boundaries are part of the comparison.</summary>
+    private void AppendRaw(ReadOnlySpan<byte> bytes)
+    {
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(rawScratch.GetSpan(4), bytes.Length);
+        rawScratch.Advance(4);
+        rawScratch.Write(bytes);
     }
 
     /// <summary>

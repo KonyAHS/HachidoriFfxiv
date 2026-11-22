@@ -113,6 +113,9 @@ static class MediaChecks
                 for (var c = 0; c < 3; c++)
                     worst = Math.Max(worst, Math.Abs(decodedFrames[f][p * 3 + c] - frames[f].Rgba[p * 4 + c]));
         check(worst <= 24, $"GIF frames decode back to their colours (worst channel error {worst})");
+        // Captured frames are packed in place, so their arrays can run past the image.
+        var longFrames = frames.Select(f => new GifFrame([.. f.Rgba, .. Enumerable.Repeat((byte)0xAB, 4096)], f.Width, f.Height)).ToList();
+        check(GifEncoder.Encode(longFrames, 125).AsSpan().SequenceEqual(gif), "GIF frames with bytes past the image encode the same");
 
         // ------------------------------------------------------ AVIF / WebP / GIF
         var noFfmpeg = await AnimationEncoder.EncodeAsync(frames, 8, AnimationFormat.Avif, null, 32, 75);
