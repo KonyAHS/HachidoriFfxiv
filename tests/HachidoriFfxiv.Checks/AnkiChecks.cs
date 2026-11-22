@@ -32,6 +32,20 @@ internal static class AnkiChecks
         check(WordSpan.At(spans, 3) == new WordSpan(3, 5) && WordSpan.At(spans, 5) == new WordSpan(4, 4),
             "a word that swallowed a particle still opens whole, and its later characters open the word after the particle");
         check(WordSpan.At(spans, 2) == new WordSpan(0, 3), "a compound's later characters still open the whole compound");
+
+        // 不語仙の座卓: a multi-word phrase with an interior particle (の) exposes 座卓 after it.
+        var phraseReply = JsonNode.Parse("""
+            {"segments":[{"id":0,"spans":[
+              {"start":0,"length":6,"functionWord":false,"alternative":[
+                {"start":0,"length":3,"functionWord":false},
+                {"start":3,"length":1,"functionWord":true},
+                {"start":4,"length":2,"functionWord":false}
+              ]}
+            ]}]}
+            """);
+        var phraseSpans = WordSpan.Parse(phraseReply, "不語仙の座卓");
+        check(WordSpan.At(phraseSpans, 0) == new WordSpan(0, 6) && WordSpan.At(phraseSpans, 4) == new WordSpan(4, 2),
+            "a phrase with an interior particle opens whole at the start and exposes the word after the particle");
     }
 
     private static void CheckSvg(Action<bool, string> check)

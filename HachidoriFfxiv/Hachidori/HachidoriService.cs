@@ -108,10 +108,49 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     private async Task<IReadOnlyList<WordSpan>> SegmentUncachedAsync(string text)
     {
         var backend = Backend;
-        var spans = await backend.SegmentAsync(
-            HachidoriPayloads.Segment(text, config.ScanLength, config.UsePersonalDictionary && OptionBool("personalDictionaryEnabled", true)), text).ConfigureAwait(false);
-        DiagnosticLog.Write("segment", $"characters={text.Length}, words={spans.Count}, live={backend.IsLive}");
-        return spans;
+        var personal = config.UsePersonalDictionary && OptionBool("personalDictionaryEnabled", true);
+        if (text.IndexOfAny(['\r', '\n']) < 0)
+        {
+            var direct = await backend.SegmentAsync(HachidoriPayloads.Segment(text, config.ScanLength, personal), text).ConfigureAwait(false);
+            DiagnosticLog.Write("segment", $"characters={text.Length}, words={direct.Count}, live={backend.IsLive}");
+            return direct;
+        }
+
+        // Strip single line wraps (e.g. "思\n案") so words split across a UI line break tokenize
+        // whole, while keeping paragraph breaks (\n\n) as boundaries, then map spans back to source.
+        var sb = new System.Text.StringBuilder(text.Length);
+        var toSource = new int[text.Length];
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c is '\r' or '\n')
+            {
+                var next = i + 1;
+                if (c == '\r' && next < text.Length && text[next] == '\n') next++;
+                if (next < text.Length && text[next] is '\r' or '\n')
+                {
+                    toSource[sb.Length] = i;
+                    sb.Append('\n');
+                }
+                i = next - 1;
+                continue;
+            }
+            toSource[sb.Length] = i;
+            sb.Append(c);
+        }
+
+        var collapsed = sb.ToString();
+        var raw = await backend.SegmentAsync(HachidoriPayloads.Segment(collapsed, config.ScanLength, personal), collapsed).ConfigureAwait(false);
+        var mapped = new List<WordSpan>(raw.Count);
+        foreach (var span in raw)
+        {
+            if (span.Start < 0 || span.End > collapsed.Length || span.Length < 1) continue;
+            var srcStart = toSource[span.Start];
+            var srcEnd = toSource[span.End - 1] + 1;
+            mapped.Add(new WordSpan(srcStart, srcEnd - srcStart));
+        }
+        DiagnosticLog.Write("segment", $"characters={text.Length}, words={mapped.Count}, live={backend.IsLive}");
+        return mapped;
     }
 
     public async Task<byte[]?> GetImageAsync(string dictionary, string path, long generation, CancellationToken ct)

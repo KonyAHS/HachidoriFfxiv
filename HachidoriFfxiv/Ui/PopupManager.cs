@@ -133,7 +133,7 @@ public sealed class PopupManager : IDisposable
 
     /// <summary>A text area reports the hovered character. Depth is 0 outside popups, N+1 inside popup N.</summary>
     public void Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context = null,
-        bool forced = false, bool keepPrevious = true)
+        bool forced = false, bool keepPrevious = true, bool bypassTokenize = false)
     {
         if (hit is not { } h)
             return;
@@ -141,7 +141,7 @@ public sealed class PopupManager : IDisposable
         if (ControllerActive && !forced && !MouseRecentlyMoved)
             return;
         int? tokenEnd = null;
-        if (config.TokenizedHover)
+        if (config.TokenizedHover && !bypassTokenize)
         {
             var task = service.SegmentAsync(h.Block.ScanText);
             if (!task.IsCompleted) return;
@@ -301,15 +301,54 @@ public sealed class PopupManager : IDisposable
 
     private static string Slice(string text, int index, int codepoints)
     {
+        var sb = new System.Text.StringBuilder(Math.Min(codepoints * 2, Math.Max(0, text.Length - index)));
         var end = index;
-        for (var n = 0; n < codepoints && end < text.Length; n++)
+        var count = 0;
+        while (count < codepoints && end < text.Length)
         {
-            if (text[end] == '\n')
-                break;
-            end += char.IsHighSurrogate(text[end]) && end + 1 < text.Length ? 2 : 1;
+            var c = text[end];
+            if (c is '\r' or '\n')
+            {
+                // Skip single soft/hard line wraps inside a sentence (e.g. "思\n案"),
+                // but stop at paragraph breaks (blank lines).
+                var next = end + 1;
+                if (c == '\r' && next < text.Length && text[next] == '\n') next++;
+                if (next < text.Length && text[next] is '\r' or '\n')
+                    break;
+                end = next;
+                continue;
+            }
+            var step = char.IsHighSurrogate(c) && end + 1 < text.Length ? 2 : 1;
+            sb.Append(text, end, step);
+            end += step;
+            count++;
         }
 
-        return text[index..end];
+        return sb.ToString();
+    }
+
+    internal static int SourceLengthForMatch(string text, int index, int matchedChars)
+    {
+        if (matchedChars <= 0 || index >= text.Length)
+            return 0;
+        var end = index;
+        var remaining = matchedChars;
+        while (remaining > 0 && end < text.Length)
+        {
+            var c = text[end];
+            if (c is '\r' or '\n')
+            {
+                var next = end + 1;
+                if (c == '\r' && next < text.Length && text[next] == '\n') next++;
+                if (next < text.Length && text[next] is '\r' or '\n')
+                    break;
+                end = next;
+                continue;
+            }
+            end++;
+            remaining--;
+        }
+        return end - index;
     }
 
     private void StartLayer(PendingHit hit, string query)
@@ -731,8 +770,9 @@ public sealed class PopupManager : IDisposable
                 var matched = first is null ? 0
                     : first.Matched.Length > 0 ? first.Matched.Length
                     : first.Term.Expression.Length;
+                var sourceMatched = SourceLengthForMatch(Source.ScanText, SourceIndex, matched);
                 var available = Math.Max(1, Source.ScanText.Length - SourceIndex);
-                return Math.Clamp(Math.Max(TokenLength ?? 0, matched), 1, available);
+                return Math.Clamp(Math.Max(TokenLength ?? 0, sourceMatched), 1, available);
             }
         }
 

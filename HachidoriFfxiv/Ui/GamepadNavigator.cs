@@ -368,7 +368,7 @@ public sealed class GamepadNavigator : IDisposable
         var block = StopBlock(stop, level);
         if (block is not null && !popupClosedByBack)
         {
-            popups.Report(new TextHit(block, stop.Index, stop.Min, stop.Max), level, contexts[stop.Target], forced: true);
+            popups.Report(new TextHit(block, stop.Index, stop.Min, stop.Max), level, contexts[stop.Target], forced: true, bypassTokenize: !wordMode);
             popups.Sustain(level);
         }
 

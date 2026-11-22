@@ -28,12 +28,21 @@ public readonly record struct WordSpan(int Start, int Length)
             if (!TryRange(span, text, out var start, out var length) || start < previousEnd) continue;
             result.Add(new(start, length));
             previousEnd = start + length;
-            if (span["alternative"] is JsonArray { Count: > 1 } alternative
-                && alternative[0] is JsonObject first && first["functionWord"] is JsonValue fw && fw.GetValueKind() == JsonValueKind.True)
+            if (span["alternative"] is JsonArray { Count: > 1 } alternative)
             {
-                foreach (var word in alternative.Skip(1).OfType<JsonObject>())
+                // If the alternative split contains a particle/function word (either at the start like
+                // は|おるまい or inside a phrase like 不語仙|の|座卓), expose the words after that
+                // particle as inner spans so hovering them looks them up while the start still opens whole.
+                var sawFunctionWord = false;
+                foreach (var word in alternative.OfType<JsonObject>())
                 {
-                    if (TryRange(word, text, out var wordStart, out var wordLength) && wordStart > start && wordStart + wordLength <= start + length)
+                    var isFunction = word["functionWord"] is JsonValue fw && fw.GetValueKind() == JsonValueKind.True;
+                    if (isFunction)
+                    {
+                        sawFunctionWord = true;
+                        continue;
+                    }
+                    if (sawFunctionWord && TryRange(word, text, out var wordStart, out var wordLength) && wordStart > start && wordStart + wordLength <= start + length)
                         inner.Add(new(wordStart, wordLength));
                 }
             }
