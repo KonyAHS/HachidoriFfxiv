@@ -7,6 +7,7 @@ using HachidoriFfxiv.Audio;
 using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Publishing;
+using HachidoriFfxiv.Stats;
 using HachidoriFfxiv.Ui;
 
 namespace HachidoriFfxiv;
@@ -37,9 +38,12 @@ public sealed class Plugin : IDalamudPlugin
     private readonly TextPublisher publisher;
     private readonly PopupManager popups;
     private readonly Media.MediaMiner media;
+    private readonly StatsTracker stats;
+    private readonly AnkiCardFeed ankiFeed;
     private readonly GamepadNavigator gamepad;
     private readonly ReaderWindow reader;
     private readonly SearchWindow search;
+    private readonly StatsWindow statsWindow;
     private readonly ConfigWindow configWindow;
 
     public Plugin()
@@ -61,19 +65,33 @@ public sealed class Plugin : IDalamudPlugin
         publisher = new TextPublisher(config, capture);
         popups = new PopupManager(config, service, audio, fonts);
         media = new Media.MediaMiner(config, capture);
+        stats = new StatsTracker(
+            System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "stats"),
+            text => service.Link.Connected || (service.Offline?.Ready == true)
+                ? service.SegmentAsync(text)
+                : System.Threading.Tasks.Task.FromResult<System.Collections.Generic.IReadOnlyList<WordSpan>>([]));
+        capture.LineCaptured += OnLineCapturedForStats;
+        ankiFeed = new AnkiCardFeed(media.Anki);
         popups.Media = media;
+        popups.Stats = stats;
         gamepad = new GamepadNavigator(config, popups, nativeHover, service);
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
-        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs);
+        statsWindow = new StatsWindow(config, stats, ankiFeed, popups, fonts);
+        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs,
+            openStats: statsWindow.Toggle,
+            openSearchSample: sample => { if (sample is not null) search.SetText(sample); else search.Toggle(); },
+            openReader: () => { reader.Pinned = true; config.ReaderEnabled = true; reader.IsOpen = true; config.Save(); },
+            openPictures: popups.NpcImages.Open);
         windows.AddWindow(reader);
         windows.AddWindow(search);
+        windows.AddWindow(statsWindow);
         windows.AddWindow(configWindow);
         windows.AddWindow(popups.NpcImages);
 
         CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori config · /hachidori logs",
+            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori config · /hachidori logs",
         });
         CommandManager.AddHandler(LegacyCommand, new CommandInfo(OnCommand)
         {
@@ -108,6 +126,9 @@ public sealed class Plugin : IDalamudPlugin
         return new Configuration();
     }
 
+    private void OnLineCapturedForStats(GameLine line) =>
+        stats.RecordLine(line.Source.ToString(), line.Speaker, line.Text, line.Time);
+
     private void Draw()
     {
         using var sizedFonts = fonts.LockFrame();
@@ -139,6 +160,9 @@ public sealed class Plugin : IDalamudPlugin
             case "search":
                 search.Toggle();
                 return;
+            case "stats":
+                statsWindow.Toggle();
+                return;
             case "pictures":
                 popups.NpcImages.Open();
                 return;
@@ -168,6 +192,8 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(Command);
         CommandManager.RemoveHandler(LegacyCommand);
         windows.RemoveAllWindows();
+        capture.LineCaptured -= OnLineCapturedForStats;
+        stats.Dispose();
         publisher.Dispose();
         capture.Dispose();
         nativeHover.Dispose();

@@ -1,21 +1,35 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Numerics;
+using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.GamePad;
 using Dalamud.Game.Text;
+using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Capture;
-using HachidoriFfxiv.Publishing;
+using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Media;
+using HachidoriFfxiv.Publishing;
 using HachidoriFfxiv.Rendering.Css;
 
 namespace HachidoriFfxiv.Ui;
 
 public sealed class ConfigWindow : Window
 {
+    private static readonly Configuration Defaults = new();
+
+    private static readonly Vector4 AccentPurple = new(0.68f, 0.62f, 0.94f, 1f);
+    private static readonly Vector4 AccentCyan = new(0.42f, 0.80f, 0.98f, 1f);
+    private static readonly Vector4 AccentGreen = new(0.42f, 0.86f, 0.56f, 1f);
+    private static readonly Vector4 AccentAmber = new(0.96f, 0.76f, 0.36f, 1f);
+    private static readonly Vector4 AccentRed = new(0.96f, 0.48f, 0.48f, 1f);
+    private static readonly Vector4 MutedText = new(0.68f, 0.70f, 0.76f, 1f);
+
     private static readonly XivChatType[] SelectableChannels =
     [
         XivChatType.NPCDialogue, XivChatType.NPCDialogueAnnouncements, XivChatType.Say, XivChatType.Shout,
@@ -37,6 +51,44 @@ public sealed class ConfigWindow : Window
         ("Agent", 9001),
     ];
 
+    private static readonly string[] ProviderNames =
+        ["Gemini", "Groq", "OpenAI-compatible", "Ollama", "LM Studio", "Z.ai", "DeepL", "Codex (local CLI)", "Claude Code (local CLI)"];
+
+    private static readonly GamepadButtons[] HoldChoices =
+    [
+        GamepadButtons.None,
+        GamepadButtons.Select,
+        GamepadButtons.Start,
+        GamepadButtons.L3,
+        GamepadButtons.R3,
+        GamepadButtons.L3 | GamepadButtons.R3,
+        GamepadButtons.L1 | GamepadButtons.R1,
+        GamepadButtons.Select | GamepadButtons.DpadDown,
+    ];
+
+    private static readonly GamepadButtons[] BindChoices =
+    [
+        GamepadButtons.None,
+        GamepadButtons.South,
+        GamepadButtons.East,
+        GamepadButtons.West,
+        GamepadButtons.North,
+        GamepadButtons.L1,
+        GamepadButtons.R1,
+        GamepadButtons.L2,
+        GamepadButtons.R2,
+        GamepadButtons.L3,
+        GamepadButtons.R3,
+    ];
+
+    private sealed record SettingEntry(
+        string Tab,
+        string Section,
+        string Label,
+        string Keywords,
+        bool IsAdvanced,
+        Action DrawControl);
+
     private readonly Configuration config;
     private readonly HachidoriService service;
     private readonly Fonts fonts;
@@ -44,11 +96,37 @@ public sealed class ConfigWindow : Window
     private readonly TextPublisher publisher;
     private readonly PopupThemeProvider themes;
     private readonly MediaMiner media;
-    private string? mediaTest;
     private readonly Func<string> exportLogs;
-    private string? exportedLog;
+    private readonly Action? openStats;
+    private readonly Action<string?>? openSearchSample;
+    private readonly Action? openReader;
+    private readonly Action? openPictures;
+    private readonly List<SettingEntry> catalog = new();
 
-    public ConfigWindow(Configuration config, HachidoriService service, Fonts fonts, NativeTextHover nativeHover, TextPublisher publisher, PopupThemeProvider themes, MediaMiner media, Func<string> exportLogs)
+    private string searchQuery = string.Empty;
+    private string? pendingSelectTab;
+    private string? confirmResetTab;
+    private string? resetNotice;
+    private DateTime resetNoticeUntil = DateTime.MinValue;
+    private string? mediaTest;
+    private string? exportedLog;
+    private bool confirmRemoveOffline;
+    private bool ankiConnectedHint;
+    private bool firstDraw = true;
+
+    public ConfigWindow(
+        Configuration config,
+        HachidoriService service,
+        Fonts fonts,
+        NativeTextHover nativeHover,
+        TextPublisher publisher,
+        PopupThemeProvider themes,
+        MediaMiner media,
+        Func<string> exportLogs,
+        Action? openStats = null,
+        Action<string?>? openSearchSample = null,
+        Action? openReader = null,
+        Action? openPictures = null)
         : base("Hachidori Settings##hachidori-ffxiv-config")
     {
         this.config = config;
@@ -59,539 +137,678 @@ public sealed class ConfigWindow : Window
         this.themes = themes;
         this.media = media;
         this.exportLogs = exportLogs;
-        Size = new Vector2(560, 560);
+        this.openStats = openStats;
+        this.openSearchSample = openSearchSample;
+        this.openReader = openReader;
+        this.openPictures = openPictures;
+
+        Size = new Vector2(660, 620);
         SizeCondition = ImGuiCond.FirstUseEver;
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(520, 440),
+            MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
+        };
+
+        BuildSearchCatalog();
     }
+
+    private bool Advanced => config.AdvancedSettings;
 
     public override void Draw()
     {
-        DrawStatus();
+        var scale = ImGuiHelpers.GlobalScale;
+
+        if (firstDraw)
+        {
+            firstDraw = false;
+            // Open Quick Guide automatically on first launch if not connected and not dismissed.
+            if (!config.QuickGuideDismissed && !service.Link.Connected && !service.UsingOffline)
+                pendingSelectTab = "Quick Guide";
+            else
+                pendingSelectTab = "Popup";
+        }
+
+        DrawHeaderBar(scale);
+        DrawSearchAndToolbar(scale);
+
+        if (resetNotice is not null && DateTime.UtcNow < resetNoticeUntil)
+            ImGui.TextColored(AccentGreen, resetNotice);
+        else if (resetNotice is not null)
+            resetNotice = null;
+
+        ImGui.Separator();
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            DrawSearchResults(scale);
+            return;
+        }
+
+        using var tabs = ImRaii.TabBar("##settings-tabs", ImGuiTabBarFlags.FittingPolicyScroll);
+        if (!tabs.Success)
+            return;
+
+        DrawTab("Quick Guide", null, DrawQuickGuideTab, scale);
+        DrawTab("Popup", () => { config.ResetPopupDefaults(); Changed(true); }, DrawPopupTab, scale);
+        DrawTab("Theme", () => { config.ResetThemeDefaults(); config.Save(); }, DrawThemeTab, scale);
+        DrawTab("Mining", () => { config.ResetMiningDefaults(); config.Save(); }, DrawMiningTab, scale);
+        DrawTab("Controller", () => { config.ResetControllerDefaults(); config.Save(); }, DrawControllerTab, scale);
+        DrawTab("Reader", () => { config.ResetReaderDefaults(); Changed(true); }, DrawReaderTab, scale);
+        DrawTab("Capture", () => { config.ResetCaptureDefaults(); Changed(true); }, DrawCaptureTab, scale);
+        if (Advanced || config.PublishEnabled || pendingSelectTab == "GSM")
+            DrawTab("GSM", () => { config.ResetPublishDefaults(); Changed(true); }, DrawPublishTab, scale);
+        DrawTab("Connection", () => { config.ResetConnectionDefaults(); Changed(true); }, DrawConnectionTab, scale);
+
+        pendingSelectTab = null;
+    }
+
+    // -------------------------------------------------------------- header & search
+
+    private void DrawHeaderBar(float scale)
+    {
+        var link = service.Link;
+        var pos = ImGui.GetCursorScreenPos();
+        var avail = ImGui.GetContentRegionAvail().X;
+        var draw = ImGui.GetWindowDrawList();
+
+        // Compact status pill background
+        var bannerH = 30 * scale;
+        Vector4 dotCol;
+        string statusText;
+        if (link.Connected)
+        {
+            dotCol = AccentGreen;
+            statusText = $"Linked to Hachidori ({link.HostName} v{link.HostVersion}) · {link.DictionaryCount} dicts";
+        }
+        else if (service.UsingOffline && service.Offline is { } offline)
+        {
+            dotCol = AccentAmber;
+            statusText = $"Offline mode · {offline.Store.Manifest.Dictionaries.Count} local dicts (synced {Ago(offline.Store.Manifest.SyncedAt)})";
+        }
+        else
+        {
+            dotCol = AccentRed;
+            statusText = link.Error ?? "Not linked — open Quick Guide to connect";
+        }
+
+        draw.AddRectFilled(pos, pos + new Vector2(avail, bannerH), ImGui.ColorConvertFloat4ToU32(new Vector4(0.13f, 0.14f, 0.18f, 0.92f)), 6 * scale);
+        draw.AddRect(pos, pos + new Vector2(avail, bannerH), ImGui.ColorConvertFloat4ToU32(new Vector4(dotCol.X, dotCol.Y, dotCol.Z, 0.35f)), 6 * scale);
+
+        ImGui.SetCursorScreenPos(pos + new Vector2(10 * scale, 6 * scale));
+        ImGui.TextColored(dotCol, "●");
+        ImGui.SameLine(0, 6 * scale);
+
+        var buttonsW = 248 * scale;
+        var textMaxW = Math.Max(100 * scale, avail - buttonsW - 32 * scale);
+        ImGui.TextUnformatted(TruncateToWidth(statusText, textMaxW));
+
+        // Quick window launchers on the right side of the status strip
+        ImGui.SetCursorScreenPos(new Vector2(pos.X + avail - buttonsW, pos.Y + 4 * scale));
+        if (openStats is not null && ImGui.SmallButton("Stats"))
+            openStats();
+        if (openStats is not null) ImGui.SameLine(0, 4 * scale);
+        if (openSearchSample is not null && ImGui.SmallButton("Search"))
+            openSearchSample(null);
+        if (openSearchSample is not null) ImGui.SameLine(0, 4 * scale);
+        if (openReader is not null && ImGui.SmallButton("Reader"))
+            openReader();
+        if (openReader is not null) ImGui.SameLine(0, 4 * scale);
+        if (openPictures is not null && ImGui.SmallButton("Pictures"))
+            openPictures();
+
+        ImGui.SetCursorScreenPos(pos + new Vector2(0, bannerH + 5 * scale));
+        ImGui.Dummy(Vector2.Zero);
+    }
+
+    private void DrawSearchAndToolbar(float scale)
+    {
+        var avail = ImGui.GetContentRegionAvail().X;
+        var advWidth = 175 * scale;
+        var clearW = searchQuery.Length > 0 ? 28 * scale : 0f;
+        var searchW = Math.Max(140 * scale, avail - advWidth - clearW - (clearW > 0 ? 12 * scale : 8 * scale));
+
+        ImGui.SetNextItemWidth(searchW);
+        ImGui.InputTextWithHint("##settings-search", "Search all settings (e.g. font, avif, voice, pitch, blur, port)…", ref searchQuery, 128);
+        if (clearW > 0)
+        {
+            ImGui.SameLine(0, 4 * scale);
+            if (ImGui.Button("×##clear-search", new Vector2(clearW, 0)))
+                searchQuery = string.Empty;
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Clear search");
+        }
+
+        ImGui.SameLine(0, 8 * scale);
         var advanced = config.AdvancedSettings;
         if (ImGui.Checkbox("Advanced settings", ref advanced))
         {
             config.AdvancedSettings = advanced;
             config.Save();
         }
-
-        HelpMarker("Shows every option. Without it, only the settings most people change are listed; hidden settings keep their values.");
-        ImGui.Separator();
-        using var tabs = ImRaii.TabBar("##tabs");
-        if (!tabs.Success)
-            return;
-        using (var tab = ImRaii.TabItem("Popup"))
-        {
-            if (tab.Success)
-                DrawPopupTab();
-        }
-
-        using (var tab = ImRaii.TabItem("Theme"))
-        {
-            if (tab.Success)
-                DrawThemeTab();
-        }
-
-        using (var tab = ImRaii.TabItem("Mining"))
-        {
-            if (tab.Success)
-                DrawMiningTab();
-        }
-
-        using (var tab = ImRaii.TabItem("Controller"))
-        {
-            if (tab.Success)
-                DrawControllerTab();
-        }
-
-        using (var tab = ImRaii.TabItem("Reader"))
-        {
-            if (tab.Success)
-                DrawReaderTab();
-        }
-
-        using (var tab = ImRaii.TabItem("Capture"))
-        {
-            if (tab.Success)
-                DrawCaptureTab();
-        }
-
-        // The game's own capture replaces GSM; its text feed stays for those who still use it.
-        if (Advanced || config.PublishEnabled)
-        {
-            using var tab = ImRaii.TabItem("GSM");
-            if (tab.Success)
-                DrawPublishTab();
-        }
-
-        using (var tab = ImRaii.TabItem("Connection"))
-        {
-            if (tab.Success)
-                DrawConnectionTab();
-        }
+        HelpMarker("Shows advanced collapsible sections inside tabs. Search always finds all settings regardless of this toggle.");
     }
 
-    private void DrawStatus()
+    private void DrawSearchResults(float scale)
     {
-        if (Advanced && ImGui.Button("Export debug log"))
-        {
-            try { exportedLog = exportLogs(); }
-            catch (Exception ex) { exportedLog = $"Export failed: {ex.Message}"; }
-        }
-        if (Advanced && exportedLog is not null)
-        {
-            ImGui.TextWrapped(exportedLog);
-            if (ImGui.Button("Copy log path")) ImGui.SetClipboardText(exportedLog);
-        }
-        var link = service.Link;
-        if (link.Connected)
-        {
-            ImGui.TextColored(new Vector4(0.5f, 0.9f, 0.5f, 1f), "●");
-            ImGui.SameLine();
-            ImGui.TextUnformatted($"Linked to Hachidori in {link.HostName} (v{link.HostVersion}), {link.DictionaryCount} dictionaries.");
-        }
-        else if (service.UsingOffline && service.Offline is { } offline)
-        {
-            ImGui.TextColored(new Vector4(0.95f, 0.8f, 0.4f, 1f), "●");
-            ImGui.SameLine();
-            ImGui.TextWrapped($"Offline: answering from {offline.Store.Manifest.Dictionaries.Count} local dictionaries"
-                + $" (synced {Ago(offline.Store.Manifest.SyncedAt)}). Anki mining and lookup counts return when Hachidori is linked.");
-        }
-        else
-        {
-            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), "●");
-            ImGui.SameLine();
-            ImGui.TextWrapped(link.Error ?? "Connecting to the Hachidori Relay…");
-            ImGui.TextWrapped("Needs: Anki open with the Hachidori Relay add-on, and Chrome with Hachidori (Settings → Sharing on).");
-        }
-    }
+        var tokens = searchQuery.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var matches = catalog.Where(item => MatchesAll(item, tokens)).ToList();
 
-    private bool Advanced => config.AdvancedSettings;
+        ImGui.TextColored(AccentCyan, $"{matches.Count} matching setting{(matches.Count == 1 ? string.Empty : "s")}");
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Back to tabs"))
+            searchQuery = string.Empty;
+        ImGui.Spacing();
 
-    private void Changed(bool changed)
-    {
-        if (!changed)
+        using var scroll = ImRaii.Child("##search-results-scroll", Vector2.Zero, false);
+        if (!scroll.Success)
             return;
-        config.Save();
-        fonts.Refresh();
-        service.ClearCache();
+
+        if (matches.Count == 0)
+        {
+            ImGui.TextDisabled($"No settings match “{searchQuery}”. Try keywords like popup, theme, audio, voice, gif, translation, controller, reader, chat, or offline.");
+            return;
+        }
+
+        string? lastGroup = null;
+        for (var i = 0; i < matches.Count; i++)
+        {
+            var entry = matches[i];
+            var group = $"{entry.Tab} › {entry.Section}";
+            if (group != lastGroup)
+            {
+                if (lastGroup is not null)
+                {
+                    ImGui.Spacing();
+                    ImGui.Separator();
+                    ImGui.Spacing();
+                }
+
+                lastGroup = group;
+                ImGui.TextColored(AccentPurple, group);
+                ImGui.SameLine(0, 10 * scale);
+                using (ImRaii.PushId($"jump-{i}"))
+                {
+                    if (ImGui.SmallButton($"Open {entry.Tab} tab"))
+                    {
+                        pendingSelectTab = entry.Tab;
+                        searchQuery = string.Empty;
+                    }
+                }
+            }
+
+            using var id = ImRaii.PushId($"sr-{i}");
+            using (ImRaii.PushIndent(10 * scale))
+            {
+                if (entry.IsAdvanced)
+                {
+                    ImGui.TextColored(AccentAmber, "[Advanced]");
+                    ImGui.SameLine(0, 6 * scale);
+                }
+                entry.DrawControl();
+            }
+        }
     }
+
+    private static bool MatchesAll(SettingEntry item, string[] tokens)
+    {
+        foreach (var token in tokens)
+        {
+            var hit = item.Label.Contains(token, StringComparison.OrdinalIgnoreCase)
+                      || item.Section.Contains(token, StringComparison.OrdinalIgnoreCase)
+                      || item.Tab.Contains(token, StringComparison.OrdinalIgnoreCase)
+                      || item.Keywords.Contains(token, StringComparison.OrdinalIgnoreCase);
+            if (!hit)
+                return false;
+        }
+        return true;
+    }
+
+    // -------------------------------------------------------------- tab shell
+
+    private void DrawTab(string name, Action? resetAction, Action drawBody, float scale)
+    {
+        var flags = pendingSelectTab == name ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+        using var tab = ImRaii.TabItem(name, flags);
+        if (!tab.Success)
+            return;
+
+        var footerH = resetAction is not null ? 36 * scale : 0f;
+        var scrollH = Math.Max(120 * scale, ImGui.GetContentRegionAvail().Y - footerH);
+        using (var scroll = ImRaii.Child($"##tab-scroll-{name}", new Vector2(0, scrollH), false))
+        {
+            if (scroll.Success)
+            {
+                ImGui.Spacing();
+                drawBody();
+                ImGui.Spacing();
+            }
+        }
+
+        if (resetAction is not null)
+        {
+            ImGui.Separator();
+            ImGui.Spacing();
+            var confirming = confirmResetTab == name;
+            using var col = ImRaii.PushColor(ImGuiCol.Button, confirming ? new Vector4(0.75f, 0.25f, 0.25f, 0.95f) : new Vector4(0.22f, 0.22f, 0.27f, 0.9f));
+            var btnLabel = confirming ? $"Click again to reset {name} to defaults" : $"Reset {name} tab to defaults";
+            if (ImGui.Button($"{btnLabel}##reset-{name}"))
+            {
+                if (confirming)
+                {
+                    confirmResetTab = null;
+                    resetAction();
+                    resetNotice = $"Reset {name} settings to defaults.";
+                    resetNoticeUntil = DateTime.UtcNow.AddSeconds(4);
+                }
+                else
+                {
+                    confirmResetTab = name;
+                }
+            }
+            else if (confirming && !ImGui.IsItemHovered())
+            {
+                confirmResetTab = null;
+            }
+
+            ImGui.SameLine(0, 10 * scale);
+            ImGui.TextDisabled("Tip: right-click any number control to reset just that value.");
+        }
+    }
+
+    // -------------------------------------------------------------- Quick Guide tab
+
+    private void DrawQuickGuideTab()
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        var connected = service.Link.Connected;
+        var offlineReady = service.UsingOffline;
+        var dictReady = connected || offlineReady;
+
+        ImGui.TextColored(AccentPurple, "Welcome to Hachidori for FFXIV");
+        ImGui.TextWrapped("Hover native Japanese dialogue, battle talk, and chat for Yomitan-style dictionary popups, pitch accent, audio, and one-click Anki card mining with game media.");
+        ImGui.Spacing();
+
+        // Step 1: Connect dictionary backend
+        if (Section("guide-step1", dictReady ? "Step 1: Connect Dictionaries  [Ready]" : "Step 1: Connect Dictionaries  [Action Needed]", defaultOpen: true, accent: dictReady ? AccentGreen : AccentAmber))
+        {
+            if (connected)
+            {
+                ImGui.TextColored(AccentGreen, $"Connected to Hachidori ({service.Link.HostName} v{service.Link.HostVersion}) with {service.Link.DictionaryCount} dictionaries.");
+            }
+            else if (offlineReady)
+            {
+                ImGui.TextColored(AccentAmber, "Running in Offline Mode using your local synced dictionaries.");
+            }
+            else
+            {
+                ImGui.BulletText("Open Anki with the Hachidori Relay add-on installed.");
+                ImGui.BulletText("Open Chrome with Hachidori and enable Settings → Sharing.");
+                ImGui.BulletText("Once connected once, you can enable Offline Mode so Chrome is no longer needed.");
+            }
+
+            ImGui.Spacing();
+            if (ImGui.Button("Reconnect now"))
+                service.Link.Reconnect();
+            ImGui.SameLine(0, 6 * scale);
+            if (ImGui.Button("Open Connection tab"))
+                pendingSelectTab = "Connection";
+            if (!config.OfflineMode && connected && service.Offline is { } offline)
+            {
+                ImGui.SameLine(0, 6 * scale);
+                using (ImRaii.Disabled(offline.Sync.Running))
+                {
+                    if (ImGui.Button("Set up Offline Mode"))
+                        _ = offline.SetUpAsync();
+                }
+            }
+        }
+
+        // Step 2: Scanning & testing
+        if (Section("guide-step2", "Step 2: Try Hovering Japanese Text", defaultOpen: true, accent: AccentCyan))
+        {
+            ImGui.TextWrapped("Hover directly over FFXIV dialogue boxes, cutscene subtitles, or chat. Adjust your preferred scan trigger below:");
+            Checkbox("Hover native game text", () => config.NativeTextHover, v => config.NativeTextHover = v);
+            ImGui.SameLine(0, 16 * scale);
+            Checkbox("Include native chat text", () => config.NativeChatHover, v => config.NativeChatHover = v);
+            DrawScanModifierControl();
+            ImGui.Spacing();
+            if (openSearchSample is not null && ImGui.Button("Open Search with sample FFXIV sentence"))
+                openSearchSample(SearchWindow.SampleLine);
+            ImGui.SameLine(0, 6 * scale);
+            if (ImGui.Button("Customize Popup & Theme"))
+                pendingSelectTab = "Popup";
+        }
+
+        // Step 3: Anki mining & media
+        if (Section("guide-step3", ankiConnectedHint ? "Step 3: Anki Mining & Game Media  [Ready]" : "Step 3: Anki Mining & Game Media (Optional)", defaultOpen: !dictReady, accent: ankiConnectedHint ? AccentGreen : AccentPurple))
+        {
+            ImGui.TextWrapped("Click + on any popup entry to create an Anki card with automatic game screenshots, voice clips, animations, and AI translations.");
+            Checkbox("Screenshot", () => config.CaptureScreenshot, v => config.CaptureScreenshot = v);
+            ImGui.SameLine(0, 12 * scale);
+            Checkbox("Voice line", () => config.RecordVoiceLines, v => config.RecordVoiceLines = v);
+            ImGui.SameLine(0, 12 * scale);
+            Checkbox("Animation", () => config.CaptureGif, v => config.CaptureGif = v);
+            ImGui.SameLine(0, 12 * scale);
+            Checkbox("Translation", () => config.TranslationEnabled, v => config.TranslationEnabled = v);
+
+            if (ImGui.Button("Test AnkiConnect##guide"))
+            {
+                mediaTest = "Checking AnkiConnect…";
+                _ = TestAnkiConnectAsync();
+            }
+            ImGui.SameLine(0, 6 * scale);
+            if (ImGui.Button("Open Mining settings"))
+                pendingSelectTab = "Mining";
+            if (mediaTest is not null)
+                ImGui.TextWrapped(mediaTest);
+        }
+
+        // Step 4: Immersion tools & commands
+        if (Section("guide-step4", "Step 4: Explore Stats, Controller Mode & Commands", defaultOpen: false, accent: AccentAmber))
+        {
+            if (openStats is not null && ImGui.Button("Open Immersion Stats"))
+                openStats();
+            ImGui.SameLine(0, 6 * scale);
+            if (openReader is not null && ImGui.Button("Open Reader Overlay"))
+                openReader();
+            ImGui.SameLine(0, 6 * scale);
+            if (ImGui.Button("Copy /hachidori pad macro"))
+                ImGui.SetClipboardText("/hachidori pad");
+
+            ImGui.Spacing();
+            using var tbl = ImRaii.Table("##guide-commands", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp);
+            if (tbl.Success)
+            {
+                ImGui.TableSetupColumn("Command", ImGuiTableColumnFlags.WidthFixed, 175 * scale);
+                ImGui.TableSetupColumn("What it does", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
+                foreach (var (cmd, desc) in new[]
+                {
+                    ("/hachidori", "Open or close this Settings window"),
+                    ("/hachidori stats", "Open the Immersion Stats dashboard (NPCs, words, Anki cards)"),
+                    ("/hachidori search", "Open the manual Japanese search & hover window"),
+                    ("/hachidori <text>", "Look up Japanese text directly"),
+                    ("/hachidori reader", "Pin or unpin the dialogue reader overlay"),
+                    ("/hachidori pad", "Toggle controller reading mode (great on a cross hotbar macro)"),
+                    ("/hachidori pictures", "Manage your custom FFXIV NPC picture dictionary"),
+                    ("/hachidori logs", "Export a redacted debug log file"),
+                })
+                {
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.TextColored(AccentCyan, cmd);
+                    ImGui.TableNextColumn();
+                    ImGui.TextUnformatted(desc);
+                }
+            }
+        }
+
+        ImGui.Spacing();
+        var dismissed = config.QuickGuideDismissed;
+        if (ImGui.Checkbox("Open directly to Popup settings next time instead of Quick Guide", ref dismissed))
+        {
+            config.QuickGuideDismissed = dismissed;
+            config.Save();
+        }
+    }
+
+    // -------------------------------------------------------------- Popup tab
 
     private void DrawPopupTab()
     {
-        Checkbox("Hover native game text", () => config.NativeTextHover, v => config.NativeTextHover = v);
-        Checkbox("Include native chat text", () => config.NativeChatHover, v => config.NativeChatHover = v);
-        if (Advanced)
+        if (Section("popup-scan", "Hover & Scanning", defaultOpen: true))
         {
-            Checkbox("Hover whole words (Hachidori tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v);
-            Checkbox("Other native windows (experimental)", () => config.NativeOtherTextHover, v => config.NativeOtherTextHover = v);
-            Checkbox("Show native hover targets (debug)", () => config.NativeHoverDebug, v => config.NativeHoverDebug = v);
-            if (config.NativeHoverDebug)
+            Checkbox("Hover native game text", () => config.NativeTextHover, v => config.NativeTextHover = v);
+            Checkbox("Include native chat text", () => config.NativeChatHover, v => config.NativeChatHover = v);
+            DrawScanModifierControl();
+
+            if (Advanced)
             {
-                ImGui.TextDisabled($"Native text regions under mouse: {nativeHover.RegionCount}");
-                if (nativeHover.LastError is { } error) ImGui.TextWrapped(error);
+                ImGui.Spacing();
+                ImGui.TextColored(AccentAmber, "Advanced scanning");
+                Checkbox("Hover whole words (Hachidori tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v);
+                Checkbox("Other native windows (experimental)", () => config.NativeOtherTextHover, v => config.NativeOtherTextHover = v);
+                Checkbox("Show native hover targets (debug)", () => config.NativeHoverDebug, v => config.NativeHoverDebug = v);
+                if (config.NativeHoverDebug)
+                {
+                    ImGui.TextDisabled($"Native text regions under mouse: {nativeHover.RegionCount}");
+                    if (nativeHover.LastError is { } error) ImGui.TextWrapped(error);
+                }
+
+                DrawScanLengthControl();
+                DrawMaxResultsControl();
+                DrawMaxPopupDepthControl();
+                Checkbox("Only start scans on Japanese characters", () => config.ScanOnlyJapanese, v => config.ScanOnlyJapanese = v);
+                Checkbox("Use the personal dictionary", () => config.UsePersonalDictionary, v => config.UsePersonalDictionary = v);
             }
         }
 
-        ImGui.Separator();
-        var modifier = (int)config.ScanModifier;
-        if (ImGui.Combo("Scan key", ref modifier, Enum.GetNames<ScanModifier>(), Enum.GetValues<ScanModifier>().Length))
+        if (Section("popup-size", "Size & Behavior", defaultOpen: true))
         {
-            config.ScanModifier = (ScanModifier)modifier;
-            Changed(true);
-        }
+            DrawPopupWidthControl();
+            DrawPopupMaxHeightControl();
+            DrawPopupFontSizeControl();
 
-        HelpMarker("None scans on hover, like JL's default. Alt over a headword kanji (or clicking it) opens kanji info.");
-
-        if (Advanced)
-        {
-            var scanLength = config.ScanLength;
-            if (ImGui.SliderInt("Scan length", ref scanLength, 4, 32))
+            if (!config.FollowHachidoriTheme || !config.FollowHachidoriOpacity)
             {
-                config.ScanLength = scanLength;
-                Changed(true);
+                DrawPopupOpacityControl();
+            }
+            else
+            {
+                ImGui.TextDisabled("Popup opacity is currently controlled by Hachidori's theme (see Theme tab).");
             }
 
-            var maxResults = config.MaxResults;
-            if (ImGui.SliderInt("Max results", ref maxResults, 1, 32))
+            if (Advanced)
             {
-                config.MaxResults = maxResults;
-                Changed(true);
-            }
-
-            var depth = config.MaxPopupDepth;
-            if (ImGui.SliderInt("Nested popups", ref depth, 1, 8))
-            {
-                config.MaxPopupDepth = depth;
-                Changed(true);
+                DrawHideDelayControl();
+                Checkbox("Hide the popup when the mouse leaves", () => config.AutoHideRootPopup, v => config.AutoHideRootPopup = v);
             }
         }
 
-        var width = config.PopupWidth;
-        if (ImGui.SliderFloat("Popup width", ref width, 280, 900, "%.0f"))
+        if (Section("popup-display", "Display Elements", defaultOpen: true))
         {
-            config.PopupWidth = width;
-            Changed(true);
-        }
-
-        var height = config.PopupMaxHeight;
-        if (ImGui.SliderFloat("Popup max height", ref height, 160, 1000, "%.0f"))
-        {
-            config.PopupMaxHeight = height;
-            Changed(true);
-        }
-
-        var fontSize = config.PopupFontSize;
-        if (ImGui.SliderFloat("Popup font size", ref fontSize, 12, 36, "%.0f"))
-            config.PopupFontSize = fontSize;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Changed(true);
-
-        // With Hachidori's theme and opacity, this slider would do nothing.
-        if (!config.FollowHachidoriTheme || !config.FollowHachidoriOpacity)
-        {
-            var alpha = config.PopupBackgroundAlpha;
-            if (ImGui.SliderFloat("Popup opacity", ref alpha, 0.3f, 1f))
+            Checkbox("Show frequencies", () => config.ShowFrequencies, v => config.ShowFrequencies = v);
+            Checkbox("Show pitch accent", () => config.ShowPitchAccent, v => config.ShowPitchAccent = v);
+            Checkbox("Show dictionary names", () => config.ShowDictionaryNames, v => config.ShowDictionaryNames = v);
+            if (Advanced)
             {
-                config.PopupBackgroundAlpha = alpha;
-                Changed(true);
+                Checkbox("Show deinflection", () => config.ShowInflections, v => config.ShowInflections = v);
+                Checkbox("Show definition tags", () => config.ShowDefinitionTags, v => config.ShowDefinitionTags = v);
+                Checkbox("Show attribution", () => config.ShowAttribution, v => config.ShowAttribution = v);
+                Checkbox("Show lookup counts (Hachidori lookup statistics)", () => config.ShowLookupCounts, v => config.ShowLookupCounts = v);
+                Checkbox("Honour Hachidori's lookup blur", () => config.HonourDefinitionBlur, v => config.HonourDefinitionBlur = v);
             }
         }
 
-        if (Advanced)
+        if (Section("popup-audio", "Pronunciation Audio", defaultOpen: false))
         {
-            var hide = config.HideDelaySeconds;
-            if (ImGui.SliderFloat("Hide delay (s)", ref hide, 0f, 2f, "%.2f"))
-            {
-                config.HideDelaySeconds = hide;
-                Changed(true);
-            }
-
-            Checkbox("Hide the popup when the mouse leaves", () => config.AutoHideRootPopup, v => config.AutoHideRootPopup = v);
-            Checkbox("Only start scans on Japanese characters", () => config.ScanOnlyJapanese, v => config.ScanOnlyJapanese = v);
-            Checkbox("Use the personal dictionary", () => config.UsePersonalDictionary, v => config.UsePersonalDictionary = v);
-        }
-
-        ImGui.Separator();
-        Checkbox("Show frequencies", () => config.ShowFrequencies, v => config.ShowFrequencies = v);
-        Checkbox("Show pitch accent", () => config.ShowPitchAccent, v => config.ShowPitchAccent = v);
-        Checkbox("Show dictionary names", () => config.ShowDictionaryNames, v => config.ShowDictionaryNames = v);
-        if (Advanced)
-        {
-            Checkbox("Show deinflection", () => config.ShowInflections, v => config.ShowInflections = v);
-            Checkbox("Show definition tags", () => config.ShowDefinitionTags, v => config.ShowDefinitionTags = v);
-            Checkbox("Show attribution", () => config.ShowAttribution, v => config.ShowAttribution = v);
-            Checkbox("Show lookup counts (Hachidori lookup statistics)", () => config.ShowLookupCounts, v => config.ShowLookupCounts = v);
-            Checkbox("Honour Hachidori's lookup blur", () => config.HonourDefinitionBlur, v => config.HonourDefinitionBlur = v);
-        }
-
-        Checkbox("Auto-play pronunciation", () => config.AutoPlayAudio, v => config.AutoPlayAudio = v);
-        var volume = config.AudioVolume;
-        if (ImGui.SliderFloat("Volume", ref volume, 0f, 1f))
-        {
-            config.AudioVolume = volume;
-            Changed(true);
+            Checkbox("Auto-play pronunciation", () => config.AutoPlayAudio, v => config.AutoPlayAudio = v);
+            DrawAudioVolumeControl();
         }
     }
+
+    // -------------------------------------------------------------- Theme tab
 
     private void DrawThemeTab()
     {
-        void Save() => config.Save();
-        var follow = config.FollowHachidoriTheme;
-        if (ImGui.Checkbox("Use Hachidori's popup theme", ref follow))
+        if (Section("theme-sync", "Hachidori Theme Sync", defaultOpen: true))
         {
-            config.FollowHachidoriTheme = follow;
-            Save();
+            DrawFollowThemeControl();
+            if (!config.FollowHachidoriTheme)
+            {
+                ImGui.TextDisabled("Popups use the plugin's own look.");
+                return;
+            }
+
+            var hostTheme = service.OptionString("popupTheme", "default");
+            var hostVariant = service.OptionString("popupThemeVariant", "auto");
+            ImGui.TextDisabled(service.Link.Connected
+                ? $"Hachidori uses \"{hostTheme}\"{(hostVariant != "auto" ? $" ({hostVariant})" : string.Empty)}."
+                : "Not linked: showing the theme defaults until Hachidori connects.");
+
+            DrawThemeOverrideControl();
+            DrawVariantOverrideControl();
         }
 
-        HelpMarker("Draws popups with the theme chosen in Hachidori (Settings → Design): Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme or Crystal, including your custom popup CSS.");
-        if (!config.FollowHachidoriTheme)
+        if (Advanced && config.FollowHachidoriTheme)
         {
-            ImGui.TextDisabled("Popups use the plugin's own look.");
-            return;
+            if (Section("theme-css", "Opacity & Custom CSS [Advanced]", defaultOpen: true, accent: AccentAmber))
+            {
+                DrawFollowOpacityControl();
+                if (!config.FollowHachidoriOpacity)
+                    ImGui.TextDisabled("Uses \"Popup opacity\" from the Popup tab.");
+                DrawApplyCustomCssControl();
+                DrawExtraCssControl();
+            }
         }
 
-        using var indent = ImRaii.PushIndent();
-        var hostTheme = service.OptionString("popupTheme", "default");
-        var hostVariant = service.OptionString("popupThemeVariant", "auto");
         var current = PopupTheme.Current;
-        ImGui.TextDisabled(service.Link.Connected
-            ? $"Hachidori uses \"{hostTheme}\"{(hostVariant != "auto" ? $" ({hostVariant})" : string.Empty)}."
-            : "Not linked: showing the theme defaults until Hachidori connects.");
-
-        // Theme: Hachidori's choice, a renderer, or one of Default's palettes.
-        var choices = new[] { string.Empty }.Concat(PopupThemeProvider.Renderers.Where(r => r != "default")).Concat(themes.Palettes).ToArray();
-        var labels = choices.Select(c => c.Length == 0 ? "Same as Hachidori" : PopupThemeProvider.Renderers.Contains(c) ? $"{c} (theme)" : $"{c} (Default palette)").ToArray();
-        var index = Math.Max(0, Array.IndexOf(choices, config.HachidoriThemeOverride));
-        if (ImGui.Combo("Theme", ref index, labels, labels.Length))
-        {
-            config.HachidoriThemeOverride = choices[index];
-            Save();
-        }
-
-        var variants = new[] { string.Empty }.Concat(PopupThemeProvider.Variants).ToArray();
-        var variantLabels = variants.Select(v => v.Length == 0 ? "Same as Hachidori" : v == "auto" ? "Automatic (Grey in game)" : v).ToArray();
-        var variantIndex = Math.Max(0, Array.IndexOf(variants, config.HachidoriVariantOverride));
-        if (ImGui.Combo("Colours", ref variantIndex, variantLabels, variantLabels.Length))
-        {
-            config.HachidoriVariantOverride = variants[variantIndex];
-            Save();
-        }
-
-        HelpMarker("Crystal's colour schemes: Grey, Beige and Retro blue.");
-
-        if (!Advanced)
-        {
-            ImGui.TextDisabled("Changes apply to the next popup.");
-            return;
-        }
-
-        var opacity = config.FollowHachidoriOpacity;
-        if (ImGui.Checkbox("Use Hachidori's popup opacity", ref opacity))
-        {
-            config.FollowHachidoriOpacity = opacity;
-            Save();
-        }
-
-        if (!config.FollowHachidoriOpacity)
-            ImGui.TextDisabled("Uses \"Popup opacity\" from the Popup tab.");
-
-        var custom = config.ApplyHachidoriCustomCss;
-        if (ImGui.Checkbox("Apply Hachidori's custom popup CSS", ref custom))
-        {
-            config.ApplyHachidoriCustomCss = custom;
-            Save();
-        }
-
-        HelpMarker("Hachidori's Custom popup CSS and the CSS of enabled user scripts.");
-
-        ImGui.TextUnformatted("Extra CSS for the game popup");
-        HelpMarker("Applied after Hachidori's CSS. Supported: colours, backgrounds and linear gradients, borders and border-radius, padding, box-shadow, font sizes of the headword and reading, and custom properties (var()). For example:\n:host { --hoshidicts-accent: #f0a; }\n.gsm-hoshidicts-popup { border-radius: 20px; border: 2px solid gold; }\n.jl-spelling { color: orange; font-size: 26px; }");
-        var extra = config.ExtraPopupCss;
-        if (ImGui.InputTextMultiline("##extra-css", ref extra, 16384, new Vector2(-1, 140 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale)))
-            config.ExtraPopupCss = extra;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-
         if (themes.Error is { } error)
-            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), $"Theme error: {error}");
+            ImGui.TextColored(AccentRed, $"Theme error: {error}");
         else
-            ImGui.TextDisabled($"Showing: {current.Renderer}{(current.Renderer == "default" ? $" / {current.Palette}" : string.Empty)}{(current.Variant.Length > 0 && current.Renderer == "crystal" ? $" / {current.Variant}" : string.Empty)}, {(current.Dark ? "dark" : "light")}.");
-        ImGui.TextDisabled("Changes apply to the next popup. Try /hachidori search to check a theme.");
+            ImGui.TextDisabled($"Active look: {current.Renderer}{(current.Renderer == "default" ? $" / {current.Palette}" : string.Empty)}{(current.Variant.Length > 0 && current.Renderer == "crystal" ? $" / {current.Variant}" : string.Empty)}, {(current.Dark ? "dark" : "light")}. Changes apply to the next popup.");
     }
+
+    // -------------------------------------------------------------- Mining tab
 
     private void DrawMiningTab()
     {
         ImGui.TextWrapped("Media for cards you add with + in a popup, captured from the game itself. No GSM needed.");
-        void Save() => config.Save();
-        bool Toggle(string label, bool value, Action<bool> set)
+        ImGui.Spacing();
+
+        if (Section("mining-visuals", "Screenshots & Animation", defaultOpen: true))
         {
-            if (ImGui.Checkbox(label, ref value))
+            DrawScreenshotToggleControl();
+            if (media.Frames.Error is { } frameError)
+                ImGui.TextColored(AccentAmber, frameError);
+            if (Advanced && config.CaptureScreenshot)
             {
-                set(value);
-                Save();
+                using (ImRaii.PushIndent())
+                {
+                    DrawScreenshotMaxWidthControl();
+                    DrawScreenshotQualityControl();
+                }
             }
 
-            return value;
-        }
-
-        Toggle("Screenshot", config.CaptureScreenshot, v => config.CaptureScreenshot = v);
-        HelpMarker("Fills {screenshot} in your Hachidori Anki Template. The picture has no plugin windows in it.");
-        if (media.Frames.Error is { } frameError)
-            ImGui.TextColored(new Vector4(1f, 0.6f, 0.4f, 1f), frameError);
-
-        Toggle("Voice line from the game", config.RecordVoiceLines, v => config.RecordVoiceLines = v);
-        HelpMarker("Records only FFXIV's own sound and cuts out the line you mined. Lower the BGM volume in game for cleaner clips.");
-        if (config.RecordVoiceLines && media.Recorder is { } recorder)
-        {
-            if (recorder.Error is { } audioError)
-                ImGui.TextColored(new Vector4(1f, 0.6f, 0.4f, 1f), audioError);
-            else if (recorder.Running)
-                ImGui.TextDisabled("Recording game audio.");
-        }
-
-        Toggle("Animation of the line", config.CaptureGif, v => config.CaptureGif = v);
-        HelpMarker("A few seconds of the scene from when the line appeared. Without a GIF field it replaces the screenshot in your picture field.");
-        if (config.CaptureGif)
-        {
-            using var indent = ImRaii.PushIndent();
-            var formats = new[] { "AVIF (smallest, best quality)", "WebP", "GIF (plays everywhere, large)" };
-            var format = (int)config.AnimationFormat;
-            if (ImGui.Combo("Format", ref format, formats, formats.Length))
+            ImGui.Spacing();
+            DrawGifToggleControl();
+            if (config.CaptureGif)
             {
-                config.AnimationFormat = (AnimationFormat)format;
-                Save();
-            }
+                using var indent = ImRaii.PushIndent();
+                DrawAnimationFormatControl();
+                if (config.AnimationFormat != AnimationFormat.Gif)
+                {
+                    var ffmpeg = media.FfmpegPath;
+                    var caps = ffmpeg is null ? default : Ffmpeg.Capabilities(ffmpeg);
+                    var ready = config.AnimationFormat == AnimationFormat.Avif ? caps.Av1 is not null : caps.Webp;
+                    if (ready)
+                        ImGui.TextDisabled($"FFmpeg: {ffmpeg}");
+                    else
+                        ImGui.TextColored(AccentAmber, ffmpeg is null
+                            ? "FFmpeg not found: saving GIF instead. Install FFmpeg (GSM includes one) or set its path under Advanced."
+                            : $"This FFmpeg cannot write {(config.AnimationFormat == AnimationFormat.Avif ? "AVIF" : "WebP")}: saving {(caps.Webp ? "WebP" : "GIF")} instead.");
+                }
 
-            if (config.AnimationFormat != AnimationFormat.Gif)
-            {
-                var ffmpeg = media.FfmpegPath;
-                var caps = ffmpeg is null ? default : Ffmpeg.Capabilities(ffmpeg);
-                var ready = config.AnimationFormat == AnimationFormat.Avif ? caps.Av1 is not null : caps.Webp;
-                if (ready)
-                    ImGui.TextDisabled($"FFmpeg: {ffmpeg}");
-                else
-                    ImGui.TextColored(new Vector4(1f, 0.75f, 0.4f, 1f), ffmpeg is null
-                        ? "FFmpeg not found: saving GIF instead. Install FFmpeg (GSM includes one) or set its path under Advanced."
-                        : $"This FFmpeg cannot write {(config.AnimationFormat == AnimationFormat.Avif ? "AVIF" : "WebP")}: saving {(caps.Webp ? "WebP" : "GIF")} instead.");
+                if (Advanced)
+                {
+                    DrawGifWidthControl();
+                    DrawGifFpsControl();
+                    DrawGifSecondsControl();
+                    DrawAvifCrfControl();
+                    DrawWebpQualityControl();
+                    DrawFfmpegPathControl();
+                }
             }
         }
 
-        ImGui.Separator();
-        var modes = new[] { "Off", "VOICEVOX-compatible (VOICEVOX, AivisSpeech…)", "Custom URL" };
-        var mode = (int)config.TtsMode;
-        if (ImGui.Combo("TTS for unvoiced lines", ref mode, modes, modes.Length))
+        if (Section("mining-audio", "Voice Recording & TTS", defaultOpen: true))
         {
-            config.TtsMode = (TtsMode)mode;
-            if (config.TtsMode == TtsMode.Voicevox && !config.TtsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                config.TtsUrl = "http://127.0.0.1:50021";
-            Save();
-        }
-
-        if (config.TtsMode != TtsMode.Off)
-        {
-            using var indent = ImRaii.PushIndent();
-            var url = config.TtsUrl;
-            if (ImGui.InputText(config.TtsMode == TtsMode.Voicevox ? "Engine address" : "URL", ref url, 512))
-                config.TtsUrl = url.Trim();
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
-            if (config.TtsMode == TtsMode.Voicevox)
-                HelpMarker("VOICEVOX: http://127.0.0.1:50021 · AivisSpeech: http://127.0.0.1:10101");
-            else
-                HelpMarker("{text} becomes the sentence and {speaker} the speaker below. The URL must return audio (WAV, MP3 or Ogg).");
-
-            var speaker = config.TtsSpeaker;
-            if (ImGui.InputText("Speaker / voice", ref speaker, 128))
-                config.TtsSpeaker = speaker;
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
-            if (config.TtsMode == TtsMode.Custom)
-                Toggle("Send as POST with JSON {text, speaker}", config.TtsPost, v => config.TtsPost = v);
-
-            if (ImGui.Button("Test TTS"))
+            DrawVoiceRecordToggleControl();
+            if (config.RecordVoiceLines && media.Recorder is { } recorder)
             {
-                mediaTest = "Speaking…";
-                _ = TestTtsAsync();
+                if (recorder.Error is { } audioError)
+                    ImGui.TextColored(AccentAmber, audioError);
+                else if (recorder.Running)
+                    ImGui.TextDisabled("Recording game audio.");
+            }
+
+            if (Advanced && config.RecordVoiceLines)
+            {
+                using (ImRaii.PushIndent())
+                {
+                    DrawVoiceRatioControl();
+                    DrawMaxLineSecondsControl();
+                    DrawVoiceBufferSecondsControl();
+                }
+            }
+
+            ImGui.Spacing();
+            DrawTtsModeControl();
+            if (config.TtsMode != TtsMode.Off)
+            {
+                using var indent = ImRaii.PushIndent();
+                DrawTtsUrlControl();
+                DrawTtsSpeakerControl();
+                if (config.TtsMode == TtsMode.Custom)
+                    Toggle("Send as POST with JSON {text, speaker}", config.TtsPost, v => config.TtsPost = v);
+                if (ImGui.Button("Test TTS"))
+                {
+                    mediaTest = "Speaking…";
+                    _ = TestTtsAsync();
+                }
             }
         }
 
-        ImGui.Separator();
-        DrawTranslation(Toggle);
-
-        ImGui.Separator();
-        if (ImGui.Button("Test AnkiConnect"))
+        if (Section("mining-translation", "Sentence Translation", defaultOpen: config.TranslationEnabled))
         {
-            mediaTest = "Checking AnkiConnect…";
-            _ = TestAnkiConnectAsync();
+            DrawTranslationSection();
         }
 
-        HelpMarker("Voice lines, TTS audio and GIFs are added to the note through the AnkiConnect add-on, after Hachidori creates it.");
+        if (Section("mining-anki", "AnkiConnect & Field Mapping", defaultOpen: false))
+        {
+            if (ImGui.Button("Test AnkiConnect"))
+            {
+                mediaTest = "Checking AnkiConnect…";
+                _ = TestAnkiConnectAsync();
+            }
+            HelpMarker("Voice lines, TTS audio and GIFs are added to the note through the AnkiConnect add-on, after Hachidori creates it.");
+
+            if (Advanced)
+            {
+                ImGui.Spacing();
+                ImGui.TextDisabled("Fields (blank: detected automatically by name)");
+                DrawSentenceAudioFieldControl();
+                DrawGifFieldControl();
+                Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v);
+                DrawAnkiConnectUrlControl();
+            }
+        }
+
         if (mediaTest is not null)
+        {
+            ImGui.Spacing();
             ImGui.TextWrapped(mediaTest);
-
-        if (!Advanced)
-            return;
-
-        ImGui.Separator();
-        ImGui.TextDisabled("Fields (blank: detected by name)");
-        var audioField = config.SentenceAudioField;
-        if (ImGui.InputTextWithHint("Sentence audio field", "e.g. SentenceAudio", ref audioField, 128))
-            config.SentenceAudioField = audioField.Trim();
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        var gifField = config.GifField;
-        if (ImGui.InputTextWithHint("GIF field", "e.g. Picture", ref gifField, 128))
-            config.GifField = gifField.Trim();
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v);
-
-        ImGui.Separator();
-        var maxWidth = config.ScreenshotMaxWidth;
-        if (ImGui.SliderInt("Screenshot max width", ref maxWidth, 640, 3840))
-            config.ScreenshotMaxWidth = maxWidth;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        var quality = config.ScreenshotQuality;
-        if (ImGui.SliderFloat("Screenshot JPEG quality", ref quality, 0.5f, 1f, "%.2f"))
-            config.ScreenshotQuality = quality;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-
-        var gifWidth = config.GifWidth;
-        if (ImGui.SliderInt("Animation width", ref gifWidth, 320, 1280))
-            config.GifWidth = gifWidth;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        var fps = config.GifFps;
-        if (ImGui.SliderInt("Animation frames per second", ref fps, 4, 24))
-            config.GifFps = fps;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        var seconds = config.GifSeconds;
-        if (ImGui.SliderInt("Animation length (s)", ref seconds, 1, 8))
-            config.GifSeconds = seconds;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        var crf = config.AvifCrf;
-        if (ImGui.SliderInt("AVIF quality (CRF, lower is better)", ref crf, 18, 50))
-            config.AvifCrf = crf;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        var webp = config.WebpQuality;
-        if (ImGui.SliderInt("WebP quality", ref webp, 40, 95))
-            config.WebpQuality = webp;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        var ffmpegPath = config.FfmpegPath;
-        if (ImGui.InputTextWithHint("FFmpeg path", "blank: find automatically", ref ffmpegPath, 512))
-            config.FfmpegPath = ffmpegPath.Trim();
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-
-        var ratio = config.VoiceDetectionRatio;
-        if (ImGui.SliderFloat("Voice detection", ref ratio, 1.2f, 6f, "%.1f×"))
-            config.VoiceDetectionRatio = ratio;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        HelpMarker("How much louder than the music before it a line must be to count as voiced. Raise it if unvoiced lines get music clips instead of TTS; lower it if quiet voices are missed.");
-        var maxLine = config.MaxLineSeconds;
-        if (ImGui.SliderInt("Longest voice line (s)", ref maxLine, 5, 60))
-            config.MaxLineSeconds = maxLine;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-
-        var anki = config.AnkiConnectUrl;
-        if (ImGui.InputText("AnkiConnect address", ref anki, 256))
-            config.AnkiConnectUrl = anki.Trim();
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
+        }
     }
 
-    private static readonly string[] ProviderNames =
-        ["Gemini", "Groq", "OpenAI-compatible", "Ollama", "LM Studio", "Z.ai", "DeepL", "Codex (local CLI)", "Claude Code (local CLI)"];
-
-    private void DrawTranslation(Func<string, bool, Action<bool>, bool> toggle)
+    private void DrawTranslationSection()
     {
-        void Save() => config.Save();
-        toggle("Sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v);
+        Toggle("Sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v);
         HelpMarker("Translates the mined line with GSM's prompt and settings, using nearby dialogue as context, into the field below.");
-        if (ImGui.Button("Import from GSM"))
+        ImGui.SameLine(0, 10 * ImGuiHelpers.GlobalScale);
+        if (ImGui.SmallButton("Import from GSM"))
         {
-            try { mediaTest = media.Translator.ImportFromGsm(); Save(); }
+            try { mediaTest = media.Translator.ImportFromGsm(); config.Save(); }
             catch (Exception ex) { mediaTest = $"Import failed: {ex.Message}"; }
         }
-
         HelpMarker("Copies the AI provider, models, API keys, prompts and Anki field from GameSentenceMiner's active profile.");
+
         if (!config.TranslationEnabled)
             return;
 
         using var indent = ImRaii.PushIndent();
-        var provider = (int)config.TranslationProvider;
-        if (ImGui.Combo("Provider", ref provider, ProviderNames, ProviderNames.Length))
-        {
-            config.TranslationProvider = (TranslationProvider)provider;
-            Save();
-        }
+        DrawTranslationProviderControl();
 
         var settings = media.Translator.Settings(config.TranslationProvider);
         var cli = config.TranslationProvider is TranslationProvider.Codex or TranslationProvider.ClaudeCode;
@@ -607,7 +824,7 @@ public sealed class ConfigWindow : Window
             if (ImGui.InputText("API key", ref key, 512, ImGuiInputTextFlags.Password))
                 settings.ApiKey = key.Trim();
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
         }
 
         if (config.TranslationProvider != TranslationProvider.DeepL)
@@ -616,14 +833,10 @@ public sealed class ConfigWindow : Window
             if (ImGui.InputTextWithHint("Model", cli ? "blank: the CLI's default" : "", ref model, 256))
                 settings.Model = model.Trim();
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
         }
 
-        var field = config.TranslationField;
-        if (ImGui.InputText("Anki field", ref field, 128))
-            config.TranslationField = field.Trim();
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
+        DrawTranslationFieldControl();
 
         if (ImGui.Button("Test translation"))
         {
@@ -634,13 +847,16 @@ public sealed class ConfigWindow : Window
         if (!Advanced)
             return;
 
+        ImGui.Spacing();
+        ImGui.TextColored(AccentAmber, "Advanced translation parameters");
+
         if (!cli && config.TranslationProvider != TranslationProvider.DeepL)
         {
             var backup = settings.BackupModel;
             if (ImGui.InputText("Backup model", ref backup, 256))
                 settings.BackupModel = backup.Trim();
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
         }
 
         if (!cli)
@@ -649,7 +865,7 @@ public sealed class ConfigWindow : Window
             if (ImGui.InputTextWithHint("API address", Translator.Defaults[config.TranslationProvider].Url, ref url, 512))
                 settings.Url = url.Trim();
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
         }
 
         if (config.TranslationProvider == TranslationProvider.OpenAI)
@@ -658,7 +874,7 @@ public sealed class ConfigWindow : Window
             if (ImGui.InputTextWithHint("Reasoning effort", "blank, low, medium, high", ref effort, 32))
                 settings.ReasoningEffort = effort.Trim();
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
         }
 
         if (config.TranslationProvider == TranslationProvider.DeepL)
@@ -667,7 +883,7 @@ public sealed class ConfigWindow : Window
             if (ImGui.InputText("DeepL target language", ref target, 16))
                 config.DeepLTargetLanguage = target.Trim();
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
             return;
         }
 
@@ -679,16 +895,11 @@ public sealed class ConfigWindow : Window
                 if (config.TranslationProvider == TranslationProvider.Codex) config.CodexPath = path.Trim();
                 else config.ClaudeCodePath = path.Trim();
             }
-
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
         }
 
-        var language = config.TranslationLanguage;
-        if (ImGui.InputText("Translate into", ref language, 64))
-            config.TranslationLanguage = language.Trim();
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
+        DrawTranslationLanguageControl();
 
         var promptKinds = new[] { "Canned translation prompt", "Canned context prompt", "Custom prompt" };
         var kind = config.UseCannedTranslationPrompt ? 0 : config.UseCannedContextPrompt ? 1 : 2;
@@ -696,475 +907,331 @@ public sealed class ConfigWindow : Window
         {
             config.UseCannedTranslationPrompt = kind == 0;
             config.UseCannedContextPrompt = kind == 1;
-            Save();
+            config.Save();
         }
 
         if (kind == 2)
         {
             var custom = config.CustomTranslationPrompt;
-            if (ImGui.InputTextMultiline("##custom-prompt", ref custom, 8192, new Vector2(-1, 80 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale)))
+            if (ImGui.InputTextMultiline("##custom-prompt", ref custom, 8192, new Vector2(-1, 80 * ImGuiHelpers.GlobalScale)))
                 config.CustomTranslationPrompt = custom;
             if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+                config.Save();
         }
 
         var full = config.CustomFullPrompt;
         ImGui.TextUnformatted("Full prompt template (blank: GSM's)");
         HelpMarker("Placeholders: {game_title} {character_context} {dialogue_context} {prompt_to_use} {sentence} {native_language}. Must include {sentence}.");
-        if (ImGui.InputTextMultiline("##full-prompt", ref full, 16384, new Vector2(-1, 80 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale)))
+        if (ImGui.InputTextMultiline("##full-prompt", ref full, 16384, new Vector2(-1, 80 * ImGuiHelpers.GlobalScale)))
             config.CustomFullPrompt = full;
         if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
+            config.Save();
 
-        var context = config.DialogueContextLength;
-        if (ImGui.SliderInt("Dialogue context lines", ref context, -1, 20))
-            config.DialogueContextLength = context;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Save();
-        HelpMarker("Lines before and after the mined one. 0: none, -1: all captured lines.");
+        DrawDialogueContextControl();
         if (!cli)
         {
-            var temperature = (float)config.TranslationTemperature;
-            if (ImGui.SliderFloat("Temperature", ref temperature, 0f, 2f, "%.2f"))
-                config.TranslationTemperature = Math.Round(temperature, 2);
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
-            var topP = (float)config.TranslationTopP;
-            if (ImGui.SliderFloat("Top P", ref topP, 0f, 1f, "%.2f"))
-                config.TranslationTopP = Math.Round(topP, 2);
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
-            var tokens = config.TranslationMaxTokens;
-            if (ImGui.InputInt("Max output tokens", ref tokens))
-                config.TranslationMaxTokens = Math.Clamp(tokens, 64, 65536);
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                Save();
+            DrawTemperatureControl();
+            DrawTopPControl();
+            DrawMaxTokensControl();
         }
     }
 
-    private async System.Threading.Tasks.Task TestTranslationAsync()
-    {
-        try
-        {
-            var result = await media.Translator.TranslateAsync("冒険者さん、ちょっと手を貸してもらえないかな？",
-                ["この辺りで魔物が増えているらしい。"], "村人", "FINAL FANTASY XIV").ConfigureAwait(false);
-            mediaTest = $"Translation works: {result}";
-        }
-        catch (Exception ex)
-        {
-            mediaTest = $"Translation failed: {ex.Message}";
-        }
-    }
-
-    private async System.Threading.Tasks.Task TestTtsAsync()
-    {
-        try
-        {
-            var audio = await media.Tts.SpeakAsync("冒険者さん、こんにちは。").ConfigureAwait(false);
-            mediaTest = $"TTS works: {audio.Length / 1024} KB of {AudioClips.Extension(audio) ?? "unknown"} audio.";
-        }
-        catch (Exception ex)
-        {
-            mediaTest = $"TTS failed: {ex.Message}";
-        }
-    }
-
-    private async System.Threading.Tasks.Task TestAnkiConnectAsync()
-    {
-        try
-        {
-            var version = await media.Anki.InvokeAsync("version").ConfigureAwait(false);
-            mediaTest = $"AnkiConnect works (version {version}).";
-        }
-        catch (Exception ex)
-        {
-            mediaTest = ex.Message;
-        }
-    }
-
-    private static readonly Dalamud.Game.ClientState.GamePad.GamepadButtons[] HoldChoices =
-    [
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.None,
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.Select,
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.Start,
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.L3,
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.R3,
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.L3 | Dalamud.Game.ClientState.GamePad.GamepadButtons.R3,
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.L1 | Dalamud.Game.ClientState.GamePad.GamepadButtons.R1,
-        Dalamud.Game.ClientState.GamePad.GamepadButtons.Select | Dalamud.Game.ClientState.GamePad.GamepadButtons.DpadDown,
-    ];
+    // -------------------------------------------------------------- Controller tab
 
     private void DrawControllerTab()
     {
-        void Save() => config.Save();
         var ps = config.ControllerPlayStationLabels;
-        string Name(Dalamud.Game.ClientState.GamePad.GamepadButtons b) => b switch
-        {
-            Dalamud.Game.ClientState.GamePad.GamepadButtons.None => "Off (macro only)",
-            _ => string.Join(" + ", Enum.GetValues<Dalamud.Game.ClientState.GamePad.GamepadButtons>()
-                .Where(v => v != Dalamud.Game.ClientState.GamePad.GamepadButtons.None && b.HasFlag(v))
-                .Select(v => v switch
-                {
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.Select => ps ? "Select / Touchpad" : "Back / View",
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.Start => ps ? "Options" : "Start / Menu",
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L1 => ps ? "L1" : "LB",
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R1 => ps ? "R1" : "RB",
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L3 => ps ? "L3" : "LS click",
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R3 => ps ? "R3" : "RS click",
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.DpadDown => "D-pad down",
-                    _ => v.ToString(),
-                })),
-        };
+        ImGui.TextWrapped("Read FFXIV dialogue with a controller: move a cursor word by word, see the dictionary, mine with one button. While the mode is on, the controller drives Hachidori and the game ignores it.");
+        ImGui.Spacing();
 
-        ImGui.TextWrapped("Read FFXIV dialogue with a controller: move a cursor word by word, see the dictionary, mine with one button. While the mode is on, the controller drives Hachidori and the game ignores it; leave the mode to play again.");
-        var enabled = config.ControllerEnabled;
-        if (ImGui.Checkbox("Controller reading mode", ref enabled))
+        if (Section("ctrl-activation", "Activation", defaultOpen: true))
         {
-            config.ControllerEnabled = enabled;
-            Save();
-        }
+            Toggle("Controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v);
+            if (!config.ControllerEnabled)
+                return;
 
-        if (!config.ControllerEnabled)
-            return;
-
-        ImGui.Separator();
-        ImGui.TextUnformatted("Enter the mode");
-        using (ImRaii.PushIndent())
-        {
             ImGui.TextWrapped("Best: put a macro with this line on a cross hotbar slot. FFXIV handles the press, so nothing else triggers.");
-            ImGui.TextUnformatted("/hachidori pad");
+            ImGui.TextColored(AccentCyan, "/hachidori pad");
             ImGui.SameLine();
             if (ImGui.SmallButton("Copy"))
                 ImGui.SetClipboardText("/hachidori pad");
 
-            var index = Math.Max(0, Array.IndexOf(HoldChoices, config.ControllerHoldButton));
-            var labels = HoldChoices.Select(Name).ToArray();
-            if (ImGui.Combo("Or hold", ref index, labels, labels.Length))
+            DrawControllerHoldButtonControl();
+            if (config.ControllerHoldButton != GamepadButtons.None)
+                DrawControllerHoldSecondsControl();
+        }
+
+        if (Section("ctrl-behavior", "Behavior & Display", defaultOpen: true))
+        {
+            Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v);
+            Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
+            Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
+            Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
+            Checkbox("Use DualSense/DS4 touchpad for virtual cursor", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v);
+            if (Advanced)
+                DrawControllerCursorSpeedControl();
+        }
+
+        if (Advanced && Section("ctrl-binds", "Button Bindings [Advanced]", defaultOpen: false, accent: AccentAmber))
+        {
+            var bindLabels = BindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
+            void BindCombo(string label, Func<GamepadButtons> get, Action<GamepadButtons> set)
             {
-                config.ControllerHoldButton = HoldChoices[index];
-                Save();
+                var idx = Math.Max(0, Array.IndexOf(BindChoices, get()));
+                if (ImGui.Combo(label, ref idx, bindLabels, bindLabels.Length))
+                {
+                    set(BindChoices[idx]);
+                    config.Save();
+                }
             }
 
-            HelpMarker("Holding the button enters the mode. FFXIV still sees that press, so pick a button whose game action you don't mind, or use the macro.");
-            if (config.ControllerHoldButton != Dalamud.Game.ClientState.GamePad.GamepadButtons.None)
+            BindCombo("Mine to Anki", () => config.ControllerMineButton, v => config.ControllerMineButton = v);
+            BindCombo("Play audio", () => config.ControllerAudioButton, v => config.ControllerAudioButton = v);
+            BindCombo("Word / char mode", () => config.ControllerWordModeButton, v => config.ControllerWordModeButton = v);
+            BindCombo("Back / exit", () => config.ControllerBackExitButton, v => config.ControllerBackExitButton = v);
+            BindCombo("Previous entry", () => config.ControllerPrevEntryButton, v => config.ControllerPrevEntryButton = v);
+            BindCombo("Next entry", () => config.ControllerNextEntryButton, v => config.ControllerNextEntryButton = v);
+            BindCombo("Look up inside popup", () => config.ControllerDiveButton, v => config.ControllerDiveButton = v);
+            BindCombo("Cycle UI window", () => config.ControllerWindowButton, v => config.ControllerWindowButton = v);
+
+            if (ImGui.SmallButton("Reset keybinds only"))
             {
-                var seconds = config.ControllerHoldSeconds;
-                if (ImGui.SliderFloat("Hold for (s)", ref seconds, 0.2f, 1.5f, "%.1f"))
-                    config.ControllerHoldSeconds = seconds;
-                if (ImGui.IsItemDeactivatedAfterEdit())
-                    Save();
+                config.ControllerCursorSpeed = Defaults.ControllerCursorSpeed;
+                config.ControllerMineButton = Defaults.ControllerMineButton;
+                config.ControllerAudioButton = Defaults.ControllerAudioButton;
+                config.ControllerWordModeButton = Defaults.ControllerWordModeButton;
+                config.ControllerBackExitButton = Defaults.ControllerBackExitButton;
+                config.ControllerPrevEntryButton = Defaults.ControllerPrevEntryButton;
+                config.ControllerNextEntryButton = Defaults.ControllerNextEntryButton;
+                config.ControllerDiveButton = Defaults.ControllerDiveButton;
+                config.ControllerWindowButton = Defaults.ControllerWindowButton;
+                config.Save();
             }
         }
 
-        ImGui.Separator();
-        ImGui.TextUnformatted("In the mode");
-        using (ImRaii.PushIndent())
+        if (Section("ctrl-ref", "Controls Reference", defaultOpen: false))
         {
-            string L(Dalamud.Game.ClientState.GamePad.GamepadButtons b) => GamepadNavigator.ButtonLabel(b, ps);
+            string L(GamepadButtons b) => GamepadNavigator.ButtonLabel(b, ps);
             foreach (var (keys, action) in new[]
-                     {
-                         ("Left stick", "move virtual cursor over any UI or dialogue text"),
-                         ("D-pad", "previous / next word and line"),
-                         ("Right stick", "scroll the popup"),
-                         (L(config.ControllerMineButton), "add the selected entry to Anki"),
-                         (L(config.ControllerAudioButton), "play its pronunciation"),
-                         ($"{L(config.ControllerPrevEntryButton)} / {L(config.ControllerNextEntryButton)}", "previous / next dictionary entry"),
-                         (L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"),
-                         (L(config.ControllerWindowButton), "cycle between open UI windows (or back out of a nested popup)"),
-                         (L(config.ControllerWordModeButton), "switch between words and characters"),
-                         (L(config.ControllerBackExitButton), "back out of a nested popup, or leave the mode"),
-                         (ps ? "Select / Options" : "Back / Start", "leave the mode"),
-                     })
+            {
+                ("Left stick", "move virtual cursor over any UI or dialogue text"),
+                ("D-pad", "previous / next word and line"),
+                ("Right stick", "scroll the popup"),
+                (L(config.ControllerMineButton), "add the selected entry to Anki"),
+                (L(config.ControllerAudioButton), "play its pronunciation"),
+                ($"{L(config.ControllerPrevEntryButton)} / {L(config.ControllerNextEntryButton)}", "previous / next dictionary entry"),
+                (L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"),
+                (L(config.ControllerWindowButton), "cycle between open UI windows (or back out of a nested popup)"),
+                (L(config.ControllerWordModeButton), "switch between words and characters"),
+                (L(config.ControllerBackExitButton), "back out of a nested popup, or leave the mode"),
+                (ps ? "Select / Options" : "Back / Start", "leave the mode"),
+            })
                 ImGui.BulletText($"{keys}: {action}");
         }
-
-        ImGui.Separator();
-        Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v);
-        Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
-        Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
-        Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
-        Checkbox("Use DualSense/DS4 touchpad for virtual cursor", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v);
-
-        if (Advanced)
-        {
-            ImGui.Separator();
-            ImGui.TextUnformatted("Controller cursor & keybinds");
-            using (ImRaii.PushIndent())
-            {
-                var speed = config.ControllerCursorSpeed;
-                if (ImGui.SliderFloat("Left stick cursor speed (px/s)", ref speed, 300f, 2000f, "%.0f"))
-                    config.ControllerCursorSpeed = speed;
-                if (ImGui.IsItemDeactivatedAfterEdit())
-                    Save();
-
-                Dalamud.Game.ClientState.GamePad.GamepadButtons[] bindChoices =
-                [
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.None,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.South,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.East,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.West,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.North,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L1,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R1,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L2,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R2,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.L3,
-                    Dalamud.Game.ClientState.GamePad.GamepadButtons.R3,
-                ];
-                var bindLabels = bindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
-                void BindCombo(string label, Func<Dalamud.Game.ClientState.GamePad.GamepadButtons> get, Action<Dalamud.Game.ClientState.GamePad.GamepadButtons> set)
-                {
-                    var idx = Math.Max(0, Array.IndexOf(bindChoices, get()));
-                    if (ImGui.Combo(label, ref idx, bindLabels, bindLabels.Length))
-                    {
-                        set(bindChoices[idx]);
-                        Save();
-                    }
-                }
-
-                BindCombo("Mine to Anki", () => config.ControllerMineButton, v => config.ControllerMineButton = v);
-                BindCombo("Play audio", () => config.ControllerAudioButton, v => config.ControllerAudioButton = v);
-                BindCombo("Word / char mode", () => config.ControllerWordModeButton, v => config.ControllerWordModeButton = v);
-                BindCombo("Back / exit", () => config.ControllerBackExitButton, v => config.ControllerBackExitButton = v);
-                BindCombo("Previous entry", () => config.ControllerPrevEntryButton, v => config.ControllerPrevEntryButton = v);
-                BindCombo("Next entry", () => config.ControllerNextEntryButton, v => config.ControllerNextEntryButton = v);
-                BindCombo("Look up inside popup", () => config.ControllerDiveButton, v => config.ControllerDiveButton = v);
-                BindCombo("Cycle UI window", () => config.ControllerWindowButton, v => config.ControllerWindowButton = v);
-
-                if (ImGui.SmallButton("Reset keybinds"))
-                {
-                    config.ControllerCursorSpeed = 900f;
-                    config.ControllerMineButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.South;
-                    config.ControllerAudioButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.West;
-                    config.ControllerWordModeButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.North;
-                    config.ControllerBackExitButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.East;
-                    config.ControllerPrevEntryButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.L2;
-                    config.ControllerNextEntryButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.R2;
-                    config.ControllerDiveButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.R1;
-                    config.ControllerWindowButton = Dalamud.Game.ClientState.GamePad.GamepadButtons.L1;
-                    Save();
-                }
-            }
-        }
     }
+
+    // -------------------------------------------------------------- Reader tab
 
     private void DrawReaderTab()
     {
-        Checkbox("Enable reader overlay", () => config.ReaderEnabled, v => config.ReaderEnabled = v);
-        Checkbox("Show only while dialogue is open", () => config.ReaderAutoShowWithDialogue, v => config.ReaderAutoShowWithDialogue = v);
-        Checkbox("Show history", () => config.ReaderShowHistory, v => config.ReaderShowHistory = v);
-        if (Advanced)
+        if (Section("reader-behavior", "Visibility & Behavior", defaultOpen: true))
         {
-            Checkbox("Lock (no title bar, click-to-move off)", () => config.ReaderLocked, v => config.ReaderLocked = v);
-            Checkbox("Hide text until hovered", () => config.ReaderHideUntilHovered, v => config.ReaderHideUntilHovered = v);
+            Checkbox("Enable reader overlay", () => config.ReaderEnabled, v => config.ReaderEnabled = v);
+            Checkbox("Show only while dialogue is open", () => config.ReaderAutoShowWithDialogue, v => config.ReaderAutoShowWithDialogue = v);
+            Checkbox("Show history", () => config.ReaderShowHistory, v => config.ReaderShowHistory = v);
+            if (Advanced)
+            {
+                Checkbox("Lock (no title bar, click-to-move off)", () => config.ReaderLocked, v => config.ReaderLocked = v);
+                Checkbox("Hide text until hovered", () => config.ReaderHideUntilHovered, v => config.ReaderHideUntilHovered = v);
+            }
         }
 
-        var anchor = (int)config.ReaderAnchor;
-        if (ImGui.Combo("Position", ref anchor, ["Free", "Above the dialogue box", "Below the dialogue box"], 3))
+        if (Section("reader-layout", "Layout & Appearance", defaultOpen: true))
         {
-            config.ReaderAnchor = (ReaderAnchor)anchor;
-            Changed(true);
-        }
-
-        var fontSize = config.ReaderFontSize;
-        if (ImGui.SliderFloat("Reader font size", ref fontSize, 14, 48, "%.0f"))
-            config.ReaderFontSize = fontSize;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            Changed(true);
-        if (!Advanced)
-            return;
-        var alpha = config.ReaderBackgroundAlpha;
-        if (ImGui.SliderFloat("Reader opacity", ref alpha, 0f, 1f))
-        {
-            config.ReaderBackgroundAlpha = alpha;
-            Changed(true);
-        }
-
-        var historySize = config.HistorySize;
-        if (ImGui.SliderInt("History size", ref historySize, 10, 500))
-        {
-            config.HistorySize = historySize;
-            Changed(true);
+            DrawReaderAnchorControl();
+            DrawReaderFontSizeControl();
+            if (Advanced)
+            {
+                DrawReaderOpacityControl();
+                DrawHistorySizeControl();
+            }
         }
     }
+
+    // -------------------------------------------------------------- Capture tab
 
     private void DrawCaptureTab()
     {
-        Checkbox("Dialogue (Talk, cutscene subtitles)", () => config.CaptureTalk, v => config.CaptureTalk = v);
-        Checkbox("Battle talk", () => config.CaptureBattleTalk, v => config.CaptureBattleTalk = v);
-        Checkbox("Chat", () => config.CaptureChat, v => config.CaptureChat = v);
-        Checkbox("Read my character's name as katakana", () => config.KatakanaPlayerName, v => config.KatakanaPlayerName = v);
-        if (!Advanced)
-            return;
-        using (ImRaii.Disabled(!config.KatakanaPlayerName))
-        using (ImRaii.PushIndent())
+        if (Section("capture-sources", "Text Sources", defaultOpen: true))
         {
-            var kana = config.PlayerNameKatakana;
-            if (ImGui.InputTextWithHint("Katakana name", PlayerName.Suggested(), ref kana, 64))
-            {
-                config.PlayerNameKatakana = kana.Trim();
-                Changed(true);
-            }
-
-            ImGui.TextDisabled("Blank uses the automatic reading shown. Separate first and last name with ・ or a space.");
+            Checkbox("Dialogue (Talk, cutscene subtitles)", () => config.CaptureTalk, v => config.CaptureTalk = v);
+            Checkbox("Battle talk", () => config.CaptureBattleTalk, v => config.CaptureBattleTalk = v);
+            Checkbox("Chat", () => config.CaptureChat, v => config.CaptureChat = v);
         }
 
-        ImGui.TextWrapped("Channel selection applies to reader history. Native chat hover scans the visible chat text.");
-        using var disabled = ImRaii.Disabled(!config.CaptureChat);
-        using var indent = ImRaii.PushIndent();
-        foreach (var channel in SelectableChannels)
+        if (Section("capture-playername", "Player Name Pronunciation", defaultOpen: true))
         {
-            var on = config.ChatChannels.Contains(channel);
-            if (ImGui.Checkbox(channel.ToString(), ref on))
+            Checkbox("Read my character's name as katakana", () => config.KatakanaPlayerName, v => config.KatakanaPlayerName = v);
+            if (Advanced)
             {
-                if (on)
-                    config.ChatChannels.Add(channel);
-                else
-                    config.ChatChannels.Remove(channel);
-                Changed(true);
+                using (ImRaii.Disabled(!config.KatakanaPlayerName))
+                using (ImRaii.PushIndent())
+                {
+                    DrawPlayerNameKatakanaControl();
+                    ImGui.TextDisabled("Blank uses the automatic reading shown. Separate first and last name with ・ or a space.");
+                }
+            }
+        }
+
+        if (Advanced && Section("capture-channels", "Chat Channels [Advanced]", defaultOpen: false, accent: AccentAmber))
+        {
+            ImGui.TextWrapped("Channel selection applies to reader history and stats. Native chat hover scans the visible chat text.");
+            using var disabled = ImRaii.Disabled(!config.CaptureChat);
+            using var table = ImRaii.Table("##chat-channels-grid", 2, ImGuiTableFlags.SizingStretchSame);
+            if (table.Success)
+            {
+                foreach (var channel in SelectableChannels)
+                {
+                    ImGui.TableNextColumn();
+                    var on = config.ChatChannels.Contains(channel);
+                    if (ImGui.Checkbox(channel.ToString(), ref on))
+                    {
+                        if (on) config.ChatChannels.Add(channel);
+                        else config.ChatChannels.Remove(channel);
+                        Changed(true);
+                    }
+                }
             }
         }
     }
+
+    // -------------------------------------------------------------- GSM tab
 
     private void DrawPublishTab()
     {
         ImGui.TextWrapped("Sends game text over a WebSocket on this computer so GameSentenceMiner can read it. Off by default; nothing leaves this PC.");
-        Checkbox("Publish text for GSM", () => config.PublishEnabled, v => config.PublishEnabled = v);
-        using var disabled = ImRaii.Disabled(!config.PublishEnabled);
+        ImGui.Spacing();
 
-        var preset = Array.FindIndex(PublishPresets, p => p.Talk == config.PublishTalk && p.Battle == config.PublishBattleTalk && p.Popups == config.PublishPopups && p.Chat == config.PublishChat);
-        var presetNames = PublishPresets.Select(p => p.Name).Append("Custom").ToArray();
-        var selected = preset < 0 ? PublishPresets.Length : preset;
-        if (ImGui.Combo("What to send", ref selected, presetNames, presetNames.Length) && selected < PublishPresets.Length)
+        if (Section("gsm-sources", "Feed Sources", defaultOpen: true))
         {
-            var p = PublishPresets[selected];
-            config.PublishTalk = p.Talk;
-            config.PublishBattleTalk = p.Battle;
-            config.PublishPopups = p.Popups;
-            config.PublishChat = p.Chat;
-            Changed(true);
-        }
+            Checkbox("Publish text for GSM", () => config.PublishEnabled, v => config.PublishEnabled = v);
+            using var disabled = ImRaii.Disabled(!config.PublishEnabled);
 
-        using (ImRaii.PushIndent())
-        {
-            Checkbox("Dialogue and cutscene subtitles", () => config.PublishTalk, v => config.PublishTalk = v);
-            Checkbox("Battle talk", () => config.PublishBattleTalk, v => config.PublishBattleTalk = v);
-            Checkbox("Interaction popups (yes/no prompts, choice menus)", () => config.PublishPopups, v => config.PublishPopups = v);
-            Checkbox("Chat (channels from the Capture tab)", () => config.PublishChat, v => config.PublishChat = v);
-            if (config.PublishChat)
-                ImGui.TextColored(new Vector4(1f, 0.8f, 0.4f, 1f), "Sends other players' messages to GSM.");
-        }
-        Checkbox("Put the speaker's name before each line", () => config.PublishSpeaker, v => config.PublishSpeaker = v);
-
-        if ((config.PublishTalk && !config.CaptureTalk) || (config.PublishBattleTalk && !config.CaptureBattleTalk) || (config.PublishChat && !config.CaptureChat))
-            ImGui.TextColored(new Vector4(1f, 0.8f, 0.4f, 1f), "A selected source is turned off in the Capture tab and won't be sent.");
-
-        ImGui.Separator();
-        var portIndex = Array.FindIndex(PublishPorts, p => p.Port == config.PublishPort);
-        var portNames = PublishPorts.Select(p => $"{p.Name} ({p.Port})").Append("Custom").ToArray();
-        var portSelected = portIndex < 0 ? PublishPorts.Length : portIndex;
-        if (ImGui.Combo("GSM source slot", ref portSelected, portNames, portNames.Length) && portSelected < PublishPorts.Length)
-        {
-            config.PublishPort = PublishPorts[portSelected].Port;
-            Changed(true);
-        }
-        HelpMarker("GSM listens to all three slots by default, and the name is only its label. Choose one that no other program you run uses.");
-
-        var port = config.PublishPort;
-        if (ImGui.InputInt("Port", ref port))
-        {
-            config.PublishPort = Math.Clamp(port, 1, 65535);
-            Changed(true);
-        }
-        ImGui.TextDisabled($"In GSM's WebSocket sources, this is localhost:{config.PublishPort}");
-
-        if (publisher.Error is { } error)
-            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), error);
-        else if (publisher.Listening)
-            ImGui.TextUnformatted(publisher.ClientCount == 0 ? "Listening. Waiting for GSM to connect…" : $"Connected clients: {publisher.ClientCount}");
-        using (ImRaii.Disabled(publisher.ClientCount == 0))
-        {
-            if (ImGui.Button("Send test line"))
-                publisher.SendTest();
-        }
-    }
-
-    private void DrawConnectionTab()
-    {
-        if (ImGui.Button("Reconnect"))
-            service.Link.Reconnect();
-        if (!Advanced)
-        {
-            DrawDictionaries();
-            DrawOfflineMode();
-            return;
-        }
-
-        var host = config.RelayHost;
-        if (ImGui.InputText("Relay host", ref host, 128))
-        {
-            config.RelayHost = host.Trim();
-            Changed(true);
-        }
-
-        var port = config.RelayPort;
-        if (ImGui.InputInt("Relay port", ref port))
-        {
-            config.RelayPort = Math.Clamp(port, 1, 65535);
-            Changed(true);
-        }
-
-        var apiPort = config.ApiPort;
-        if (ImGui.InputInt("Yomitan API port (audio)", ref apiPort))
-        {
-            config.ApiPort = Math.Clamp(apiPort, 1, 65535);
-            Changed(true);
-        }
-
-        var template = config.AnkiTemplateId;
-        if (ImGui.InputText("Anki Template ID (blank: first)", ref template, 256))
-        {
-            config.AnkiTemplateId = template.Trim();
-            Changed(true);
-        }
-
-        var title = config.DocumentTitle;
-        if (ImGui.InputText("{document-title}", ref title, 256))
-        {
-            config.DocumentTitle = title;
-            Changed(true);
-        }
-
-        DrawDictionaries();
-        DrawOfflineMode();
-    }
-
-    private void DrawDictionaries()
-    {
-        if (service.Link.Connected)
-        {
-            ImGui.Spacing();
-            ImGui.TextDisabled("Dictionaries on the host:");
-            foreach (var d in service.Dictionaries)
+            var preset = Array.FindIndex(PublishPresets, p => p.Talk == config.PublishTalk && p.Battle == config.PublishBattleTalk && p.Popups == config.PublishPopups && p.Chat == config.PublishChat);
+            var presetNames = PublishPresets.Select(p => p.Name).Append("Custom").ToArray();
+            var selected = preset < 0 ? PublishPresets.Length : preset;
+            if (ImGui.Combo("What to send", ref selected, presetNames, presetNames.Length) && selected < PublishPresets.Length)
             {
-                var enabled = d["enabled"] is not System.Text.Json.Nodes.JsonValue e || !e.TryGetValue<bool>(out var en) || en;
-                ImGui.BulletText($"{LookupResult.Str(d["title"])}{(enabled ? string.Empty : " (disabled)")}");
+                var p = PublishPresets[selected];
+                config.PublishTalk = p.Talk;
+                config.PublishBattleTalk = p.Battle;
+                config.PublishPopups = p.Popups;
+                config.PublishChat = p.Chat;
+                Changed(true);
+            }
+
+            using (ImRaii.PushIndent())
+            {
+                Checkbox("Dialogue and cutscene subtitles", () => config.PublishTalk, v => config.PublishTalk = v);
+                Checkbox("Battle talk", () => config.PublishBattleTalk, v => config.PublishBattleTalk = v);
+                Checkbox("Interaction popups (yes/no prompts, choice menus)", () => config.PublishPopups, v => config.PublishPopups = v);
+                Checkbox("Chat (channels from the Capture tab)", () => config.PublishChat, v => config.PublishChat = v);
+                if (config.PublishChat)
+                    ImGui.TextColored(AccentAmber, "Sends other players' messages to GSM.");
+            }
+
+            Checkbox("Put the speaker's name before each line", () => config.PublishSpeaker, v => config.PublishSpeaker = v);
+
+            if ((config.PublishTalk && !config.CaptureTalk) || (config.PublishBattleTalk && !config.CaptureBattleTalk) || (config.PublishChat && !config.CaptureChat))
+                ImGui.TextColored(AccentAmber, "A selected source is turned off in the Capture tab and won't be sent.");
+        }
+
+        if (Section("gsm-server", "WebSocket Server", defaultOpen: true))
+        {
+            using var disabled = ImRaii.Disabled(!config.PublishEnabled);
+            var portIndex = Array.FindIndex(PublishPorts, p => p.Port == config.PublishPort);
+            var portNames = PublishPorts.Select(p => $"{p.Name} ({p.Port})").Append("Custom").ToArray();
+            var portSelected = portIndex < 0 ? PublishPorts.Length : portIndex;
+            if (ImGui.Combo("GSM source slot", ref portSelected, portNames, portNames.Length) && portSelected < PublishPorts.Length)
+            {
+                config.PublishPort = PublishPorts[portSelected].Port;
+                Changed(true);
+            }
+            HelpMarker("GSM listens to all three slots by default, and the name is only its label. Choose one that no other program you run uses.");
+
+            DrawPublishPortControl();
+            ImGui.TextDisabled($"In GSM's WebSocket sources, this is localhost:{config.PublishPort}");
+
+            if (publisher.Error is { } error)
+                ImGui.TextColored(AccentRed, error);
+            else if (publisher.Listening)
+                ImGui.TextUnformatted(publisher.ClientCount == 0 ? "Listening. Waiting for GSM to connect…" : $"Connected clients: {publisher.ClientCount}");
+
+            using (ImRaii.Disabled(publisher.ClientCount == 0))
+            {
+                if (ImGui.Button("Send test line"))
+                    publisher.SendTest();
             }
         }
     }
 
-    private bool confirmRemoveOffline;
+    // -------------------------------------------------------------- Connection tab
 
-    private void DrawOfflineMode()
+    private void DrawConnectionTab()
     {
-        if (service.Offline is not { } offline)
-            return;
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.TextUnformatted("Offline mode");
-        ImGui.TextWrapped("Keeps a copy of your Hachidori dictionaries and settings so lookups work with only Anki "
-            + "(and the Hachidori Relay) running. Live Hachidori is always used while it is linked; the copy is "
-            + "brought up to date on every connection, downloading only dictionaries that changed.");
+        if (Section("conn-relay", "Hachidori Relay & Host", defaultOpen: true))
+        {
+            if (ImGui.Button("Reconnect"))
+                service.Link.Reconnect();
+
+            if (Advanced)
+            {
+                ImGui.Spacing();
+                DrawRelayHostControl();
+                DrawRelayPortControl();
+                DrawApiPortControl();
+                DrawAnkiTemplateIdControl();
+                DrawDocumentTitleControl();
+            }
+        }
+
+        if (service.Link.Connected)
+        {
+            var dicts = service.Dictionaries.ToList();
+            if (Section("conn-dicts", $"Host Dictionaries ({dicts.Count})", defaultOpen: false))
+            {
+                foreach (var d in dicts)
+                {
+                    var enabled = d["enabled"] is not System.Text.Json.Nodes.JsonValue e || !e.TryGetValue<bool>(out var en) || en;
+                    ImGui.BulletText($"{LookupResult.Str(d["title"])}{(enabled ? string.Empty : " (disabled)")}");
+                }
+            }
+        }
+
+        if (service.Offline is { } offline && Section("conn-offline", config.OfflineMode ? "Offline Mode  [Enabled]" : "Offline Mode", defaultOpen: true, accent: config.OfflineMode ? AccentGreen : null))
+        {
+            DrawOfflineModeBody(offline);
+        }
+
+        if (Advanced && Section("conn-diag", "Diagnostics [Advanced]", defaultOpen: false, accent: AccentAmber))
+        {
+            if (ImGui.Button("Export debug log"))
+            {
+                try { exportedLog = exportLogs(); }
+                catch (Exception ex) { exportedLog = $"Export failed: {ex.Message}"; }
+            }
+            if (exportedLog is not null)
+            {
+                ImGui.TextWrapped(exportedLog);
+                if (ImGui.Button("Copy log path"))
+                    ImGui.SetClipboardText(exportedLog);
+            }
+        }
+    }
+
+    private void DrawOfflineModeBody(Offline.OfflineMode offline)
+    {
+        ImGui.TextWrapped("Keeps a copy of your Hachidori dictionaries and settings so lookups work with only Anki (and the Hachidori Relay) running. Live Hachidori is always used while linked; the copy updates on every connection.");
 
         var link = service.Link;
         var running = offline.Sync.Running;
@@ -1225,12 +1292,788 @@ public sealed class ConfigWindow : Window
         else if (offline.LastSync is { } last)
             ImGui.TextDisabled($"Last sync: {last}.");
         if (offline.LastSyncError is { } error)
-            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), error);
+            ImGui.TextColored(AccentRed, error);
         foreach (var warning in offline.Warnings())
         {
-            ImGui.TextColored(new Vector4(0.95f, 0.8f, 0.4f, 1f), "!");
+            ImGui.TextColored(AccentAmber, "!");
             ImGui.SameLine();
             ImGui.TextWrapped(warning);
+        }
+    }
+
+    // -------------------------------------------------------------- individual controls (shared by tabs & search!)
+
+    private void DrawScanModifierControl()
+    {
+        var modifier = (int)config.ScanModifier;
+        if (ImGui.Combo("Scan key", ref modifier, Enum.GetNames<ScanModifier>(), Enum.GetValues<ScanModifier>().Length))
+        {
+            config.ScanModifier = (ScanModifier)modifier;
+            Changed(true);
+        }
+        HelpMarker("None scans on hover, like JL's default. Alt over a headword kanji (or clicking it) opens kanji info.");
+    }
+
+    private void DrawScanLengthControl() =>
+        NumberInt("Scan length", () => config.ScanLength, v => { config.ScanLength = v; Changed(true); }, 4, 32, Defaults.ScanLength, "Maximum characters sent per lookup scan.");
+
+    private void DrawMaxResultsControl() =>
+        NumberInt("Max results", () => config.MaxResults, v => { config.MaxResults = v; Changed(true); }, 1, 32, Defaults.MaxResults, "Maximum dictionary entries shown in a popup.");
+
+    private void DrawMaxPopupDepthControl() =>
+        NumberInt("Nested popups", () => config.MaxPopupDepth, v => { config.MaxPopupDepth = v; Changed(true); }, 1, 8, Defaults.MaxPopupDepth, "How many nested popups deep you can look up definitions inside definitions.");
+
+    private void DrawPopupWidthControl() =>
+        NumberFloat("Popup width", () => config.PopupWidth, v => { config.PopupWidth = v; Changed(true); }, 280, 900, Defaults.PopupWidth, "%.0f", "px");
+
+    private void DrawPopupMaxHeightControl() =>
+        NumberFloat("Popup max height", () => config.PopupMaxHeight, v => { config.PopupMaxHeight = v; Changed(true); }, 160, 1000, Defaults.PopupMaxHeight, "%.0f", "px");
+
+    private void DrawPopupFontSizeControl() =>
+        NumberFloat("Popup font size", () => config.PopupFontSize, v => config.PopupFontSize = v, 12, 36, Defaults.PopupFontSize, "%.0f", "px",
+            deferSave: () => Changed(true));
+
+    private void DrawPopupOpacityControl() =>
+        NumberFloat("Popup opacity", () => config.PopupBackgroundAlpha, v => { config.PopupBackgroundAlpha = v; Changed(true); }, 0.3f, 1f, Defaults.PopupBackgroundAlpha, "%.2f");
+
+    private void DrawHideDelayControl() =>
+        NumberFloat("Hide delay (s)", () => config.HideDelaySeconds, v => { config.HideDelaySeconds = v; Changed(true); }, 0f, 2f, Defaults.HideDelaySeconds, "%.2f", "s");
+
+    private void DrawAudioVolumeControl() =>
+        NumberFloat("Volume", () => config.AudioVolume, v => { config.AudioVolume = v; Changed(true); }, 0f, 1f, Defaults.AudioVolume, "%.2f");
+
+    private void DrawFollowThemeControl()
+    {
+        var follow = config.FollowHachidoriTheme;
+        if (ImGui.Checkbox("Use Hachidori's popup theme", ref follow))
+        {
+            config.FollowHachidoriTheme = follow;
+            config.Save();
+        }
+        HelpMarker("Draws popups with the theme chosen in Hachidori (Settings → Design): Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme or Crystal, including your custom popup CSS.");
+    }
+
+    private void DrawThemeOverrideControl()
+    {
+        var choices = new[] { string.Empty }.Concat(PopupThemeProvider.Renderers.Where(r => r != "default")).Concat(themes.Palettes).ToArray();
+        var labels = choices.Select(c => c.Length == 0 ? "Same as Hachidori" : PopupThemeProvider.Renderers.Contains(c) ? $"{c} (theme)" : $"{c} (Default palette)").ToArray();
+        var index = Math.Max(0, Array.IndexOf(choices, config.HachidoriThemeOverride));
+        if (ImGui.Combo("Theme", ref index, labels, labels.Length))
+        {
+            config.HachidoriThemeOverride = choices[index];
+            config.Save();
+        }
+    }
+
+    private void DrawVariantOverrideControl()
+    {
+        var variants = new[] { string.Empty }.Concat(PopupThemeProvider.Variants).ToArray();
+        var variantLabels = variants.Select(v => v.Length == 0 ? "Same as Hachidori" : v == "auto" ? "Automatic (Grey in game)" : v).ToArray();
+        var variantIndex = Math.Max(0, Array.IndexOf(variants, config.HachidoriVariantOverride));
+        if (ImGui.Combo("Colours", ref variantIndex, variantLabels, variantLabels.Length))
+        {
+            config.HachidoriVariantOverride = variants[variantIndex];
+            config.Save();
+        }
+        HelpMarker("Crystal's colour schemes: Grey, Beige and Retro blue.");
+    }
+
+    private void DrawFollowOpacityControl()
+    {
+        var opacity = config.FollowHachidoriOpacity;
+        if (ImGui.Checkbox("Use Hachidori's popup opacity", ref opacity))
+        {
+            config.FollowHachidoriOpacity = opacity;
+            config.Save();
+        }
+    }
+
+    private void DrawApplyCustomCssControl()
+    {
+        var custom = config.ApplyHachidoriCustomCss;
+        if (ImGui.Checkbox("Apply Hachidori's custom popup CSS", ref custom))
+        {
+            config.ApplyHachidoriCustomCss = custom;
+            config.Save();
+        }
+        HelpMarker("Hachidori's Custom popup CSS and the CSS of enabled user scripts.");
+    }
+
+    private void DrawExtraCssControl()
+    {
+        ImGui.TextUnformatted("Extra CSS for the game popup");
+        HelpMarker("Applied after Hachidori's CSS. Supported: colours, backgrounds and linear gradients, borders and border-radius, padding, box-shadow, font sizes of the headword and reading, and custom properties (var()).");
+        var extra = config.ExtraPopupCss;
+        if (ImGui.InputTextMultiline("##extra-css", ref extra, 16384, new Vector2(-1, 120 * ImGuiHelpers.GlobalScale)))
+            config.ExtraPopupCss = extra;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawScreenshotToggleControl()
+    {
+        Toggle("Screenshot", config.CaptureScreenshot, v => config.CaptureScreenshot = v);
+        HelpMarker("Fills {screenshot} in your Hachidori Anki Template. The picture has no plugin windows in it.");
+    }
+
+    private void DrawScreenshotMaxWidthControl() =>
+        NumberInt("Screenshot max width", () => config.ScreenshotMaxWidth, v => config.ScreenshotMaxWidth = v, 640, 3840, Defaults.ScreenshotMaxWidth, deferSave: config.Save);
+
+    private void DrawScreenshotQualityControl() =>
+        NumberFloat("Screenshot JPEG quality", () => config.ScreenshotQuality, v => config.ScreenshotQuality = v, 0.5f, 1f, Defaults.ScreenshotQuality, "%.2f", deferSave: config.Save);
+
+    private void DrawGifToggleControl()
+    {
+        Toggle("Animation of the line", config.CaptureGif, v => config.CaptureGif = v);
+        HelpMarker("A few seconds of the scene from when the line appeared. Without a GIF field it replaces the screenshot in your picture field.");
+    }
+
+    private void DrawAnimationFormatControl()
+    {
+        var formats = new[] { "AVIF (smallest, best quality)", "WebP", "GIF (plays everywhere, large)" };
+        var format = (int)config.AnimationFormat;
+        if (ImGui.Combo("Format", ref format, formats, formats.Length))
+        {
+            config.AnimationFormat = (AnimationFormat)format;
+            config.Save();
+        }
+    }
+
+    private void DrawGifWidthControl() =>
+        NumberInt("Animation width", () => config.GifWidth, v => config.GifWidth = v, 320, 1280, Defaults.GifWidth, deferSave: config.Save);
+
+    private void DrawGifFpsControl() =>
+        NumberInt("Animation FPS", () => config.GifFps, v => config.GifFps = v, 4, 24, Defaults.GifFps, deferSave: config.Save);
+
+    private void DrawGifSecondsControl() =>
+        NumberInt("Animation length (s)", () => config.GifSeconds, v => config.GifSeconds = v, 1, 8, Defaults.GifSeconds, deferSave: config.Save);
+
+    private void DrawAvifCrfControl() =>
+        NumberInt("AVIF quality (CRF, lower is better)", () => config.AvifCrf, v => config.AvifCrf = v, 18, 50, Defaults.AvifCrf, deferSave: config.Save);
+
+    private void DrawWebpQualityControl() =>
+        NumberInt("WebP quality", () => config.WebpQuality, v => config.WebpQuality = v, 40, 95, Defaults.WebpQuality, deferSave: config.Save);
+
+    private void DrawFfmpegPathControl()
+    {
+        var ffmpegPath = config.FfmpegPath;
+        if (ImGui.InputTextWithHint("FFmpeg path", "blank: find automatically", ref ffmpegPath, 512))
+            config.FfmpegPath = ffmpegPath.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawVoiceRecordToggleControl()
+    {
+        Toggle("Voice line from the game", config.RecordVoiceLines, v => config.RecordVoiceLines = v);
+        HelpMarker("Records only FFXIV's own sound and cuts out the line you mined. Lower the BGM volume in game for cleaner clips.");
+    }
+
+    private void DrawVoiceRatioControl() =>
+        NumberFloat("Voice detection", () => config.VoiceDetectionRatio, v => config.VoiceDetectionRatio = v, 1.2f, 6f, Defaults.VoiceDetectionRatio, "%.1f", "×",
+            help: "How much louder than the music before it a line must be to count as voiced. Raise it if unvoiced lines get music clips instead of TTS; lower it if quiet voices are missed.",
+            deferSave: config.Save);
+
+    private void DrawMaxLineSecondsControl() =>
+        NumberInt("Longest voice line (s)", () => config.MaxLineSeconds, v => config.MaxLineSeconds = v, 5, 60, Defaults.MaxLineSeconds, deferSave: config.Save);
+
+    private void DrawVoiceBufferSecondsControl() =>
+        NumberInt("Voice ring buffer (s)", () => config.VoiceBufferSeconds, v => config.VoiceBufferSeconds = v, 30, 300, Defaults.VoiceBufferSeconds, "How many seconds of game audio are kept in memory.", deferSave: config.Save);
+
+    private void DrawTtsModeControl()
+    {
+        var modes = new[] { "Off", "VOICEVOX-compatible (VOICEVOX, AivisSpeech…)", "Custom URL" };
+        var mode = (int)config.TtsMode;
+        if (ImGui.Combo("TTS for unvoiced lines", ref mode, modes, modes.Length))
+        {
+            config.TtsMode = (TtsMode)mode;
+            if (config.TtsMode == TtsMode.Voicevox && !config.TtsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                config.TtsUrl = "http://127.0.0.1:50021";
+            config.Save();
+        }
+    }
+
+    private void DrawTtsUrlControl()
+    {
+        var url = config.TtsUrl;
+        if (ImGui.InputText(config.TtsMode == TtsMode.Voicevox ? "Engine address" : "TTS URL", ref url, 512))
+            config.TtsUrl = url.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+        if (config.TtsMode == TtsMode.Voicevox)
+            HelpMarker("VOICEVOX: http://127.0.0.1:50021 · AivisSpeech: http://127.0.0.1:10101");
+        else
+            HelpMarker("{text} becomes the sentence and {speaker} the speaker below. The URL must return audio (WAV, MP3 or Ogg).");
+    }
+
+    private void DrawTtsSpeakerControl()
+    {
+        var speaker = config.TtsSpeaker;
+        if (ImGui.InputText("Speaker / voice", ref speaker, 128))
+            config.TtsSpeaker = speaker;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawTranslationProviderControl()
+    {
+        var provider = (int)config.TranslationProvider;
+        if (ImGui.Combo("Provider", ref provider, ProviderNames, ProviderNames.Length))
+        {
+            config.TranslationProvider = (TranslationProvider)provider;
+            config.Save();
+        }
+    }
+
+    private void DrawTranslationFieldControl()
+    {
+        var field = config.TranslationField;
+        if (ImGui.InputText("Translation Anki field", ref field, 128))
+            config.TranslationField = field.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawTranslationLanguageControl()
+    {
+        var language = config.TranslationLanguage;
+        if (ImGui.InputText("Translate into", ref language, 64))
+            config.TranslationLanguage = language.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawDialogueContextControl() =>
+        NumberInt("Dialogue context lines", () => config.DialogueContextLength, v => config.DialogueContextLength = v, -1, 20, Defaults.DialogueContextLength,
+            "Lines before and after the mined one. 0: none, -1: all captured lines.", deferSave: config.Save);
+
+    private void DrawTemperatureControl() =>
+        NumberFloat("Temperature", () => (float)config.TranslationTemperature, v => config.TranslationTemperature = Math.Round(v, 2), 0f, 2f, (float)Defaults.TranslationTemperature, "%.2f", deferSave: config.Save);
+
+    private void DrawTopPControl() =>
+        NumberFloat("Top P", () => (float)config.TranslationTopP, v => config.TranslationTopP = Math.Round(v, 2), 0f, 1f, (float)Defaults.TranslationTopP, "%.2f", deferSave: config.Save);
+
+    private void DrawMaxTokensControl() =>
+        NumberInt("Max output tokens", () => config.TranslationMaxTokens, v => config.TranslationMaxTokens = v, 64, 65536, Defaults.TranslationMaxTokens, deferSave: config.Save);
+
+    private void DrawSentenceAudioFieldControl()
+    {
+        var audioField = config.SentenceAudioField;
+        if (ImGui.InputTextWithHint("Sentence audio field", "e.g. SentenceAudio", ref audioField, 128))
+            config.SentenceAudioField = audioField.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawGifFieldControl()
+    {
+        var gifField = config.GifField;
+        if (ImGui.InputTextWithHint("GIF field", "e.g. Picture", ref gifField, 128))
+            config.GifField = gifField.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawAnkiConnectUrlControl()
+    {
+        var anki = config.AnkiConnectUrl;
+        if (ImGui.InputText("AnkiConnect address", ref anki, 256))
+            config.AnkiConnectUrl = anki.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
+    private void DrawControllerHoldButtonControl()
+    {
+        var ps = config.ControllerPlayStationLabels;
+        string Name(GamepadButtons b) => b switch
+        {
+            GamepadButtons.None => "Off (macro only)",
+            _ => string.Join(" + ", Enum.GetValues<GamepadButtons>()
+                .Where(v => v != GamepadButtons.None && b.HasFlag(v))
+                .Select(v => v switch
+                {
+                    GamepadButtons.Select => ps ? "Select / Touchpad" : "Back / View",
+                    GamepadButtons.Start => ps ? "Options" : "Start / Menu",
+                    GamepadButtons.L1 => ps ? "L1" : "LB",
+                    GamepadButtons.R1 => ps ? "R1" : "RB",
+                    GamepadButtons.L3 => ps ? "L3" : "LS click",
+                    GamepadButtons.R3 => ps ? "R3" : "RS click",
+                    GamepadButtons.DpadDown => "D-pad down",
+                    _ => v.ToString(),
+                })),
+        };
+        var index = Math.Max(0, Array.IndexOf(HoldChoices, config.ControllerHoldButton));
+        var labels = HoldChoices.Select(Name).ToArray();
+        if (ImGui.Combo("Hold button to enter", ref index, labels, labels.Length))
+        {
+            config.ControllerHoldButton = HoldChoices[index];
+            config.Save();
+        }
+        HelpMarker("Holding the button enters the mode. FFXIV still sees that press, so pick a button whose game action you don't mind, or use the macro.");
+    }
+
+    private void DrawControllerHoldSecondsControl() =>
+        NumberFloat("Hold for (s)", () => config.ControllerHoldSeconds, v => config.ControllerHoldSeconds = v, 0.2f, 1.5f, Defaults.ControllerHoldSeconds, "%.1f", "s", deferSave: config.Save);
+
+    private void DrawControllerCursorSpeedControl() =>
+        NumberFloat("Left stick cursor speed", () => config.ControllerCursorSpeed, v => config.ControllerCursorSpeed = v, 300f, 2000f, Defaults.ControllerCursorSpeed, "%.0f", "px/s", deferSave: config.Save);
+
+    private void DrawReaderAnchorControl()
+    {
+        var anchor = (int)config.ReaderAnchor;
+        if (ImGui.Combo("Position", ref anchor, ["Free", "Above the dialogue box", "Below the dialogue box"], 3))
+        {
+            config.ReaderAnchor = (ReaderAnchor)anchor;
+            Changed(true);
+        }
+    }
+
+    private void DrawReaderFontSizeControl() =>
+        NumberFloat("Reader font size", () => config.ReaderFontSize, v => config.ReaderFontSize = v, 14, 48, Defaults.ReaderFontSize, "%.0f", "px",
+            deferSave: () => Changed(true));
+
+    private void DrawReaderOpacityControl() =>
+        NumberFloat("Reader opacity", () => config.ReaderBackgroundAlpha, v => { config.ReaderBackgroundAlpha = v; Changed(true); }, 0f, 1f, Defaults.ReaderBackgroundAlpha, "%.2f");
+
+    private void DrawHistorySizeControl() =>
+        NumberInt("History size", () => config.HistorySize, v => { config.HistorySize = v; Changed(true); }, 10, 500, Defaults.HistorySize);
+
+    private void DrawPlayerNameKatakanaControl()
+    {
+        var kana = config.PlayerNameKatakana;
+        if (ImGui.InputTextWithHint("Katakana name", PlayerName.Suggested(), ref kana, 64))
+        {
+            config.PlayerNameKatakana = kana.Trim();
+            Changed(true);
+        }
+    }
+
+    private void DrawPublishPortControl() =>
+        NumberInt("GSM WebSocket port", () => config.PublishPort, v => { config.PublishPort = v; Changed(true); }, 1, 65535, Defaults.PublishPort);
+
+    private void DrawRelayHostControl()
+    {
+        var host = config.RelayHost;
+        if (ImGui.InputText("Relay host", ref host, 128))
+        {
+            config.RelayHost = host.Trim();
+            Changed(true);
+        }
+    }
+
+    private void DrawRelayPortControl() =>
+        NumberInt("Relay port", () => config.RelayPort, v => { config.RelayPort = v; Changed(true); }, 1, 65535, Defaults.RelayPort);
+
+    private void DrawApiPortControl() =>
+        NumberInt("Yomitan API port (audio)", () => config.ApiPort, v => { config.ApiPort = v; Changed(true); }, 1, 65535, Defaults.ApiPort);
+
+    private void DrawAnkiTemplateIdControl()
+    {
+        var template = config.AnkiTemplateId;
+        if (ImGui.InputText("Anki Template ID (blank: first)", ref template, 256))
+        {
+            config.AnkiTemplateId = template.Trim();
+            Changed(true);
+        }
+    }
+
+    private void DrawDocumentTitleControl()
+    {
+        var title = config.DocumentTitle;
+        if (ImGui.InputText("{document-title}", ref title, 256))
+        {
+            config.DocumentTitle = title;
+            Changed(true);
+        }
+    }
+
+    // -------------------------------------------------------------- search catalog
+
+    private void BuildSearchCatalog()
+    {
+        void Add(string tab, string section, string label, string keywords, bool advanced, Action draw) =>
+            catalog.Add(new SettingEntry(tab, section, label, keywords, advanced, draw));
+
+        // Popup
+        Add("Popup", "Hover & Scanning", "Hover native game text", "native hover dialogue subtitles scan", false,
+            () => Checkbox("Hover native game text", () => config.NativeTextHover, v => config.NativeTextHover = v));
+        Add("Popup", "Hover & Scanning", "Include native chat text", "native chat hover logbox", false,
+            () => Checkbox("Include native chat text", () => config.NativeChatHover, v => config.NativeChatHover = v));
+        Add("Popup", "Hover & Scanning", "Scan key", "modifier shift ctrl alt trigger hotkey", false, DrawScanModifierControl);
+        Add("Popup", "Hover & Scanning", "Hover whole words (tokenizer)", "tokenized hover word segment", true,
+            () => Checkbox("Hover whole words (Hachidori tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v));
+        Add("Popup", "Hover & Scanning", "Other native windows (experimental)", "experimental addons ui windows", true,
+            () => Checkbox("Other native windows (experimental)", () => config.NativeOtherTextHover, v => config.NativeOtherTextHover = v));
+        Add("Popup", "Hover & Scanning", "Show native hover targets (debug)", "debug boxes overlay hitbox", true,
+            () => Checkbox("Show native hover targets (debug)", () => config.NativeHoverDebug, v => config.NativeHoverDebug = v));
+        Add("Popup", "Hover & Scanning", "Scan length", "characters max length lookup", true, DrawScanLengthControl);
+        Add("Popup", "Hover & Scanning", "Max results", "entries limit count", true, DrawMaxResultsControl);
+        Add("Popup", "Hover & Scanning", "Nested popups", "depth recursive inside popup", true, DrawMaxPopupDepthControl);
+        Add("Popup", "Hover & Scanning", "Only start scans on Japanese characters", "japanese kana kanji filter", true,
+            () => Checkbox("Only start scans on Japanese characters", () => config.ScanOnlyJapanese, v => config.ScanOnlyJapanese = v));
+        Add("Popup", "Hover & Scanning", "Use the personal dictionary", "custom personal dict", true,
+            () => Checkbox("Use the personal dictionary", () => config.UsePersonalDictionary, v => config.UsePersonalDictionary = v));
+
+        Add("Popup", "Size & Behavior", "Popup width", "size px wide window", false, DrawPopupWidthControl);
+        Add("Popup", "Size & Behavior", "Popup max height", "size px tall scroll window", false, DrawPopupMaxHeightControl);
+        Add("Popup", "Size & Behavior", "Popup font size", "text scale bigger smaller px", false, DrawPopupFontSizeControl);
+        Add("Popup", "Size & Behavior", "Popup opacity", "alpha transparency background", false, DrawPopupOpacityControl);
+        Add("Popup", "Size & Behavior", "Hide delay (s)", "close timeout linger seconds", true, DrawHideDelayControl);
+        Add("Popup", "Size & Behavior", "Hide the popup when the mouse leaves", "auto hide root close", true,
+            () => Checkbox("Hide the popup when the mouse leaves", () => config.AutoHideRootPopup, v => config.AutoHideRootPopup = v));
+
+        Add("Popup", "Display Elements", "Show frequencies", "freq rank jpdb bccwj", false,
+            () => Checkbox("Show frequencies", () => config.ShowFrequencies, v => config.ShowFrequencies = v));
+        Add("Popup", "Display Elements", "Show pitch accent", "accent downstep heiban odaka", false,
+            () => Checkbox("Show pitch accent", () => config.ShowPitchAccent, v => config.ShowPitchAccent = v));
+        Add("Popup", "Display Elements", "Show dictionary names", "dict badge label", false,
+            () => Checkbox("Show dictionary names", () => config.ShowDictionaryNames, v => config.ShowDictionaryNames = v));
+        Add("Popup", "Display Elements", "Show deinflection", "conjugation inflection trace grammar", true,
+            () => Checkbox("Show deinflection", () => config.ShowInflections, v => config.ShowInflections = v));
+        Add("Popup", "Display Elements", "Show definition tags", "pos tags noun verb", true,
+            () => Checkbox("Show definition tags", () => config.ShowDefinitionTags, v => config.ShowDefinitionTags = v));
+        Add("Popup", "Display Elements", "Show attribution", "credits copyright source", true,
+            () => Checkbox("Show attribution", () => config.ShowAttribution, v => config.ShowAttribution = v));
+        Add("Popup", "Display Elements", "Show lookup counts", "statistics times looked up", true,
+            () => Checkbox("Show lookup counts (Hachidori lookup statistics)", () => config.ShowLookupCounts, v => config.ShowLookupCounts = v));
+        Add("Popup", "Display Elements", "Honour Hachidori's lookup blur", "recall blur hide definition", true,
+            () => Checkbox("Honour Hachidori's lookup blur", () => config.HonourDefinitionBlur, v => config.HonourDefinitionBlur = v));
+
+        Add("Popup", "Pronunciation Audio", "Auto-play pronunciation", "audio sound speak automatic", false,
+            () => Checkbox("Auto-play pronunciation", () => config.AutoPlayAudio, v => config.AutoPlayAudio = v));
+        Add("Popup", "Pronunciation Audio", "Volume", "audio loudness sound", false, DrawAudioVolumeControl);
+
+        // Theme
+        Add("Theme", "Hachidori Theme Sync", "Use Hachidori's popup theme", "crystal nazeka jl bee default appearance style", false, DrawFollowThemeControl);
+        Add("Theme", "Hachidori Theme Sync", "Theme override", "palette renderer dark light crystal", false, DrawThemeOverrideControl);
+        Add("Theme", "Hachidori Theme Sync", "Colours / variant", "grey beige retro blue crystal scheme", false, DrawVariantOverrideControl);
+        Add("Theme", "Opacity & Custom CSS", "Use Hachidori's popup opacity", "alpha transparency theme", true, DrawFollowOpacityControl);
+        Add("Theme", "Opacity & Custom CSS", "Apply Hachidori's custom popup CSS", "custom stylesheet userscript", true, DrawApplyCustomCssControl);
+        Add("Theme", "Opacity & Custom CSS", "Extra CSS for the game popup", "custom css colors border style", true, DrawExtraCssControl);
+
+        // Mining
+        Add("Mining", "Screenshots & Animation", "Screenshot", "picture image capture anki", false, DrawScreenshotToggleControl);
+        Add("Mining", "Screenshots & Animation", "Screenshot max width", "resolution size px", true, DrawScreenshotMaxWidthControl);
+        Add("Mining", "Screenshots & Animation", "Screenshot JPEG quality", "compression image", true, DrawScreenshotQualityControl);
+        Add("Mining", "Screenshots & Animation", "Animation of the line", "gif avif webp video clip", false, DrawGifToggleControl);
+        Add("Mining", "Screenshots & Animation", "Animation format", "avif webp gif encoder", false, DrawAnimationFormatControl);
+        Add("Mining", "Screenshots & Animation", "Animation width", "gif avif resolution px", true, DrawGifWidthControl);
+        Add("Mining", "Screenshots & Animation", "Animation FPS", "frames per second gif avif", true, DrawGifFpsControl);
+        Add("Mining", "Screenshots & Animation", "Animation length (s)", "duration seconds clip", true, DrawGifSecondsControl);
+        Add("Mining", "Screenshots & Animation", "AVIF quality (CRF)", "avif crf compression", true, DrawAvifCrfControl);
+        Add("Mining", "Screenshots & Animation", "WebP quality", "webp compression", true, DrawWebpQualityControl);
+        Add("Mining", "Screenshots & Animation", "FFmpeg path", "ffmpeg binary exe encoder", true, DrawFfmpegPathControl);
+
+        Add("Mining", "Voice Recording & TTS", "Voice line from the game", "record audio wasapi game sound", false, DrawVoiceRecordToggleControl);
+        Add("Mining", "Voice Recording & TTS", "Voice detection", "ratio bgm music threshold", true, DrawVoiceRatioControl);
+        Add("Mining", "Voice Recording & TTS", "Longest voice line (s)", "max clip duration seconds", true, DrawMaxLineSecondsControl);
+        Add("Mining", "Voice Recording & TTS", "Voice ring buffer (s)", "audio memory buffer history seconds", true, DrawVoiceBufferSecondsControl);
+        Add("Mining", "Voice Recording & TTS", "TTS for unvoiced lines", "voicevox aivisspeech speech synthesis", false, DrawTtsModeControl);
+        Add("Mining", "Voice Recording & TTS", "TTS engine address / URL", "voicevox url port endpoint", false, DrawTtsUrlControl);
+        Add("Mining", "Voice Recording & TTS", "TTS speaker / voice", "voicevox speaker id", false, DrawTtsSpeakerControl);
+
+        Add("Mining", "Sentence Translation", "Sentence translation", "ai llm translate gemini groq openai deepl claude codex", false,
+            () => Toggle("Sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v));
+        Add("Mining", "Sentence Translation", "Translation provider", "gemini groq openai ollama lmstudio deepl codex claude", false, DrawTranslationProviderControl);
+        Add("Mining", "Sentence Translation", "Translation Anki field", "anki field SentenceTranslation", false, DrawTranslationFieldControl);
+        Add("Mining", "Sentence Translation", "Translate into language", "target language english", true, DrawTranslationLanguageControl);
+        Add("Mining", "Sentence Translation", "Dialogue context lines", "context window history lines", true, DrawDialogueContextControl);
+        Add("Mining", "Sentence Translation", "Temperature", "llm sampling creativity", true, DrawTemperatureControl);
+        Add("Mining", "Sentence Translation", "Top P", "llm nucleus sampling", true, DrawTopPControl);
+        Add("Mining", "Sentence Translation", "Max output tokens", "llm token limit", true, DrawMaxTokensControl);
+
+        Add("Mining", "AnkiConnect & Field Mapping", "Sentence audio field", "anki field name sound", true, DrawSentenceAudioFieldControl);
+        Add("Mining", "AnkiConnect & Field Mapping", "GIF field", "anki field name picture image", true, DrawGifFieldControl);
+        Add("Mining", "AnkiConnect & Field Mapping", "Animation may replace screenshot", "gif overwrite picture", true,
+            () => Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v));
+        Add("Mining", "AnkiConnect & Field Mapping", "AnkiConnect address", "url port 8765 anki", true, DrawAnkiConnectUrlControl);
+
+        // Controller
+        Add("Controller", "Activation", "Controller reading mode", "gamepad pad xbox playstation dualsense", false,
+            () => Toggle("Controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v));
+        Add("Controller", "Activation", "Hold button to enter", "select start l3 r3 trigger", false, DrawControllerHoldButtonControl);
+        Add("Controller", "Activation", "Hold for (s)", "duration seconds hold", false, DrawControllerHoldSecondsControl);
+        Add("Controller", "Behavior & Display", "Start in word mode", "word character snap", false,
+            () => Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v));
+        Add("Controller", "Behavior & Display", "Leave mode when dialogue closes", "auto exit talk", false,
+            () => Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v));
+        Add("Controller", "Behavior & Display", "Show button hints", "hud overlay prompts", false,
+            () => Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v));
+        Add("Controller", "Behavior & Display", "PlayStation button names", "cross circle square triangle xbox", false,
+            () => Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v));
+        Add("Controller", "Behavior & Display", "DualSense/DS4 touchpad cursor", "touchpad virtual cursor ps5 ps4", false,
+            () => Checkbox("Use DualSense/DS4 touchpad for virtual cursor", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v));
+        Add("Controller", "Behavior & Display", "Left stick cursor speed", "sensitivity speed px", true, DrawControllerCursorSpeedControl);
+
+        // Reader
+        Add("Reader", "Visibility & Behavior", "Enable reader overlay", "texthooker window dialogue", false,
+            () => Checkbox("Enable reader overlay", () => config.ReaderEnabled, v => config.ReaderEnabled = v));
+        Add("Reader", "Visibility & Behavior", "Show only while dialogue is open", "auto show hide talk", false,
+            () => Checkbox("Show only while dialogue is open", () => config.ReaderAutoShowWithDialogue, v => config.ReaderAutoShowWithDialogue = v));
+        Add("Reader", "Visibility & Behavior", "Show history", "backlog scroll lines", false,
+            () => Checkbox("Show history", () => config.ReaderShowHistory, v => config.ReaderShowHistory = v));
+        Add("Reader", "Visibility & Behavior", "Lock reader window", "no title bar click move", true,
+            () => Checkbox("Lock (no title bar, click-to-move off)", () => config.ReaderLocked, v => config.ReaderLocked = v));
+        Add("Reader", "Visibility & Behavior", "Hide text until hovered", "reveal hover invisible", true,
+            () => Checkbox("Hide text until hovered", () => config.ReaderHideUntilHovered, v => config.ReaderHideUntilHovered = v));
+        Add("Reader", "Layout & Appearance", "Reader position", "anchor above below free", false, DrawReaderAnchorControl);
+        Add("Reader", "Layout & Appearance", "Reader font size", "text scale px", false, DrawReaderFontSizeControl);
+        Add("Reader", "Layout & Appearance", "Reader opacity", "alpha transparency background", true, DrawReaderOpacityControl);
+        Add("Reader", "Layout & Appearance", "History size", "backlog line limit count", true, DrawHistorySizeControl);
+
+        // Capture
+        Add("Capture", "Text Sources", "Capture dialogue & subtitles", "talk cutscene msq", false,
+            () => Checkbox("Dialogue (Talk, cutscene subtitles)", () => config.CaptureTalk, v => config.CaptureTalk = v));
+        Add("Capture", "Text Sources", "Capture battle talk", "boss combat dialogue", false,
+            () => Checkbox("Battle talk", () => config.CaptureBattleTalk, v => config.CaptureBattleTalk = v));
+        Add("Capture", "Text Sources", "Capture chat", "chat channels log", false,
+            () => Checkbox("Chat", () => config.CaptureChat, v => config.CaptureChat = v));
+        Add("Capture", "Player Name Pronunciation", "Read character's name as katakana", "player name furigana katakana", false,
+            () => Checkbox("Read my character's name as katakana", () => config.KatakanaPlayerName, v => config.KatakanaPlayerName = v));
+        Add("Capture", "Player Name Pronunciation", "Custom katakana name", "override player name reading", true, DrawPlayerNameKatakanaControl);
+
+        // GSM
+        Add("GSM", "Feed Sources", "Publish text for GSM", "gamesentenceminer websocket texthooker feed", true,
+            () => Checkbox("Publish text for GSM", () => config.PublishEnabled, v => config.PublishEnabled = v));
+        Add("GSM", "WebSocket Server", "GSM WebSocket port", "textractor lunatranslator agent 6677", true, DrawPublishPortControl);
+
+        // Connection
+        Add("Connection", "Hachidori Relay & Host", "Relay host", "ip address localhost 127.0.0.1", true, DrawRelayHostControl);
+        Add("Connection", "Hachidori Relay & Host", "Relay port", "8771 websocket relay", true, DrawRelayPortControl);
+        Add("Connection", "Hachidori Relay & Host", "Yomitan API port (audio)", "19633 audio pronunciation port", true, DrawApiPortControl);
+        Add("Connection", "Hachidori Relay & Host", "Anki Template ID", "template deck model", true, DrawAnkiTemplateIdControl);
+        Add("Connection", "Hachidori Relay & Host", "{document-title}", "anki document title ffxiv", true, DrawDocumentTitleControl);
+        Add("Connection", "Offline Mode", "Offline mode", "local dictionaries sync hdw_native", false, () =>
+        {
+            if (service.Offline is { } offline)
+                DrawOfflineModeBody(offline);
+        });
+    }
+
+    // -------------------------------------------------------------- reusable UI primitives
+
+    /// <summary>Styled collapsible dropdown section with clear hierarchy and subtle accenting.</summary>
+    private static bool Section(string id, string title, bool defaultOpen = true, Vector4? accent = null)
+    {
+        var flags = defaultOpen ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None;
+        using var headerBg = ImRaii.PushColor(ImGuiCol.Header, new Vector4(0.18f, 0.19f, 0.25f, 0.85f));
+        using var headerHov = ImRaii.PushColor(ImGuiCol.HeaderHovered, new Vector4(0.24f, 0.25f, 0.33f, 0.95f));
+        using var headerAct = ImRaii.PushColor(ImGuiCol.HeaderActive, new Vector4(0.28f, 0.29f, 0.39f, 1.0f));
+        using var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 5f * ImGuiHelpers.GlobalScale);
+        using var textCol = accent is { } a ? ImRaii.PushColor(ImGuiCol.Text, a) : null;
+
+        ImGui.Spacing();
+        var open = ImGui.CollapsingHeader($"{title}###sec-{id}", flags);
+        if (open)
+            ImGui.Spacing();
+        return open;
+    }
+
+    /// <summary>Dual Slider + Direct Numeric Input for ints, with right-click reset to default.</summary>
+    private void NumberInt(string label, Func<int> get, Action<int> set, int min, int max, int defaultValue, string? help = null, Action? deferSave = null)
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        var totalW = Math.Max(180 * scale, ImGui.CalcItemWidth());
+        var spacing = 6 * scale;
+        var inputW = Math.Clamp(totalW * 0.30f, 64 * scale, 100 * scale);
+        var sliderW = Math.Max(80 * scale, totalW - inputW - spacing);
+
+        var val = get();
+        var changed = false;
+        var deactivated = false;
+        var reset = false;
+
+        using (ImRaii.PushId(label))
+        {
+            ImGui.SetNextItemWidth(sliderW);
+            if (ImGui.SliderInt("##s", ref val, min, max))
+                changed = true;
+            deactivated |= ImGui.IsItemDeactivatedAfterEdit();
+            reset |= ImGui.IsItemClicked(ImGuiMouseButton.Right);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Drag or type a value ({min}–{max}). Default: {defaultValue} (right-click to reset).");
+
+            ImGui.SameLine(0, spacing);
+            ImGui.SetNextItemWidth(inputW);
+            if (ImGui.InputInt("##i", ref val, 0, 0))
+                changed = true;
+            deactivated |= ImGui.IsItemDeactivatedAfterEdit();
+            reset |= ImGui.IsItemClicked(ImGuiMouseButton.Right);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Type exact number ({min}–{max}). Default: {defaultValue} (right-click to reset).");
+
+            ImGui.SameLine(0, 8 * scale);
+            ImGui.TextUnformatted(label);
+        }
+
+        if (help is not null)
+            HelpMarker(help);
+
+        if (reset)
+        {
+            set(defaultValue);
+            deferSave?.Invoke();
+        }
+        else if (changed)
+        {
+            set(Math.Clamp(val, min, max));
+        }
+
+        if (deactivated && deferSave is not null)
+            deferSave();
+    }
+
+    /// <summary>Dual Slider + Direct Numeric Input for floats, with right-click reset to default.</summary>
+    private void NumberFloat(string label, Func<float> get, Action<float> set, float min, float max, float defaultValue, string format = "%.2f", string? unit = null, string? help = null, Action? deferSave = null)
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        var totalW = Math.Max(180 * scale, ImGui.CalcItemWidth());
+        var spacing = 6 * scale;
+        var inputW = Math.Clamp(totalW * 0.30f, 64 * scale, 100 * scale);
+        var sliderW = Math.Max(80 * scale, totalW - inputW - spacing);
+
+        var val = get();
+        var changed = false;
+        var deactivated = false;
+        var reset = false;
+        var sliderFormat = unit is not null ? $"{format} {unit}" : format;
+        var defaultText = defaultValue.ToString(format.Contains(".0") ? "0" : format.Contains(".1") ? "0.0" : "0.00", CultureInfo.InvariantCulture);
+
+        using (ImRaii.PushId(label))
+        {
+            ImGui.SetNextItemWidth(sliderW);
+            if (ImGui.SliderFloat("##s", ref val, min, max, sliderFormat))
+                changed = true;
+            deactivated |= ImGui.IsItemDeactivatedAfterEdit();
+            reset |= ImGui.IsItemClicked(ImGuiMouseButton.Right);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Drag or type a value ({min:0.##}–{max:0.##}). Default: {defaultText}{(unit is not null ? $" {unit}" : string.Empty)} (right-click to reset).");
+
+            ImGui.SameLine(0, spacing);
+            ImGui.SetNextItemWidth(inputW);
+            if (ImGui.InputFloat("##i", ref val, 0, 0, format))
+                changed = true;
+            deactivated |= ImGui.IsItemDeactivatedAfterEdit();
+            reset |= ImGui.IsItemClicked(ImGuiMouseButton.Right);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Type exact number ({min:0.##}–{max:0.##}). Default: {defaultText} (right-click to reset).");
+
+            ImGui.SameLine(0, 8 * scale);
+            ImGui.TextUnformatted(label);
+        }
+
+        if (help is not null)
+            HelpMarker(help);
+
+        if (reset)
+        {
+            set(defaultValue);
+            deferSave?.Invoke();
+        }
+        else if (changed)
+        {
+            set(Math.Clamp(val, min, max));
+        }
+
+        if (deactivated && deferSave is not null)
+            deferSave();
+    }
+
+    private void Changed(bool changed)
+    {
+        if (!changed)
+            return;
+        config.Save();
+        fonts.Refresh();
+        service.ClearCache();
+    }
+
+    private void Checkbox(string label, Func<bool> get, Action<bool> set)
+    {
+        var value = get();
+        if (ImGui.Checkbox(label, ref value))
+        {
+            set(value);
+            Changed(true);
+        }
+    }
+
+    private bool Toggle(string label, bool value, Action<bool> set)
+    {
+        if (ImGui.Checkbox(label, ref value))
+        {
+            set(value);
+            config.Save();
+        }
+        return value;
+    }
+
+    private static void HelpMarker(string text)
+    {
+        ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.PushTextWrapPos(360 * ImGuiHelpers.GlobalScale);
+            ImGui.TextUnformatted(text);
+            ImGui.PopTextWrapPos();
+            ImGui.EndTooltip();
+        }
+    }
+
+    private static string TruncateToWidth(string text, float maxWidth)
+    {
+        if (ImGui.CalcTextSize(text).X <= maxWidth || text.Length <= 4)
+            return text;
+        var len = text.Length - 1;
+        while (len > 3 && ImGui.CalcTextSize(text[..len] + "…").X > maxWidth)
+            len--;
+        return text[..len] + "…";
+    }
+
+    // -------------------------------------------------------------- async tests
+
+    private async Task TestTranslationAsync()
+    {
+        try
+        {
+            var result = await media.Translator.TranslateAsync("冒険者さん、ちょっと手を貸してもらえないかな？",
+                ["この辺りで魔物が増えているらしい。"], "村人", "FINAL FANTASY XIV").ConfigureAwait(false);
+            mediaTest = $"Translation works: {result}";
+        }
+        catch (Exception ex)
+        {
+            mediaTest = $"Translation failed: {ex.Message}";
+        }
+    }
+
+    private async Task TestTtsAsync()
+    {
+        try
+        {
+            var audio = await media.Tts.SpeakAsync("冒険者さん、こんにちは。").ConfigureAwait(false);
+            mediaTest = $"TTS works: {audio.Length / 1024} KB of {AudioClips.Extension(audio) ?? "unknown"} audio.";
+        }
+        catch (Exception ex)
+        {
+            mediaTest = $"TTS failed: {ex.Message}";
+        }
+    }
+
+    private async Task TestAnkiConnectAsync()
+    {
+        try
+        {
+            var version = await media.Anki.InvokeAsync("version").ConfigureAwait(false);
+            ankiConnectedHint = true;
+            mediaTest = $"AnkiConnect works (version {version}).";
+        }
+        catch (Exception ex)
+        {
+            ankiConnectedHint = false;
+            mediaTest = ex.Message;
         }
     }
 
@@ -1249,23 +2092,5 @@ public sealed class ConfigWindow : Window
             : age.TotalHours < 1 ? $"{(int)age.TotalMinutes} min ago"
             : age.TotalDays < 1 ? $"{(int)age.TotalHours} h ago"
             : t.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-    }
-
-    private void Checkbox(string label, Func<bool> get, Action<bool> set)
-    {
-        var value = get();
-        if (ImGui.Checkbox(label, ref value))
-        {
-            set(value);
-            Changed(true);
-        }
-    }
-
-    private static void HelpMarker(string text)
-    {
-        ImGui.SameLine();
-        ImGui.TextDisabled("(?)");
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(text);
     }
 }

@@ -132,6 +132,7 @@ public sealed class Configuration : IPluginConfiguration
 
     // Settings window: everyday options only, unless the user asks for all of them.
     public bool AdvancedSettings { get; set; } = false;
+    public bool QuickGuideDismissed { get; set; } = false;
 
     // Card media from the game (replaces GSM): screenshot, voice line or TTS, GIF.
     public bool CaptureScreenshot { get; set; } = true;
@@ -193,6 +194,161 @@ public sealed class Configuration : IPluginConfiguration
     // Anki (mining is done by the Hachidori host with its own Anki Template)
     public string AnkiTemplateId { get; set; } = string.Empty;
     public string DocumentTitle { get; set; } = "FINAL FANTASY XIV";
+
+    public void ResetPopupDefaults()
+    {
+        var d = new Configuration();
+        ScanModifier = d.ScanModifier;
+        ScanLength = d.ScanLength;
+        MaxResults = d.MaxResults;
+        ScanOnlyJapanese = d.ScanOnlyJapanese;
+        MaxPopupDepth = d.MaxPopupDepth;
+        HideDelaySeconds = d.HideDelaySeconds;
+        AutoHideRootPopup = d.AutoHideRootPopup;
+        UsePersonalDictionary = d.UsePersonalDictionary;
+        NativeTextHover = d.NativeTextHover;
+        NativeChatHover = d.NativeChatHover;
+        NativeOtherTextHover = d.NativeOtherTextHover;
+        NativeHoverDebug = d.NativeHoverDebug;
+        TokenizedHover = d.TokenizedHover;
+        PopupWidth = d.PopupWidth;
+        PopupMaxHeight = d.PopupMaxHeight;
+        PopupFontSize = d.PopupFontSize;
+        PopupBackgroundAlpha = d.PopupBackgroundAlpha;
+        ShowFrequencies = d.ShowFrequencies;
+        ShowPitchAccent = d.ShowPitchAccent;
+        ShowInflections = d.ShowInflections;
+        ShowDefinitionTags = d.ShowDefinitionTags;
+        ShowDictionaryNames = d.ShowDictionaryNames;
+        ShowAttribution = d.ShowAttribution;
+        ShowLookupCounts = d.ShowLookupCounts;
+        HonourDefinitionBlur = d.HonourDefinitionBlur;
+        AutoPlayAudio = d.AutoPlayAudio;
+        AudioVolume = d.AudioVolume;
+    }
+
+    public void ResetThemeDefaults()
+    {
+        var d = new Configuration();
+        FollowHachidoriTheme = d.FollowHachidoriTheme;
+        FollowHachidoriOpacity = d.FollowHachidoriOpacity;
+        ApplyHachidoriCustomCss = d.ApplyHachidoriCustomCss;
+        HachidoriThemeOverride = d.HachidoriThemeOverride;
+        HachidoriVariantOverride = d.HachidoriVariantOverride;
+        ExtraPopupCss = d.ExtraPopupCss;
+    }
+
+    public void ResetMiningDefaults()
+    {
+        var d = new Configuration();
+        CaptureScreenshot = d.CaptureScreenshot;
+        ScreenshotMaxWidth = d.ScreenshotMaxWidth;
+        ScreenshotQuality = d.ScreenshotQuality;
+        RecordVoiceLines = d.RecordVoiceLines;
+        SentenceAudioField = d.SentenceAudioField;
+        VoiceDetectionRatio = d.VoiceDetectionRatio;
+        MaxLineSeconds = d.MaxLineSeconds;
+        VoiceBufferSeconds = d.VoiceBufferSeconds;
+        TtsMode = d.TtsMode;
+        TtsUrl = d.TtsUrl;
+        TtsSpeaker = d.TtsSpeaker;
+        TtsPost = d.TtsPost;
+        CaptureGif = d.CaptureGif;
+        GifField = d.GifField;
+        GifReplacesScreenshot = d.GifReplacesScreenshot;
+        AnimationFormat = d.AnimationFormat;
+        FfmpegPath = d.FfmpegPath;
+        AvifCrf = d.AvifCrf;
+        WebpQuality = d.WebpQuality;
+        GifWidth = d.GifWidth;
+        GifFps = d.GifFps;
+        GifSeconds = d.GifSeconds;
+        AnkiConnectUrl = d.AnkiConnectUrl;
+        TranslationEnabled = d.TranslationEnabled;
+        TranslationProvider = d.TranslationProvider;
+        TranslationField = d.TranslationField;
+        TranslationLanguage = d.TranslationLanguage;
+        DeepLTargetLanguage = d.DeepLTargetLanguage;
+        UseCannedTranslationPrompt = d.UseCannedTranslationPrompt;
+        UseCannedContextPrompt = d.UseCannedContextPrompt;
+        CustomTranslationPrompt = d.CustomTranslationPrompt;
+        CustomFullPrompt = d.CustomFullPrompt;
+        DialogueContextLength = d.DialogueContextLength;
+        TranslationTemperature = d.TranslationTemperature;
+        TranslationTopP = d.TranslationTopP;
+        TranslationMaxTokens = d.TranslationMaxTokens;
+        CodexPath = d.CodexPath;
+        ClaudeCodePath = d.ClaudeCodePath;
+    }
+
+    public void ResetControllerDefaults()
+    {
+        var d = new Configuration();
+        ControllerEnabled = d.ControllerEnabled;
+        ControllerHoldButton = d.ControllerHoldButton;
+        ControllerHoldSeconds = d.ControllerHoldSeconds;
+        ControllerStartInWordMode = d.ControllerStartInWordMode;
+        ControllerExitWhenDialogueCloses = d.ControllerExitWhenDialogueCloses;
+        ControllerShowHints = d.ControllerShowHints;
+        ControllerPlayStationLabels = d.ControllerPlayStationLabels;
+        ControllerUseTouchpad = d.ControllerUseTouchpad;
+        ControllerCursorSpeed = d.ControllerCursorSpeed;
+        ControllerMineButton = d.ControllerMineButton;
+        ControllerAudioButton = d.ControllerAudioButton;
+        ControllerWordModeButton = d.ControllerWordModeButton;
+        ControllerBackExitButton = d.ControllerBackExitButton;
+        ControllerPrevEntryButton = d.ControllerPrevEntryButton;
+        ControllerNextEntryButton = d.ControllerNextEntryButton;
+        ControllerDiveButton = d.ControllerDiveButton;
+        ControllerWindowButton = d.ControllerWindowButton;
+    }
+
+    public void ResetReaderDefaults()
+    {
+        var d = new Configuration();
+        ReaderEnabled = d.ReaderEnabled;
+        ReaderAutoShowWithDialogue = d.ReaderAutoShowWithDialogue;
+        ReaderAnchor = d.ReaderAnchor;
+        ReaderFontSize = d.ReaderFontSize;
+        ReaderBackgroundAlpha = d.ReaderBackgroundAlpha;
+        ReaderShowHistory = d.ReaderShowHistory;
+        HistorySize = d.HistorySize;
+        ReaderLocked = d.ReaderLocked;
+        ReaderHideUntilHovered = d.ReaderHideUntilHovered;
+    }
+
+    public void ResetCaptureDefaults()
+    {
+        var d = new Configuration();
+        KatakanaPlayerName = d.KatakanaPlayerName;
+        PlayerNameKatakana = d.PlayerNameKatakana;
+        CaptureTalk = d.CaptureTalk;
+        CaptureBattleTalk = d.CaptureBattleTalk;
+        CaptureChat = d.CaptureChat;
+        ChatChannels = new HashSet<XivChatType>(d.ChatChannels);
+    }
+
+    public void ResetPublishDefaults()
+    {
+        var d = new Configuration();
+        PublishEnabled = d.PublishEnabled;
+        PublishPort = d.PublishPort;
+        PublishTalk = d.PublishTalk;
+        PublishBattleTalk = d.PublishBattleTalk;
+        PublishPopups = d.PublishPopups;
+        PublishChat = d.PublishChat;
+        PublishSpeaker = d.PublishSpeaker;
+    }
+
+    public void ResetConnectionDefaults()
+    {
+        var d = new Configuration();
+        RelayHost = d.RelayHost;
+        RelayPort = d.RelayPort;
+        ApiPort = d.ApiPort;
+        AnkiTemplateId = d.AnkiTemplateId;
+        DocumentTitle = d.DocumentTitle;
+    }
 
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
 }

@@ -49,6 +49,9 @@ public sealed class PopupManager : IDisposable
 
     /// <summary>Game screenshot, voice line or TTS, and GIF for mined notes; set by the plugin.</summary>
     public Media.MediaMiner? Media { get; set; }
+
+    /// <summary>Immersion statistics tracker; set by the plugin.</summary>
+    public Stats.StatsTracker? Stats { get; set; }
     public bool ContainsMouse(Vector2 mouse) => layers.Any(l => l.Visible && l.Contains(mouse));
 
     public void CloseAll() => layers.Clear();
@@ -543,6 +546,9 @@ public sealed class PopupManager : IDisposable
             return;
         var first = state.Entries[0];
 
+        if (!reply.IsKanji)
+            Stats?.RecordLookup(first.Result);
+
         // Lookup statistics: Hachidori records the primary result of each executed lookup.
         if (config.ShowLookupCounts && service.OptionBool("showLookupCounts", true) && !reply.IsKanji)
         {
@@ -658,12 +664,14 @@ public sealed class PopupManager : IDisposable
                 var noteId = result.NoteIds.FirstOrDefault();
                 var warnings = result.Warnings.Length > 0 ? " " + string.Join(" ", result.Warnings) : string.Empty;
                 var added = $"{(result.State == "added" ? "Added" : "Updated")} note {noteId}.{screenshotWarning}{warnings}";
+                var attachedText = string.Empty;
                 if (Media is { AttachesMedia: true } media && noteId != 0)
                 {
                     entry.AnkiMessage = $"{added} Adding media…";
                     try
                     {
                         var attached = await media.AttachAsync(noteId, state.Context.Sentence, screenshot?.Filename).ConfigureAwait(false);
+                        attachedText = attached;
                         entry.AnkiMessage = attached.Length > 0 ? $"{added} {attached}" : added;
                         DiagnosticLog.Write("anki", $"Media attach for note {noteId}: {(attached.Length > 0 ? attached : "(nothing added)")}");
                     }
@@ -678,6 +686,7 @@ public sealed class PopupManager : IDisposable
                     entry.AnkiMessage = added;
                 }
                 entry.Anki = AnkiState.Added;
+                RecordMinedStats(noteId, entry.Result, state.Context, screenshot is not null, attachedText);
             }
             else if (result.State == "duplicate")
             {
@@ -696,6 +705,26 @@ public sealed class PopupManager : IDisposable
             entry.Anki = AnkiState.Error;
             entry.AnkiMessage = ex.Message;
         }
+    }
+
+    private void RecordMinedStats(long noteId, LookupResult result, ScanContext context, bool hadScreenshot, string attachedSummary)
+    {
+        if (Stats is null)
+            return;
+        var speaker = string.Empty;
+        var sep = context.DocumentTitle.IndexOf(" — ", StringComparison.Ordinal);
+        if (sep >= 0 && sep + 3 < context.DocumentTitle.Length)
+            speaker = context.DocumentTitle[(sep + 3)..].Trim();
+        else if (Media?.Timeline.Find(context.Sentence) is { Line.Speaker.Length: > 0 } span)
+            speaker = span.Line.Speaker;
+
+        var hasAudio = attachedSummary.Contains("voice line", StringComparison.OrdinalIgnoreCase)
+                       || attachedSummary.Contains("TTS audio", StringComparison.OrdinalIgnoreCase);
+        var hasAnim = attachedSummary.Contains("AVIF", StringComparison.OrdinalIgnoreCase)
+                      || attachedSummary.Contains("WEBP", StringComparison.OrdinalIgnoreCase)
+                      || attachedSummary.Contains("GIF", StringComparison.OrdinalIgnoreCase);
+        var hasTl = attachedSummary.Contains("translation", StringComparison.OrdinalIgnoreCase);
+        Stats.RecordMinedCard(noteId, result, context.Sentence, speaker, hadScreenshot, hasAudio, hasAnim, hasTl);
     }
 
     // ---------------------------------------------------------------- layer

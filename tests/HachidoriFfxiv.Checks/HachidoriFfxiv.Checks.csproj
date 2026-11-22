@@ -37,6 +37,7 @@
     <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="Media/ScreenshotMedia.cs" />
+    <Compile Include="../../HachidoriFfxiv/Stats/*.cs" Link="Stats/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Ui/PopupWindowScope.cs" Link="PopupWindowScope.cs" />
     <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)/Dalamud.Bindings.ImGui.dll" />
     <Reference Include="HexaGen.Runtime" HintPath="$(DalamudLibPath)/HexaGen.Runtime.dll" />
