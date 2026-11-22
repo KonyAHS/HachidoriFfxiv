@@ -3,7 +3,9 @@
     "page": "Y'shtola",
     "category": "character",
     "expressions": [
-      "ヤ・シュトラ"
+      "ヤ・シュトラ",
+      "ヤシュトラ",
+      "ヤ・シュトラ・ルル"
     ],
     "image_pattern": "^Y'shtola\\.(png|jpg)$"
   },
@@ -11,7 +13,8 @@
     "page": "Alphinaud",
     "category": "character",
     "expressions": [
-      "アルフィノ"
+      "アルフィノ",
+      "アルフィノ・ルヴェユール"
     ],
     "image_pattern": "^Alphinaud\\.(png|jpg)$"
   },
@@ -19,7 +22,8 @@
     "page": "Alisaie",
     "category": "character",
     "expressions": [
-      "アリゼー"
+      "アリゼー",
+      "アリゼー・ルヴェユール"
     ],
     "image_pattern": "^Alisaie\\.(png|jpg)$"
   },
@@ -27,7 +31,8 @@
     "page": "Thancred",
     "category": "character",
     "expressions": [
-      "サンクレッド"
+      "サンクレッド",
+      "サンクレッド・ウォータース"
     ],
     "image_pattern": "^Thancred\\.(png|jpg)$"
   },
@@ -35,7 +40,8 @@
     "page": "Urianger",
     "category": "character",
     "expressions": [
-      "ウリエンジェ"
+      "ウリエンジェ",
+      "ウリエンジェ・オギュレ"
     ],
     "image_pattern": "^Urianger\\.(png|jpg)$"
   },
@@ -43,7 +49,8 @@
     "page": "Tataru",
     "category": "character",
     "expressions": [
-      "タタル"
+      "タタル",
+      "タタル・タル"
     ],
     "image_pattern": "^Tataru\\.(png|jpg)$"
   },
@@ -51,7 +58,8 @@
     "page": "Minfilia",
     "category": "character",
     "expressions": [
-      "ミンフィリア"
+      "ミンフィリア",
+      "ミンフィリア・ウォード"
     ],
     "image_pattern": "^Minfilia\\.(png|jpg)$"
   },
@@ -59,7 +67,8 @@
     "page": "Krile",
     "category": "character",
     "expressions": [
-      "クルル"
+      "クルル",
+      "クルル・バルデシオン"
     ],
     "image_pattern": "^Krile\\.(png|jpg)$",
     "expansion": "Endwalker"
@@ -68,7 +77,8 @@
     "page": "Estinien",
     "category": "character",
     "expressions": [
-      "エスティニアン"
+      "エスティニアン",
+      "エスティニアン・ヴァーリノ"
     ],
     "image_pattern": "^Estinien\\.(png|jpg)$"
   },
@@ -76,7 +86,11 @@
     "page": "G'raha Tia",
     "category": "character",
     "expressions": [
-      "グ・ラハ・ティア"
+      "グ・ラハ・ティア",
+      "グ・ラハ",
+      "ラハ",
+      "グラハ",
+      "グラハティア"
     ],
     "image_pattern": "^G'raha Tia\\.(png|jpg)$",
     "expansion": "Endwalker"
@@ -85,7 +99,8 @@
     "page": "Lyse",
     "category": "character",
     "expressions": [
-      "リセ"
+      "リセ",
+      "リセ・ヘクスト"
     ],
     "image_pattern": "^Lyse\\.(png|jpg)$"
   },
@@ -93,7 +108,8 @@
     "page": "Hien",
     "category": "character",
     "expressions": [
-      "ヒエン"
+      "ヒエン",
+      "ヒエン・リジン"
     ],
     "image_pattern": "^Hien\\.(png|jpg)$"
   },
@@ -109,7 +125,8 @@
     "page": "Aymeric",
     "category": "character",
     "expressions": [
-      "アイメリク"
+      "アイメリク",
+      "アイメリク・ド・ボーレル"
     ],
     "image_pattern": "^Aymeric\\.(png|jpg)$"
   },
@@ -117,7 +134,8 @@
     "page": "Haurchefant",
     "category": "character",
     "expressions": [
-      "オルシュファン"
+      "オルシュファン",
+      "オルシュファン・グレイストーン"
     ],
     "image_pattern": "^Haurchefant\\.(png|jpg)$"
   },
@@ -125,7 +143,8 @@
     "page": "Cid",
     "category": "character",
     "expressions": [
-      "シド"
+      "シド",
+      "シド・ガーロンド"
     ],
     "image_pattern": "^Cid\\.(png|jpg)$"
   },
@@ -133,7 +152,8 @@
     "page": "Raubahn",
     "category": "character",
     "expressions": [
-      "ラウバーン"
+      "ラウバーン",
+      "ラウバーン・アルディン"
     ],
     "image_pattern": "^Raubahn\\.(png|jpg)$"
   },
@@ -141,7 +161,8 @@
     "page": "Merlwyb",
     "category": "character",
     "expressions": [
-      "メルウィブ"
+      "メルウィブ",
+      "メルウィブ・ブルーフィスウィン"
     ],
     "image_pattern": "^Merlwyb\\.(png|jpg)$"
   },
@@ -166,7 +187,8 @@
     "page": "Wuk Lamat",
     "category": "character",
     "expressions": [
-      "ウクラマト"
+      "ウクラマト",
+      "ラマチ"
     ],
     "image_pattern": "^Wuk Lamat\\.(png|jpg)$",
     "expansion": "Endwalker"
@@ -184,7 +206,8 @@
     "page": "Limsa Lominsa",
     "category": "location",
     "expressions": [
-      "リムサ・ロミンサ"
+      "リムサ・ロミンサ",
+      "リムサ"
     ],
     "image_pattern": "^Limsa Lominsa.*(Artwork|Concept)"
   },
@@ -240,7 +263,8 @@
     "page": "Old Sharlayan",
     "category": "location",
     "expressions": [
-      "オールド・シャーレアン"
+      "オールド・シャーレアン",
+      "シャーレアン"
     ],
     "image_pattern": "^Old Sharlayan.*(Artwork|Concept)"
   },
@@ -741,7 +765,8 @@
     "page": "Fourchenault",
     "category": "character",
     "expressions": [
-      "フルシュノ"
+      "フルシュノ",
+      "フルシュノ・ルヴェユール"
     ],
     "image_pattern": "^Fourchenault\\.(png|jpg|jpeg|webp)$",
     "expansion": "Endwalker"
@@ -750,7 +775,8 @@
     "page": "Ameliance",
     "category": "character",
     "expressions": [
-      "アメリアンス"
+      "アメリアンス",
+      "アメリアンス・ルヴェユール"
     ],
     "image_pattern": "^Ameliance\\.(png|jpg|jpeg|webp)$",
     "expansion": "Endwalker"
@@ -900,7 +926,8 @@
     "expressions": [
       "アシエン・エメトセルク",
       "エメトセルク",
-      "黒法衣の男"
+      "黒法衣の男",
+      "エメト"
     ],
     "image_pattern": "^Emet\\-Selch\\.(png|jpg|jpeg|webp)$",
     "expansion": "Endwalker"
@@ -1029,7 +1056,8 @@
     "page": "Fandaniel",
     "category": "character",
     "expressions": [
-      "ファダニエル"
+      "ファダニエル",
+      "アシエン・ファダニエル"
     ],
     "image_pattern": "^Fandaniel\\.(png|jpg|jpeg|webp)$",
     "expansion": "Endwalker",
@@ -1250,7 +1278,9 @@
       "ビスマルク"
     ],
     "image_pattern": "^Bismarck\\.(png|jpg|jpeg|webp)$",
-    "expansion": "Shadowbringers"
+    "expansion": "Shadowbringers",
+    "image_url": "https://ffxiv.gamerescape.com/w/images/c/c0/Bismarck.jpg",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Bismarck.jpg"
   },
   {
     "page": "Seto",
@@ -1295,7 +1325,9 @@
       "グランソン"
     ],
     "image_pattern": "^Granson\\.(png|jpg|jpeg|webp)$",
-    "expansion": "Shadowbringers"
+    "expansion": "Shadowbringers",
+    "image_url": "https://ffxiv.gamerescape.com/w/images/9/99/Granson.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Granson.png"
   },
   {
     "page": "Taynor",
@@ -1328,7 +1360,8 @@
     "page": "Gaius",
     "category": "character",
     "expressions": [
-      "ガイウス"
+      "ガイウス",
+      "ガイウス・ヴァン・バエサル"
     ],
     "image_pattern": "^Gaius\\.(png|jpg|jpeg|webp)$",
     "expansion": "Shadowbringers"
@@ -1338,7 +1371,8 @@
     "category": "character",
     "expressions": [
       "ゼノス・イェー・ガルヴァス",
-      "ゼノス・ヴェトル・ガルヴァス"
+      "ゼノス・ヴェトル・ガルヴァス",
+      "ゼノス"
     ],
     "image_pattern": "^Zenos yae Galvus\\.png$",
     "expansion": "Endwalker"
@@ -1368,6 +1402,660 @@
       "ハルマルト"
     ],
     "image_pattern": "^Halmarut\\.(png|jpg|jpeg)$",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Papalymo",
+    "category": "character",
+    "expressions": [
+      "パパリモ",
+      "パパリモ・トトリモ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/6/64/Papalymo.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Papalymo.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Yda",
+    "category": "character",
+    "expressions": [
+      "イダ",
+      "イダ・ヘクスト"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/1/1f/Yda.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Yda.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Louisoix",
+    "category": "character",
+    "expressions": [
+      "ルイゾワ",
+      "ルイゾワ・ルヴェユール"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/2/21/Louisoix.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Louisoix.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Moenbryda",
+    "category": "character",
+    "expressions": [
+      "ムーンブリダ",
+      "ムーンブリダ・ウィルスンウィン"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/4/4e/Moenbryda.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Moenbryda.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Biggs",
+    "category": "character",
+    "expressions": [
+      "ビッグス"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/4/43/Biggs.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Biggs.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Wedge",
+    "category": "character",
+    "expressions": [
+      "ウェッジ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/d4/Wedge.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Wedge.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Jessie",
+    "category": "character",
+    "expressions": [
+      "ジェシー"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/7/7a/Jessie.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Jessie.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Nero tol Scaeva",
+    "category": "character",
+    "expressions": [
+      "ネロ",
+      "ネロ・トル・スカエウァ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/df/Nero_tol_Scaeva.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Nero_tol_Scaeva.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Matoya",
+    "category": "character",
+    "expressions": [
+      "マトーヤ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/df/Matoya.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Matoya.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Hildibrand",
+    "category": "character",
+    "expressions": [
+      "ヒルディブランド",
+      "ヒルディブランド・マンダヴィル",
+      "ヒルディ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/db/Hildibrand.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hildibrand.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Nashu Mhakaracca",
+    "category": "character",
+    "expressions": [
+      "ナシュ",
+      "ナシュ・マカラッカ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/f2/Nashu_Mhakaracca.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Nashu_Mhakaracca.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Pipin",
+    "category": "character",
+    "expressions": [
+      "ピピン"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/d0/Pipin.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Pipin.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Lolorito",
+    "category": "character",
+    "expressions": [
+      "ロロリト"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/b/b1/Lolorito.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Lolorito.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Ilberd",
+    "category": "character",
+    "expressions": [
+      "イルベルド"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/4/4a/Ilberd.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ilberd.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Lahabrea",
+    "category": "character",
+    "expressions": [
+      "アシエン・ラハブレア",
+      "アシエン・ラハブレア（古代語）",
+      "ラハブレア"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/6/6a/Lahabrea.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Lahabrea.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Livia sas Junius",
+    "category": "character",
+    "expressions": [
+      "リウィア"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/8/8f/Livia_sas_Junius.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Livia_sas_Junius.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Hoary Boulder",
+    "category": "character",
+    "expressions": [
+      "ホーリー・ボルダー"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/9/97/Hoary_Boulder.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hoary_Boulder.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Arenvald",
+    "category": "character",
+    "expressions": [
+      "アレンヴァルド"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/2/2a/Arenvald.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Arenvald.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Gerolt",
+    "category": "character",
+    "expressions": [
+      "ゲロルト"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/4/4d/Gerolt.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Gerolt.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Rowena",
+    "category": "character",
+    "expressions": [
+      "ロウェナ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/0/09/Rowena.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Rowena.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Khloe Aliapoh",
+    "category": "character",
+    "expressions": [
+      "クロ・アリアポー",
+      "クロ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/fb/Khloe_Aliapoh.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Khloe_Aliapoh.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Zhloe Aliapoh",
+    "category": "character",
+    "expressions": [
+      "シロ・アリアポー",
+      "シロ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/f8/Zhloe_Aliapoh.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Zhloe_Aliapoh.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Curious Gorge",
+    "category": "character",
+    "expressions": [
+      "キュリアス・ゴージ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/4/42/Curious_Gorge.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Curious_Gorge.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Sidurgu",
+    "category": "character",
+    "expressions": [
+      "シドゥルグ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/9/9d/Sidurgu.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Sidurgu.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Fray",
+    "category": "character",
+    "expressions": [
+      "フレイ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/fb/Fray.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Fray.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Jacke",
+    "category": "character",
+    "expressions": [
+      "ジャック"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/c/c8/Jacke.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Jacke.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "X'rhun Tia",
+    "category": "character",
+    "expressions": [
+      "シ・ルン・ティア"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/f0/X%27rhun_Tia.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:X%27rhun_Tia.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Ysayle",
+    "category": "character",
+    "expressions": [
+      "イゼル",
+      "イゼル・ダングラン",
+      "氷の巫女"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/f5/Ysayle.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ysayle.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Emmanellain",
+    "category": "character",
+    "expressions": [
+      "エマネラン"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/5/59/Emmanellain.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Emmanellain.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Artoirel",
+    "category": "character",
+    "expressions": [
+      "アルトアレール"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/db/Artoirel.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Artoirel.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Hilda",
+    "category": "character",
+    "expressions": [
+      "ヒルダ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/5/58/Hilda.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hilda.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Hraesvelgr",
+    "category": "character",
+    "expressions": [
+      "フレースヴェルグ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/da/Hraesvelgr.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hraesvelgr.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Vidofnir",
+    "category": "character",
+    "expressions": [
+      "ヴィゾーヴニル"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/8/8f/Vidofnir.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Vidofnir.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Francel",
+    "category": "character",
+    "expressions": [
+      "フランセル"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/0/0b/Francel.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Francel.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Mide",
+    "category": "character",
+    "expressions": [
+      "ミーデ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/1/1d/Mide.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Mide.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Roundrox",
+    "category": "character",
+    "expressions": [
+      "ラウンドロクス"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/b/b6/Roundrox.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Roundrox.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Yotsuyu",
+    "category": "character",
+    "expressions": [
+      "ヨツユ",
+      "ヨツユ・ゴー・ブルトゥス"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/4/4e/Yotsuyu.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Yotsuyu.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Asahi",
+    "category": "character",
+    "expressions": [
+      "アサヒ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/d7/Asahi.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Asahi.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Fordola",
+    "category": "character",
+    "expressions": [
+      "フォルドラ",
+      "フォルドラ・ルプス"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/1/11/Fordola.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Fordola.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Cirina",
+    "category": "character",
+    "expressions": [
+      "シリナ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/6/6c/Cirina.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Cirina.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Hancock",
+    "category": "character",
+    "expressions": [
+      "ハンコック"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/c/c0/Hancock.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hancock.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Soroban",
+    "category": "character",
+    "expressions": [
+      "ソロバン"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/6/6f/Soroban.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Soroban.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "M'naago",
+    "category": "character",
+    "expressions": [
+      "メ・ナーゴ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/b/be/M%27naago.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:M%27naago.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Varis zos Galvus",
+    "category": "character",
+    "expressions": [
+      "ヴァリス・ゾス・ガルヴァス"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/3/35/Varis_zos_Galvus.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Varis_zos_Galvus.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Alpha",
+    "category": "character",
+    "expressions": [
+      "アルファ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/a/a8/Alpha.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Alpha.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Omega",
+    "category": "character",
+    "expressions": [
+      "オメガ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/b/b2/Omega.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Omega.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Earlier expansions"
+  },
+  {
+    "page": "Mikoto",
+    "category": "character",
+    "expressions": [
+      "ミコト"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/0/0d/Mikoto.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Mikoto.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Bajsaljen",
+    "category": "character",
+    "expressions": [
+      "バイシャーエン"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/e/ec/Bajsaljen.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Bajsaljen.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Misija",
+    "category": "character",
+    "expressions": [
+      "ミーシィヤ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/b/ba/Misija.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Misija.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Moren",
+    "category": "character",
+    "expressions": [
+      "モーレン"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/d/d6/Moren.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Moren.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Kai-Shirr",
+    "category": "character",
+    "expressions": [
+      "カイ・シル"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/2/2c/Kai-Shirr.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Kai-Shirr.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Ehll Tou",
+    "category": "character",
+    "expressions": [
+      "エル・トゥ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/1/1a/Ehll_Tou.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Ehll_Tou.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Innocence",
+    "category": "character",
+    "expressions": [
+      "イノセンス"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/2/25/Innocence.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Innocence.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Shadowbringers"
+  },
+  {
+    "page": "Hydaelyn",
+    "category": "character",
+    "expressions": [
+      "ハイデリン"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/f7/Hydaelyn.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hydaelyn.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Hephaistos",
+    "category": "character",
+    "expressions": [
+      "ヘファイストス"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/b/b4/Hephaistos.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Hephaistos.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Namingway",
+    "category": "character",
+    "expressions": [
+      "ネミングウェイ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/2/29/Namingway_%28NPC%29.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Namingway_%28NPC%29.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Endwalker"
+  },
+  {
+    "page": "Nitowikwe",
+    "category": "character",
+    "expressions": [
+      "ニトウィケ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/7/7f/Nitowikwe.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Nitowikwe.png",
+    "source_name": "Gamer Escape",
+    "expansion": "Dawntrail"
+  },
+  {
+    "page": "Wawlika",
+    "category": "character",
+    "expressions": [
+      "ワーリカ"
+    ],
+    "image_url": "https://ffxiv.gamerescape.com/w/images/f/f1/Wawlika.png",
+    "file_page_url": "https://ffxiv.gamerescape.com/wiki/File:Wawlika.png",
+    "source_name": "Gamer Escape",
     "expansion": "Dawntrail"
   }
 ]

@@ -110,7 +110,7 @@ internal static class OfflineChecks
         check(first?.Term.Expression == "アルフィノ" && first.Matched == "アルフィノ" && parsed.Generation == generation,
             "offline lookup answers from the local engine in the live reply shape");
         var tag = first?.Term.Glossaries.First().Tags.SingleOrDefault();
-        check(tag is { Name: "character", Category: "default", Notes: "Character / NPC" },
+        check(tag is { Name: "character", Category: "partOfSpeech", Notes: "Character / NPC" },
             "offline glossaries carry definition tags expanded from the tag bank");
 
         var limited = engine.Lookup(HachidoriPayloads.Lookup("リムサ・ロミンサ", 1, 16, options));

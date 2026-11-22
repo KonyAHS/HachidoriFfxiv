@@ -1,0 +1,232 @@
+expression	reading	english	category	subtag	source	note
+〆	しめ	Closed / Slot taken	pf	PF	https://xivjpraids.com/terminology/	From 閉め. Indicates a role/position is filled in Party Finder (e.g. MT〆 = MT slot taken).
+マク	まく	Macro	pf	PF	https://xivjpraids.com/terminology/	Short for マクロ (raid positioning/strategy macro). Often written マク〇 (has macro) or マク× (no macro).
+マカ	まか	Waymarks / Field Markers	pf	PF	https://xivjpraids.com/terminology/	Short for マーカー (field waymarks A/B/C/D/1/2/3/4). Often written マカ〇 (has markers) or マカ× (no markers).
+マクロ	まくろ	Macro	pf	PF	https://xivjpraids.com/terminology/	Chat macro used on JP servers to assign raid positions and mechanic resolution rules.
+マーカー	まーかー	Waymarks / Field Markers	pf	PF	https://xivjpraids.com/terminology/	Field markers (waymarks) placed in an arena for positioning.
+初見	しょけん	First-timer / New to duty	pf	PF	https://xivjpraids.com/terminology/	Player experiencing a duty for the first time.
+初見未予習	しょけんみよしゅう	Blind run (first time, no guides)	pf	PF	https://xivjpraids.com/terminology/	First-time run with no prior guide or video study expected.
+未予習	みよしゅう	Blind (no prior study)	pf	PF	https://xivjpraids.com/terminology/	Running a fight without reading guides or watching clear videos beforehand.
+予習済	よしゅうずみ	Guides studied / Prepared	pf	PF	https://xivjpraids.com/terminology/	Players are expected to have reviewed guides/strats before joining.
+練習	れんしゅう	Practice / Prog (Progression)	pf	PF	https://xivjpraids.com/terminology/	Learning or progressing a fight (e.g. 前半練習 = first-half prog, 後半練習 = second-half prog).
+前半	ぜんはん	First half / Phase 1	pf	PF	https://xivjpraids.com/terminology/	First half or early phases of an encounter (especially 4th-floor Savage door boss).
+後半	こうはん	Second half / Phase 2	pf	PF	https://xivjpraids.com/terminology/	Second half or later phases of an encounter.
+安定	あんてい	Cleanup / Consistency practice	pf	PF	https://xivjpraids.com/terminology/	Practicing a mechanic until the party can resolve it reliably.
+練度上げ	れんどあげ	Skill-up / Consistency practice	pf	PF	https://xivjpraids.com/terminology/	Practice for cleared players aiming to make clears cleaner and more consistent.
+クリ目	くりもく	Aim to Clear (A2C) / Duty Completion	pf	PF	https://xivjpraids.com/terminology/	Short for クリア目的. Party aiming to clear the duty; members are expected to have seen enrage.
+クリア目的	くりあもくてき	Aim to Clear (A2C) / Duty Completion	pf	PF	https://xivjpraids.com/terminology/	Party aiming to clear the encounter.
+消化	しょうか	Weekly reclear	pf	PF	https://xivjpraids.com/terminology/	Weekly Savage/raid reclear for loot and books.
+未消化	みしょうか	Not yet cleared this week	pf	PF	https://xivjpraids.com/terminology/	Has not completed the weekly clear yet (eligible for full loot chests).
+今週済	こんしゅうずみ	Already cleared this week	pf	PF	https://xivjpraids.com/terminology/	Player has already cleared the floor this week (reduces chest count if in Savage).
+クリア済	くりあずみ	Already cleared	pf	PF	https://xivjpraids.com/terminology/	Player who has previously cleared the duty.
+お手伝い	おてつだい	Helper (already-cleared player)	pf	PF	https://xivjpraids.com/terminology/	Experienced/cleared player helping a clear or prog party (often お手伝い歓迎 / 手伝いさん).
+傭兵	ようへい	Mercenary run (paid clear)	pf	PF	https://xivjpraids.com/terminology/	Party leader pays gil to members in exchange for a clear and/or passing on loot.
+断章	だんしょう	Book / Page (Savage Manifesto)	pf	PF	https://xivjpraids.com/terminology/	Weekly guaranteed Savage token; 断章PT / 断章目的 = book/page run (no chest requirement).
+箱	はこ	Treasure coffer / Chest (loot)	pf	PF	https://xivjpraids.com/terminology/	Refers to Savage raid loot coffers (e.g. 箱なし = 0-chest, 2箱 = 2-chest).
+取り抜け	とりぬけ	Loot and scoot (L>R)	pf	PF	https://xivjpraids.com/terminology/	Each player rolls on one item at a time; whoever wins leaves so everyone gets at most one drop.
+左取り抜け	ひだりとりぬけ	Left-to-right loot and scoot (L>R)	pf	PF	https://xivjpraids.com/terminology/	Roll on loot items one by one from left to right; winners drop out of subsequent rolls.
+左から取り抜け	ひだりからとりぬけ	Left-to-right loot and scoot (L>R)	pf	PF	https://xivjpraids.com/terminology/	Roll on loot items one by one from left to right; winners drop out of subsequent rolls.
+先ロット禁止	さきろっときんし	No rolling ahead	pf	PF	https://xivjpraids.com/terminology/	Wait for the current loot item to be resolved before rolling on the next item.
+フリロ	ふりろ	Free-for-all loot (FFA / Free-lot)	pf	PF	https://xivjpraids.com/terminology/	Everyone may roll Need/Greed freely on all drops with no loot restrictions.
+グリパ	ぐりぱ	Greed party	pf	PF	curated-jp-lingo	Loot farm party where everyone rolls Greed (often used for mounts/weapons).
+武器希望制	ぶききぼうせい	Weapon reservation system	pf	PF	https://xivjpraids.com/terminology/	Each member claims one job weapon in advance for 4th-floor Savage drops.
+詰め	つめ	Parse run / Optimization	pf	PF	https://xivjpraids.com/terminology/	Short for 火力詰め. Party aiming for high DPS parses (typically BiS expected).
+火力詰め	かりょくづめ	Parse run / DPS optimization	pf	PF	https://xivjpraids.com/terminology/	Party aiming for high DPS parses/logs.
+1飯	いちめし	One food duration (30 minutes)	pf	PF	https://xivjpraids.com/terminology/	Practice for one food buff (~30 min), then re-evaluate or disband.
+1飯ごとRC	いちめしごとあーるしー	Ready Check every 30 min (1 food)	pf	PF	https://xivjpraids.com/terminology/	Party leader checks after every 30-minute food buff whether to continue.
+3滅解散	さんめつかいさん	Disband after 3 wipes	pf	PF	https://xivjpraids.com/terminology/	Party agrees to disband if 3 wipes occur without clearing.
+1滅解散	いちめつかいさん	Disband after 1 wipe	pf	PF	curated-jp-lingo	Party disbands after a single wipe.
+滅解散	めつかいさん	Disband after X wipes	pf	PF	curated-jp-lingo	Used with a number (e.g. 2滅解散, 3滅解散).
+RC	あーるしー	Ready Check	pf	PF	curated-jp-lingo	Abbreviation for レディチェック (Ready Check).
+レディチェ	れでぃちぇ	Ready Check	pf	PF	curated-jp-lingo	Short for レディチェック.
+カウント	かうんと	Countdown (pull timer)	pf	PF	curated-jp-lingo	Countdown timer before pulling a boss.
+フライング	ふらいんぐ	Early pull	pf	PF	curated-jp-lingo	Pulling the boss before the countdown reaches zero.
+ギブ	ぎぶ	Vote Abandon	pf	PF	curated-jp-lingo	Short for ギブアップ (Vote Abandon).
+補充	ほじゅう	Refill / Replacement	pf	PF	curated-jp-lingo	Recruiting a replacement party member mid-run or between pulls.
+固定	こてい	Static (raid group)	pf	Community	curated-jp-lingo	Fixed group of players who raid together on a schedule.
+野良	のら	PUG / PF randoms	pf	Community	curated-jp-lingo	Playing with random players via Party Finder or Duty Finder rather than a static.
+早期攻略	そうきこうりゃく	Early prog / Week-1 clear	pf	PF	curated-jp-lingo	Clearing a Savage/Ultimate tier shortly after release.
+初週	しょしゅう	Week 1	pf	PF	curated-jp-lingo	First week of a raid tier release.
+脳死法	のうしほう	Braindead strat	pf	PF	curated-jp-lingo	Simplified raid strategy that minimizes movement or decision-making.
+基本散開	きほんさんかい	Clock spots / Basic spread positions	pf	PF	curated-jp-lingo	Standard 8-way spread positions defined in the raid macro.
+処理法	しょりほう	Mechanic strategy / Resolution method	pf	PF	curated-jp-lingo	Specific strategy used to resolve a raid mechanic.
+ぬけまる	ぬけまる	Nukemaru (JP raid guide creator)	pf	PF	curated-jp-lingo	Popular Japanese FFXIV raid guide YouTuber; ぬけまる式 = Nukemaru strat.
+ハムカツ	はむかつ	Hamukatsu (JP raid guide creator)	pf	PF	curated-jp-lingo	Popular Japanese FFXIV raid guide creator; ハムカツ式 = Hamukatsu strat.
+イディル	いでぃる	Idyllshire (JP raid guide site)	pf	PF	curated-jp-lingo	Popular JP raid guide site (イディルシャイア居住区); イディル式 = Idyll strat.
+頭割り	あたまわり	Stack marker / Shared damage	slang	Mechanics	curated-jp-lingo	Mechanic where party members gather together to split incoming damage.
+ペア割り	ぺあわり	Pair stack (2-person stack)	slang	Mechanics	curated-jp-lingo	Stack mechanic resolved in pairs (typically TH + DPS).
+散開	さんかい	Spread out	slang	Mechanics	curated-jp-lingo	Spreading out to assigned positions so AoEs do not overlap.
+スイッチ	すいっち	Tank swap	slang	Mechanics	curated-jp-lingo	Handing boss aggro from MT to ST (or vice versa) using Provoke/Shirk.
+無敵受け	むてきうけ	Invuln (taking a tankbuster with invulnerability)	slang	Mechanics	curated-jp-lingo	Resolving a tankbuster or mechanic using Hallowed Ground, Holmgang, Living Dead, or Superbolide.
+フルバフ	ふるばふ	Full mitigation / Kitchen sink	slang	Mechanics	curated-jp-lingo	Stacking multiple defensive cooldowns to survive heavy damage.
+バフ受け	ばふうけ	Mitigate normally (without invuln)	slang	Mechanics	curated-jp-lingo	Taking a tankbuster with standard defensive cooldowns instead of an invuln.
+軽減	けいげん	Mitigation	slang	Mechanics	curated-jp-lingo	Damage-reduction abilities (Reprisal, Feint, Addle, party shields, etc.).
+シナジー	しなじー	Raid buffs / Party synergy	slang	Combat	curated-jp-lingo	Party-wide damage buffs aligned during burst windows.
+バースト	ばーすと	Burst window	slang	Combat	curated-jp-lingo	Coordinated high-DPS window (typically every 2 minutes) aligning raid buffs and cooldowns.
+薬	くすり	Tincture / Potion (DPS pot)	slang	Combat	curated-jp-lingo	Grade tincture used during burst windows to boost main stat.
+飯	めし	Raid food	slang	Combat	curated-jp-lingo	Crafted food buff providing HP and secondary stats for 30 minutes.
+木人	もくじん	Striking dummy (Stone, Sky, Sea)	slang	Combat	curated-jp-lingo	Target dummy used to practice rotations or test DPS checks.
+詠唱	えいしょう	Cast / Cast bar	slang	Mechanics	curated-jp-lingo	Spell/ability cast time or boss cast bar.
+予兆	よちょう	Telegraph / AoE indicator	slang	Mechanics	curated-jp-lingo	Visual ground or boss indicator warning of an upcoming attack.
+安置	あんち	Safe spot	slang	Mechanics	curated-jp-lingo	Short for 安全地帯. Safe area to stand during an attack.
+外周	がいしゅう	Arena edge / Outer perimeter	slang	Mechanics	curated-jp-lingo	Outer edge of the boss arena (often has death walls or adds).
+視線	しせん	Gaze mechanic (look away)	slang	Mechanics	curated-jp-lingo	Attack with an eye icon that requires facing away from the source.
+ノックバック	のっくばっく	Knockback	slang	Mechanics	curated-jp-lingo	Forced pushback effect (countered with Arm's Length / Surecast).
+アムレン	あむれん	Arm's Length	slang	Combat	curated-jp-lingo	Short for アームズレングス (physical knockback immunity / slow).
+堅実魔	けんじつま	Surecast	slang	Combat	curated-jp-lingo	Caster/healer knockback immunity ability.
+線取り	せんとり	Tether interception / Taking tethers	slang	Mechanics	curated-jp-lingo	Intercepting or picking up boss tethers (often by tanks).
+塔踏み	とうふみ	Tower soak	slang	Mechanics	curated-jp-lingo	Standing inside meteor/tower circles to prevent raid-wide explosions.
+誘導	ゆうどう	Baiting / Boss positioning	slang	Mechanics	curated-jp-lingo	Guiding boss facing, movement, or baited AoEs to a specific spot.
+北基準	きたきじゅん	True North (N-relative positioning)	slang	Mechanics	curated-jp-lingo	Positioning relative to map North regardless of boss facing.
+ボス基準	ぼすきじゅん	Boss-relative positioning	slang	Mechanics	curated-jp-lingo	Positioning relative to where the boss is facing.
+時計回り	とけいまわり	Clockwise (CW)	slang	Mechanics	curated-jp-lingo	Rotating clockwise around the arena.
+反時計回り	はんとけいまわり	Counter-clockwise (CCW)	slang	Mechanics	curated-jp-lingo	Rotating counter-clockwise around the arena.
+十字	じゅうじ	Cardinals (+ / N, E, S, W)	slang	Mechanics	curated-jp-lingo	Cardinal directions (North, East, South, West).
+X字	えっくすじ	Intercardinals (× / NE, SE, SW, NW)	slang	Mechanics	curated-jp-lingo	Diagonal / intercardinal directions.
+ドーナツ範囲	どーなつはんい	Donut AoE (get in)	slang	Mechanics	curated-jp-lingo	Ring-shaped AoE where the center under the boss is safe.
+距離減衰	きょりげんすい	Proximity damage (flare/falloff)	slang	Mechanics	curated-jp-lingo	Attack whose damage decreases the farther you stand from the impact point.
+迅速蘇生	じんそくそせい	Swiftcast Raise	slang	Combat	curated-jp-lingo	Using Swiftcast to instantly resurrect a fallen party member.
+リプ	りぷ	Reprisal	slang	Combat	curated-jp-lingo	Short for リプライザル (tank AoE damage-reduction ability).
+スタンス	すたんす	Tank stance	slang	Combat	curated-jp-lingo	Enmity-generating stance (Iron Will, Defiance, Grit, Royal Guard).
+タゲ	たげ	Target / Aggro	slang	Combat	curated-jp-lingo	Short for ターゲット.
+ヘイト	へいと	Enmity / Aggro / Threat	slang	Combat	curated-jp-lingo	Threat level determining who the enemy attacks.
+タゲ跳ね	たげはね	Ripping aggro / Losing aggro	slang	Combat	curated-jp-lingo	When boss aggro jumps from the tank to a DPS or healer.
+まとめ	まとめ	Wall-to-wall / Big pulls	slang	Dungeon	curated-jp-lingo	Pulling multiple trash packs together in a dungeon (short for まとめ狩り).
+まとめ狩り	まとめがり	Wall-to-wall / Big pulls	slang	Dungeon	curated-jp-lingo	Pulling multiple groups of dungeon enemies and AoEing them down together.
+時間切れ	じかんぎれ	Enrage (hard enrage)	slang	Mechanics	curated-jp-lingo	Boss finishes its final unmitigable cast because DPS was insufficient.
+全滅	ぜんめつ	Wipe	slang	Combat	curated-jp-lingo	Entire party is defeated.
+ペロる	ぺろる	To die / Floor tank	slang	Slang	curated-jp-lingo	Verb form of 床ペロ (licking the floor / dying in combat).
+出荷	しゅっか	Carry (getting carried to a clear)	slang	Slang	curated-jp-lingo	Literally "shipping out"; clearing a fight largely carried by other players.
+ギスる	ぎする	To get salty / Toxic atmosphere	slang	Slang	curated-jp-lingo	From ギスギス (tense/hostile atmosphere in a party after repeated wipes).
+シャキる	しゃきる	Queue pop	slang	Slang	curated-jp-lingo	Onomatopoeia for the metallic "shakiin!" sound when Duty Finder matches.
+シャキ待ち	しゃきまち	Waiting in queue	slang	Slang	curated-jp-lingo	Waiting for Duty Finder to pop.
+即シャキ	そくしゃき	Instant queue pop	slang	Slang	curated-jp-lingo	Duty Finder popping immediately (common for tanks/healers).
+方向指定	ほうこうしてい	Positionals (flank/rear)	slang	Combat	curated-jp-lingo	Melee DPS attacks dealing bonus potency from the enemy's flank or rear.
+リキャ	りきゃ	Cooldown / Recast timer	slang	Combat	curated-jp-lingo	Short for リキャスト (recast time).
+プロック	ぷろっく	Proc	slang	Combat	curated-jp-lingo	Triggered ability/status effect (from "programmed random occurrence").
+メレー	めれー	Melee DPS	slang	Role	curated-jp-lingo	Close-range physical DPS (MNK, DRG, NIN, SAM, RPR, VPR).
+レンジ	れんじ	Physical Ranged DPS	slang	Role	curated-jp-lingo	Physical ranged DPS (BRD, MCH, DNC).
+キャス	きゃす	Magical Ranged DPS (Caster)	slang	Role	curated-jp-lingo	Short for キャスター (BLM, SMN, RDM, PCT).
+ヒラ	ひら	Healer	slang	Role	curated-jp-lingo	Short for ヒーラー (WHM, SCH, AST, SGE).
+ピュアヒラ	ぴゅあひら	Pure Healer (PH / H1)	slang	Role	curated-jp-lingo	Regen/raw-healing focused healer (WHM, AST).
+バリアヒラ	ばりあひら	Barrier Healer (BH / H2)	slang	Role	curated-jp-lingo	Shield/mitigation focused healer (SCH, SGE).
+PH	ぴーえいち	Pure Healer (H1)	acronym	Role	curated-jp-lingo	White Mage or Astrologian.
+BH	びーえいち	Barrier Healer (H2)	acronym	Role	curated-jp-lingo	Scholar or Sage.
+MT	えむてぃー	Main Tank	acronym	Role	curated-jp-lingo	Tank holding the boss first / primary tank position.
+ST	えすてぃー	Sub Tank / Off-Tank (OT)	acronym	Role	curated-jp-lingo	Secondary tank position (JP uses ST where NA/EU uses OT).
+TH	てぃーえいち	Tanks & Healers	acronym	Role	curated-jp-lingo	Support role group (Tanks + Healers) in 4-4 split mechanics.
+D1	でぃーいち	Melee DPS 1 (Primary Melee)	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for primary melee DPS.
+D2	でぃーに	Melee / Flex DPS 2	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for second melee or flex DPS.
+D3	でぃーさん	Physical Ranged DPS	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for BRD/MCH/DNC.
+D4	でぃーよん	Magical Ranged DPS (Caster)	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for BLM/SMN/RDM/PCT.
+H1	えいちいち	Pure Healer (Healer 1)	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for WHM/AST.
+H2	えいちに	Barrier Healer (Healer 2)	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for SCH/SGE.
+白魔	しろま	White Mage (WHM)	job_abbr	Job	curated-jp-lingo	Short for 白魔道士.
+黒魔	くろま	Black Mage (BLM)	job_abbr	Job	curated-jp-lingo	Short for 黒魔道士.
+赤魔	あかま	Red Mage (RDM)	job_abbr	Job	curated-jp-lingo	Short for 赤魔道士.
+青魔	あおま	Blue Mage (BLU)	job_abbr	Job	curated-jp-lingo	Short for 青魔道士.
+暗黒	あんこく	Dark Knight (DRK)	job_abbr	Job	curated-jp-lingo	Short for 暗黒騎士.
+ガンブレ	がんぶれ	Gunbreaker (GNB)	job_abbr	Job	curated-jp-lingo	Short for ガンブレイカー.
+占星	せんせい	Astrologian (AST)	job_abbr	Job	curated-jp-lingo	Short for 占星術師.
+召喚	しょうかん	Summoner (SMN)	job_abbr	Job	curated-jp-lingo	Short for 召喚士.
+詩人	しじん	Bard (BRD)	job_abbr	Job	curated-jp-lingo	Short for 吟遊詩人.
+機工	きこう	Machinist (MCH)	job_abbr	Job	curated-jp-lingo	Short for 機工士.
+竜騎	りゅうき	Dragoon (DRG)	job_abbr	Job	curated-jp-lingo	Short for 竜騎士.
+ピクト	ぴくと	Pictomancer (PCT)	job_abbr	Job	curated-jp-lingo	Short for ピクトマンサー.
+ヴァイ	ゔぁい	Viper (VPR)	job_abbr	Job	curated-jp-lingo	Short for ヴァイパー.
+ナ	な	Paladin (PLD)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for ナイト (Paladin).
+戦	せん	Warrior (WAR)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 戦士 (Warrior).
+暗	あん	Dark Knight (DRK)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 暗黒騎士 (Dark Knight).
+ガ	が	Gunbreaker (GNB)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for ガンブレイカー (Gunbreaker).
+白	しろ	White Mage (WHM)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 白魔道士 (White Mage).
+学	がく	Scholar (SCH)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 学者 (Scholar).
+占	せん	Astrologian (AST)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 占星術師 (Astrologian).
+賢	けん	Sage (SGE)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 賢者 (Sage).
+モ	も	Monk (MNK)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for モンク (Monk).
+竜	りゅう	Dragoon (DRG)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 竜騎士 (Dragoon).
+忍	にん	Ninja (NIN)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 忍者 (Ninja).
+リ	り	Reaper (RPR)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for リーパー (Reaper).
+ヴ	ゔ	Viper (VPR)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for ヴァイパー (Viper).
+詩	し	Bard (BRD)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 吟遊詩人 (Bard).
+機	き	Machinist (MCH)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 機工士 (Machinist).
+踊	おど	Dancer (DNC)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 踊り子 (Dancer).
+黒	くろ	Black Mage (BLM)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 黒魔道士 (Black Mage).
+召	しょう	Summoner (SMN)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 召喚士 (Summoner).
+赤	あか	Red Mage (RDM)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 赤魔道士 (Red Mage).
+ピ	ぴ	Pictomancer (PCT)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for ピクトマンサー (Pictomancer).
+青	あお	Blue Mage (BLU)	job_abbr	Job	curated-jp-lingo	Single-character PF/macro abbreviation for 青魔道士 (Blue Mage).
+アラルレ	あらるれ	Alliance Raid Roulette	slang	Content	curated-jp-lingo	Short for アライアンスレイド・ルーレット.
+エキルレ	えきるれ	Expert Roulette	slang	Content	curated-jp-lingo	Short for エキスパート・ルーレット.
+レベリング	れべりんぐ	Leveling Roulette	slang	Content	curated-jp-lingo	Short for レベリング・ルーレット.
+討滅ルレ	とうめつるれ	Trials Roulette	slang	Content	curated-jp-lingo	Short for 討伐・討滅戦ルーレット.
+Nレイド	のーまるれいど	Normal Raid	slang	Content	curated-jp-lingo	Normal-difficulty 8-player raid (as opposed to 零式 / Savage).
+幻	げん	Unreal (Trial)	term	Content	curated-jp-lingo	Level-synced high-difficulty Unreal trial (e.g. 幻朱雀).
+異聞	いぶん	Criterion Dungeon	term	Content	curated-jp-lingo	4-player high-difficulty Variant/Criterion dungeon (異聞零式 = Criterion Savage).
+滅	めつ	Chaotic Alliance Raid	term	Content	curated-jp-lingo	24-player high-difficulty Chaotic Alliance Raid (e.g. 滅暗闇の雲激闘戦).
+新式	しんしき	Crafted raid gear (current tier)	slang	Gear	curated-jp-lingo	Latest crafter-made combat gear released alongside each Savage tier.
+禁断	きんだん	Pentamelding / Overmelding	slang	Gear	curated-jp-lingo	Short for 禁断のマテリア装着 (attaching materia beyond guaranteed slots).
+ミラプリ	みらぷり	Glamour	slang	System	curated-jp-lingo	Short for ミラージュプリズム (gear appearance projection).
+グルポ	ぐるぽ	Group Pose (/gpose)	slang	System	curated-jp-lingo	Short for グループポーズ (in-game screenshot/photo mode).
+ギャザクラ	ぎゃざくら	Disciples of the Hand & Land (Crafters & Gatherers)	slang	System	curated-jp-lingo	Combined shorthand for ギャザラー (gatherers) + クラフター (crafters).
+マケボ	まけぼ	Market Board	slang	System	curated-jp-lingo	Short for マーケットボード.
+モブハン	もぶはん	The Hunt (Mob Hunt)	slang	Content	curated-jp-lingo	Short for モブハント (hunting S/A/B rank marks; モブハンツアー = Hunt Train).
+Sモブ	えすもぶ	S-Rank Hunt Mark	slang	Content	curated-jp-lingo	Rare spawn S-rank elite mark.
+Aモブ	えーもぶ	A-Rank Hunt Mark	slang	Content	curated-jp-lingo	Zone-spawning A-rank elite mark (farmed in Hunt Trains).
+地図	ちず	Treasure Maps	slang	Content	curated-jp-lingo	Short for トレジャーハント / 宝の地図 (e.g. 地図G17).
+宝物庫	ほうもつこ	Treasure Dungeon	slang	Content	curated-jp-lingo	Portal dungeon opened from Treasure Maps.
+クリコン	くりこん	Crystalline Conflict (PvP)	slang	PvP	curated-jp-lingo	Short for クリスタルコンフリクト (5v5 PvP mode).
+フロントライン	ふろんとらいん	Frontline (PvP)	term	PvP	curated-jp-lingo	72-player (24v24v24) PvP mode (often abbreviated FL).
+ゴージ	ごーじ	Hidden Gorge (Rival Wings PvP)	slang	PvP	curated-jp-lingo	Short for ヒドゥンゴージ (48-player mech PvP mode).
+クロの空想帳	くろのくうそうちょう	Wondrous Tails	term	Content	curated-jp-lingo	Weekly sticker journal from Khloe Aliapoh in Idyllshire.
+お得意様	おとくいさま	Custom Deliveries	term	Content	curated-jp-lingo	Weekly crafting/gathering deliveries to specific NPCs.
+友好部族	ゆうこうぶぞく	Allied Societies (formerly Tribal Quests)	term	Content	curated-jp-lingo	Renamed from 蛮族 (Beast Tribes).
+詩学	しがく	Allagan Tomestones of Poetics	term	Currency	curated-jp-lingo	Legacy expansion currency (アラガントームストーン：詩学).
+スクリップ	すくりっぷ	Crafters' / Gatherers' Scrips	term	Currency	curated-jp-lingo	Currency earned from collectables and Custom Deliveries.
+軍票	ぐんぴょう	Company Seals	term	Currency	curated-jp-lingo	Grand Company currency.
+アチブ	あちぶ	Achievement	slang	System	curated-jp-lingo	Short for アチーブメント.
+ナギ節	なぎせつ	Content lull / Patch drought	slang	Community	curated-jp-lingo	Quiet period between major patches (from 凪, calm sea with no wind).
+PLL	ぴーえるえる	Letter from the Producer LIVE	acronym	Community	curated-jp-lingo	Official FFXIV developer livestream (プロデューサーレターLIVE).
+吉田P	よしだぴー	Yoshi-P (Naoki Yoshida)	slang	Community	curated-jp-lingo	FFXIV Producer & Director Naoki Yoshida.
+リターナー	りたーなー	Returner	term	Community	curated-jp-lingo	Player returning after an extended break (flower icon).
+メンター	めんたー	Mentor	term	Community	curated-jp-lingo	Experienced player with the crown icon.
+オスッテ	おすって	Male Miqo'te	slang	Race	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Portmanteau of オス (male) + ミコッテ.
+メスッテ	めすって	Female Miqo'te	slang	Race	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Portmanteau of メス (female) + ミコッテ.
+オスラ	おすら	Male Au Ra	slang	Race	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Portmanteau of オス + アウラ.
+メスラ	めすら	Female Au Ra	slang	Race	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Portmanteau of メス + アウラ.
+ララ	らら	Lalafell	slang	Race	curated-jp-lingo	Short for ララフェル.
+エレオス	えれおす	Male Elezen	slang	Race	curated-jp-lingo	Short for エレゼン + オス.
+エレメス	えれめす	Female Elezen	slang	Race	curated-jp-lingo	Short for エレゼン + メス.
+うさお	うさお	Male Viera (Bunboy)	slang	Race	curated-jp-lingo	Nickname for male Viera (兎 + 男).
+うさこ	うさこ	Female Viera (Bungirl)	slang	Race	curated-jp-lingo	Nickname for female Viera (兎 + 子).
+おつ	おつ	Good work / GG / Thanks for the party	slang	Chat	curated-jp-lingo	Short for お疲れ様でした. Used at the end of duties.
+よろ	よろ	Nice to meet you / Let's do this!	slang	Chat	curated-jp-lingo	Short for よろしくお願いします. Used at the start of duties.
+あり	あり	Thanks	slang	Chat	curated-jp-lingo	Short for ありがとう.
+ノ	の	Raising hand (joining / volunteering / "o/")	slang	Chat	curated-jp-lingo	Typed in chat to volunteer for a party, Hunt invite, or roll call (like o/).
+ノシ	のし	Waving goodbye (o/)	slang	Chat	curated-jp-lingo	Waving hand kaomoji used when leaving a party or logging off.
+乙	おつ	Good work / GG	slang	Chat	curated-jp-lingo	Kanji shorthand for お疲れ様でした (otsukare).
+ドンマイ	どんまい	Don't mind / No worries	slang	Chat	curated-jp-lingo	Reassurance after a wipe or mistake.
+初見です	しょけんです	First time here!	slang	Chat	curated-jp-lingo	Polite greeting letting the party know you are new to the duty.
+草	くさ	LOL / Haha	slang	Chat	curated-jp-lingo	Internet slang from www resembling grass (草).
+ID	あいでぃー	Instanced Dungeon (4-player dungeon)	acronym	Content	curated-jp-lingo	JP players say ID where EN players say "dungeon".
+CF	しーえふ	Duty Finder (Contents Finder)	acronym	System	curated-jp-lingo	JP abbreviation for コンテンツファインダー (EN: DF).
+RF	あーるえふ	Raid Finder	acronym	System	curated-jp-lingo	JP abbreviation for レイドファインダー.
+PF	ぴーえふ	Party Finder	acronym	System	curated-jp-lingo	Abbreviation for パーティ募集.
+FC	えふしー	Free Company	acronym	Community	curated-jp-lingo	Player guild (フリーカンパニー).
+LS	えるえす	Linkshell	acronym	Community	curated-jp-lingo	In-game chat channel (リンクシェル).
+CWLS	しーだぶりゅーえるえす	Cross-World Linkshell	acronym	Community	curated-jp-lingo	Cross-world chat channel (クロスワールドリンクシェル).
+GC	じーしー	Grand Company	acronym	System	curated-jp-lingo	グランドカンパニー (Maelstrom, Twin Adder, Immortal Flames).
+PT	ぴーてぃー	Party	acronym	System	curated-jp-lingo	Abbreviation for パーティ.
+IL	あいえる	Item Level (iLvl)	acronym	Gear	curated-jp-lingo	Equipment item level (アイテムレベル).
+SS	えすえす	Screenshot / Skill Speed / Spell Speed	acronym	System	curated-jp-lingo	Context-dependent: screenshot (スクリーンショット) or SkS/SpS stat.
+DD	でぃーでぃー	Deep Dungeon	acronym	Content	curated-jp-lingo	Palace of the Dead, Heaven-on-High, Eureka Orthos, etc.
+FL	えふえる	Frontline (PvP)	acronym	PvP	curated-jp-lingo	72-player PvP roulette mode.
+CC	しーしー	Crystalline Conflict (PvP)	acronym	PvP	curated-jp-lingo	5v5 PvP mode.
+RW	あーるだぶりゅー	Rival Wings (PvP) / Resistance Weapon	acronym	Content	curated-jp-lingo	Context-dependent: Rival Wings PvP or Shadowbringers relic weapon.
+AA	えーえー	Auto-Attack	acronym	Combat	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Automatic basic attack between skills.
+AoE	えーおーいー	Area of Effect	acronym	Combat	curated-jp-lingo	Area-targeting attack or ground telegraph.
+DoT	どっと	Damage over Time	acronym	Combat	curated-jp-lingo	Debuff dealing periodic damage.
+HoT	ほっと	Heal over Time	acronym	Combat	curated-jp-lingo	Regen buff restoring HP periodically.
+GCD	じーしーでぃー	Global Cooldown	acronym	Combat	curated-jp-lingo	Shared ~2.5s recast timer for weaponskills and spells.
+oGCD	おーじーしーでぃー	Off-Global Cooldown (Ability)	acronym	Combat	curated-jp-lingo	Instant ability woven between GCDs.
+LB	えるびー	Limit Break	acronym	Combat	curated-jp-lingo	Party-wide special gauge attack/heal/mitigation.
+DPS	でぃーぴーえす	Damage Per Second / Attacker role	acronym	Role	curated-jp-lingo	Damage-dealing role or damage rate.
