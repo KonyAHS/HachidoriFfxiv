@@ -1,6 +1,8 @@
 #Requires -Version 7.0
+# Builds and verifies only when the checkout changed since the last verified
+# build; pass -Rebuild to always run the full build and regression checks.
 [CmdletBinding(SupportsShouldProcess)]
-param()
+param([switch]$Rebuild)
 
 $ErrorActionPreference = 'Stop'
 $launcher = Join-Path $env:APPDATA 'XIVLauncher'
@@ -41,6 +43,7 @@ function Assert-PluginFeatures([string]$Path) {
         'HachidoriFfxiv.Ui.NpcImageCapture'
         'HachidoriFfxiv.Rendering.NativeChatLayout'
         'HachidoriFfxiv.Offline.OfflineMode'
+        'HachidoriFfxiv.WebView.WebViewPopupController'
     )
     $missing = @($required | Where-Object { $_ -notin $types })
     if ($missing.Count -gt 0) {
@@ -50,7 +53,7 @@ function Assert-PluginFeatures([string]$Path) {
 
 & {
     $WhatIfPreference = $false
-    & (Join-Path $PSScriptRoot 'build.ps1') -Verify
+    & (Join-Path $PSScriptRoot 'build.ps1') -Verify -IfChanged:(!$Rebuild)
 }
 $output = Join-Path $PSScriptRoot 'HachidoriFfxiv/bin/x64/Release'
 $candidate = Join-Path $output 'HachidoriFfxiv.dll'
@@ -65,12 +68,15 @@ $hash = (Get-FileHash -LiteralPath $candidate).Hash
 $runtimeManifest = 'HachidoriFfxiv.deps.json'
 $deps = Get-Content -LiteralPath (Join-Path $output $runtimeManifest) -Raw | ConvertFrom-Json
 $runtime = $deps.targets.PSObject.Properties[$deps.runtimeTarget.name].Value
-# The offline engine is a native DLL outside deps.json; without it offline mode cannot load.
-$files = @($runtimeManifest, 'HachidoriFfxiv.json', 'hdw_native.dll', 'hdw_native.json')
+# Native DLLs outside deps.json: offline engine (hdw_native.dll) and WebView2 loader (WebView2Loader.dll).
+$files = @($runtimeManifest, 'HachidoriFfxiv.json', 'hdw_native.dll', 'hdw_native.json', 'WebView2Loader.dll')
 foreach ($engineFile in @('hdw_native.dll', 'hdw_native.json')) {
     if (!(Test-Path -LiteralPath (Join-Path $output $engineFile) -PathType Leaf)) {
         throw "Build is missing the offline engine ($engineFile). Run native/build.ps1."
     }
+}
+if (!(Test-Path -LiteralPath (Join-Path $output 'WebView2Loader.dll') -PathType Leaf)) {
+    throw 'Build is missing WebView2Loader.dll.'
 }
 foreach ($library in $runtime.PSObject.Properties) {
     foreach ($asset in $library.Value.runtime.PSObject.Properties) {

@@ -21,22 +21,27 @@
     <!-- Hachidori's popup theme stylesheets, synced by scripts/sync_hachidori_themes.py.
          They are embedded minified and deflated (about a tenth of their size); see PackThemeSheets. -->
     <ThemeSheet Include="Themes\*.css" />
-    <EmbeddedResource Include="@(ThemeSheet->'$(ThemePackDirectory)%(Filename).deflate')"
-                      LogicalName="HachidoriFfxiv.Themes.%(Filename).css.deflate" />
+    <EmbeddedResource Include="@(ThemeSheet->'$(ThemePackDirectory)%(Filename).deflate')" LogicalName="HachidoriFfxiv.Themes.%(Filename).css.deflate" />
     <!-- KANJIDIC and Jitendex kanwa readings for offline furigana, as Hachidori bundles them. -->
     <EmbeddedResource Include="Offline\Data\*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />
     <!-- Yomitan's structured-content class styles, inlined into offline Anki glossaries. -->
     <EmbeddedResource Include="Anki\Data\*.json" LogicalName="HachidoriFfxiv.Anki.%(Filename).json" />
+    <!-- Embedded WebView2 host harness & chrome.* bridge for running Hachidori Web's real frontend. -->
+    <EmbeddedResource Include="WebView\Assets\host.html" LogicalName="HachidoriFfxiv.WebView.Assets.host.html" />
+    <EmbeddedResource Include="WebView\Assets\ffxiv-bridge.js" LogicalName="HachidoriFfxiv.WebView.Assets.ffxiv-bridge.js" />
+    <EmbeddedResource Include="WebView\Assets\overlay-mode.js" LogicalName="HachidoriFfxiv.WebView.Assets.overlay-mode.js" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The offline engine, built by native/build.ps1 (build.ps1 runs it first). -->
     <None Include="../native/bin/hdw_native.dll" Link="hdw_native.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" Condition="Exists('../native/bin/hdw_native.dll')" />
     <None Include="../native/bin/hdw_native.json" Link="hdw_native.json" CopyToOutputDirectory="PreserveNewest" Visible="false" Condition="Exists('../native/bin/hdw_native.json')" />
+    <None Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll" Link="WebView2Loader.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" Condition="Exists('$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll')" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3179.45" GeneratePathProperty="true" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
@@ -97,9 +102,13 @@
     </Task>
   </UsingTask>
 
-  <Target Name="PackThemeSheets" BeforeTargets="BeforeBuild"
-          Inputs="@(ThemeSheet);$(MSBuildProjectFullPath)"
-          Outputs="@(ThemeSheet->'$(ThemePackDirectory)%(Filename).deflate')">
+  <Target Name="RemoveUnusedWebView2UiRefs" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf' or '%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="PackThemeSheets" BeforeTargets="BeforeBuild" Inputs="@(ThemeSheet);$(MSBuildProjectFullPath)" Outputs="@(ThemeSheet->'$(ThemePackDirectory)%(Filename).deflate')">
     <PackThemeSheets Sources="@(ThemeSheet)" OutputDirectory="$(ThemePackDirectory)" />
   </Target>
 
@@ -119,8 +128,7 @@
       <_TrimReference Include="@(ReferencePath)" Condition="'%(ReferencePath.NuGetPackageId)' != 'Concentus' and '%(ReferencePath.NuGetPackageId)' != 'Concentus.Oggfile' and '%(ReferencePath.NuGetPackageId)' != 'NAudio.Core' and '%(ReferencePath.NuGetPackageId)' != 'NAudio.Vorbis' and '%(ReferencePath.NuGetPackageId)' != 'NAudio.Wasapi' and '%(ReferencePath.NuGetPackageId)' != 'NVorbis'" />
     </ItemGroup>
     <RemoveDir Directories="$(_TrimOutput)" />
-    <WriteLinesToFile File="$(IntermediateOutputPath)trim.rsp" Overwrite="true" WriteOnlyWhenDifferent="true"
-                      Lines="-a &quot;$(ProjectDir)$(OutDir)$(TargetFileName)&quot; all;-d &quot;$(ProjectDir)$(OutDir).&quot;;@(_TrimReference->'-reference &quot;%(FullPath)&quot;');@(_TrimLibrary->'--action link %(Identity)');-x &quot;$(ProjectDir)AudioInterop.trim.xml&quot;;--trim-mode skip;--action copy $(AssemblyName);--skip-unresolved true;--notrimwarn;--deterministic;-out &quot;$(ProjectDir)$(_TrimOutput).&quot;" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)trim.rsp" Overwrite="true" WriteOnlyWhenDifferent="true" Lines="-a &quot;$(ProjectDir)$(OutDir)$(TargetFileName)&quot; all;-d &quot;$(ProjectDir)$(OutDir).&quot;;@(_TrimReference->'-reference &quot;%(FullPath)&quot;');@(_TrimLibrary->'--action link %(Identity)');-x &quot;$(ProjectDir)AudioInterop.trim.xml&quot;;--trim-mode skip;--action copy $(AssemblyName);--skip-unresolved true;--notrimwarn;--deterministic;-out &quot;$(ProjectDir)$(_TrimOutput).&quot;" />
     <Exec Command="&quot;$(_TrimDotnet)&quot; &quot;$(PkgMicrosoft_NET_ILLink_Tasks)\tools\net\illink.dll&quot; @&quot;$(IntermediateOutputPath)trim.rsp&quot;" StandardOutputImportance="low" />
     <Copy SourceFiles="@(_TrimLibrary->'$(_TrimOutput)%(Identity).dll')" DestinationFolder="$(OutDir)" />
   </Target>

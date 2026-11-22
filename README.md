@@ -4,11 +4,11 @@
 
 # Hachidori for FFXIV
 
-**Read Japanese as you play FFXIV.**<br>Hover dialogue, subtitles, battle talk, and chat for dictionary lookups, pronunciation, and Anki mining.
+**Read Japanese as you play FFXIV.**<br>Hover dialogue, subtitles, battle talk, chat, and frozen tooltips for Hachidori dictionary popups, pronunciation, immersion stats, and Anki mining with game media.
 
-[![Latest release](https://img.shields.io/github/v/release/KonyAHS/HachidoriFfxiv?label=release&color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest) [![GitHub stars](https://img.shields.io/github/stars/KonyAHS/HachidoriFfxiv?color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/stargazers) [![Build status](https://github.com/KonyAHS/HachidoriFfxiv/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/KonyAHS/HachidoriFfxiv/actions/workflows/release.yml) [![Dalamud API 15](https://img.shields.io/badge/Dalamud_API-15-80602c)](#first-setup) [![GPL-3.0 license](https://img.shields.io/github/license/KonyAHS/HachidoriFfxiv?color=80602c)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/KonyAHS/HachidoriFfxiv?label=release&color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest) [![GitHub stars](https://img.shields.io/github/stars/KonyAHS/HachidoriFfxiv?color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/stargazers) [![Build status](https://img.shields.io/github/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/KonyAHS/HachidoriFfxiv/actions/workflows/release.yml) [![Dalamud API 15](https://img.shields.io/badge/Dalamud_API-15-80602c)](#first-setup) [![GPL-3.0 license](https://img.shields.io/github/license/KonyAHS/HachidoriFfxiv?color=80602c)](LICENSE)
 
-[Install](#first-setup) · [Features](#features) · [Popup themes](#popup-themes) · [FFXIV dictionary](dictionaries/ffxiv/README.md)
+[Install](#first-setup) · [Features](#features) · [Popups & themes](#popups-and-themes) · [Freeze Frame](#freeze-frame-for-tooltips) · [Immersion stats](#immersion-stats) · [Card media](#card-media-screenshot-voice-line-animation-translation) · [Controller](#controller) · [Offline mode](#offline-mode) · [FFXIV dictionary](dictionaries/ffxiv/README.md)
 
 Windows plugin for Dalamud, installed through a custom repository.
 
@@ -29,27 +29,47 @@ Once your Hachidori host is linked, try `/hachidori 冒険者` in game.
 
 ## Features
 
-- **Hover lookups in the game's own text:** dialogue, cutscene subtitles, battle
-  talk and the chat window, with no overlay on top of the game text.
-- **Yomitan-style popups:** nested lookups inside definitions, whole-word hover,
-  pitch accent, frequencies, deinflection and kanji info, using your Hachidori
-  dictionaries.
-- **Hachidori popup themes:** popups follow the theme picked in Hachidori
-  (Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme, Crystal with
-  its Grey, Beige and Retro blue colours), your opacity and your custom popup CSS.
-- **Pronunciation audio** from your Hachidori audio sources.
-- **Anki mining** with your Hachidori template. Each chat message is its own sentence.
-- **Card media from the game, no GSM needed:** a screenshot, the line's voice
-  recorded from the game (or TTS for unvoiced lines), an AVIF/WebP/GIF of the
-  scene and an AI sentence translation.
-- **Reader and search windows:** an optional line history overlay and a search box.
-- **Your character's name in katakana,** so it reads naturally in sentences and cards.
-- **GSM text feed (opt-in):** sends dialogue and interaction popups to
+- **Hover lookups directly on the game's own text:** dialogue, cutscene subtitles,
+  battle talk, the chat window (scroll-aware and per-panel), and optionally other
+  native UI windows, with no overlay covering the game text.
+- **Real Hachidori Web popups (WebView2) with full upstream parity:** renders
+  Hachidori's actual browser popup UI inside FFXIV via a click-through overlay
+  without stealing focus — exact upstream themes, variants, custom CSS, pitch
+  accent graphs, frequencies, deinflection, SVG and dictionary images, kanji info,
+  and nested lookups. Automatically syncs with your Hachidori version and falls
+  back cleanly to the built-in ImGui renderer whenever needed.
+- **Freeze Frame for tooltips (`Ctrl + Shift + F`):** freezes the screen and every
+  visible Japanese text block — including item, skill, and status tooltips — so
+  you can hover and mine tooltip text without it vanishing.
+- **Pronunciation audio** from your Hachidori audio sources (including direct
+  Audio URL and Yomitan JSON sources offline).
+- **Anki mining with built-in game media, no GSM needed:** one-click mining using
+  your Hachidori template (live or offline), with clean game screenshots, recorded
+  in-game voice lines (or local TTS for unvoiced lines), animated AVIF/WebP/GIF
+  clips, and AI sentence translations with surrounding dialogue context.
+- **Immersion stats & Anki card feed (`/hachidori stats`):** tracks characters
+  read, reading pace, streaks, FFXIV immersion rank, daily charts, 30-day heatmap,
+  24-hour Immersion Clock, chattiest NPCs, hoverable NPC dialogue history, most
+  parsed & most looked-up ("Nemesis") words, kanji encountered, achievements, and
+  recent Anki cards (in-game + AnkiConnect), with JSON export.
+- **Controller reading mode (`/hachidori pad`):** read and mine from the couch
+  with D-pad word/character stepping, left-stick virtual cursor, optional
+  DualSense/DS4 touchpad cursor, nested popup diving, UI window cycling,
+  PlayStation/Xbox button labels, and remappable button bindings.
+- **Reader, search, and searchable settings:** optional line-history reader
+  overlay, manual search window, guided onboarding, and a full-text Settings
+  search bar.
+- **Your character's name in katakana,** automatically or with a custom reading,
+  so it reads naturally in sentences, TTS, and cards.
+- **NPC picture dictionary (`/hachidori pictures`):** crop in-game screenshots
+  into a single **FFXIV NPC pictures** dictionary on your Hachidori host.
+- **Optional offline mode:** keep looking up words, playing audio, and mining to
+  Anki with Chrome closed, from a local synced copy of your Hachidori dictionaries.
+- **Opt-in GSM text feed:** publishes game text over a local WebSocket for
   [GameSentenceMiner](https://github.com/bpwhelan/GameSentenceMiner).
-- **NPC images:** crop screenshots into one picture dictionary on your host.
-- **Optional offline mode:** keep looking words up with Chrome closed, from a
-  local copy of your Hachidori dictionaries that stays in sync.
-- **Optional FFXIV dictionary** of game names and vocabulary.
+- **Optional FFXIV JP–EN dictionary:** 37,729 entries (patch 7.58) covering NPCs,
+  enemies, locations, actions, status effects, Party Finder/raiding slang, and 190
+  embedded character and location portraits.
 
 ## First setup
 
@@ -68,9 +88,10 @@ Once your Hachidori host is linked, try `/hachidori 冒険者` in game.
    ```
 
 5. Save, open `/xlplugins`, search **Hachidori for FFXIV**, and install it.
-6. Run `/hachidori config` and confirm a linked host and dictionary count.
-   Local defaults are host `127.0.0.1`, relay port `8771`, and audio API port `19633`.
-   Keep them unchanged for a same-computer setup.
+6. Run `/hachidori config` (the **Quick Guide** tab opens automatically on first
+   run) and confirm a linked host and dictionary count. Local defaults are host
+   `127.0.0.1`, relay port `8771`, and audio API port `19633`. Keep them unchanged
+   for a same-computer setup.
 
 The plugin uses your Hachidori host's dictionaries and templates; it is not a
 standalone dictionary and a generic Yomitan API server is insufficient.
@@ -78,11 +99,25 @@ No compiling or manual DLL installation is needed.
 
 ## Use
 
-- Hover Japanese game text to look up words. Move into a definition and hover
-  another Japanese word for a nested lookup. Set **Scan key** in the Popup tab
-  if you prefer holding Shift, Ctrl or Alt instead of plain hover.
-- Run `/hachidori 冒険者` to try a lookup, `/hachidori search` for search, or
-  `/hachidori reader` for the optional reader/history overlay.
+Hover Japanese game text to look up words. Move into a definition and hover
+another Japanese word for a nested lookup. Set **Scan key** in the **Popup** tab
+if you prefer holding Shift, Ctrl, or Alt instead of plain hover.
+
+| Command | What it does |
+| --- | --- |
+| `/hachidori` or `/hachidori config` | Open Settings (with Quick Guide and full settings search) |
+| `/hachidori <text>` | Look up Japanese text directly in the Search window |
+| `/hachidori freeze` | Freeze the screen & tooltips for scanning (or press `Ctrl + Shift + F`) |
+| `/hachidori stats` | Open the Immersion Stats & Anki Card Feed dashboard |
+| `/hachidori search` | Open the manual Search & hover window |
+| `/hachidori reader` | Pin or unpin the optional dialogue Reader & history overlay |
+| `/hachidori pad` | Toggle Controller reading mode (ideal on a cross hotbar macro) |
+| `/hachidori pictures` | Manage your custom FFXIV NPC picture dictionary |
+| `/hachidori reconnect` | Reconnect to your Hachidori Relay host |
+| `/hachidori logs` | Export a local redacted diagnostic log |
+
+`/hoshi` also works as an alias.
+
 - Use the pronunciation button for dictionary audio. For Anki, configure a
   template in Hachidori, select it in the plugin settings, then use **+** on an entry.
 - The camera button lets you crop an NPC screenshot into your host. All pictures
@@ -92,7 +127,96 @@ No compiling or manual DLL installation is needed.
   in its config folder (`npc-pictures`) and replaces the whole dictionary on each
   change. This requires host support for linked dictionary imports.
 - Optional: import [the FFXIV Japanese–English dictionary](dictionaries/ffxiv/README.md)
-  into Hachidori for game names and vocabulary. **Contains expansion spoilers.**
+  into Hachidori for 37,729 game names, skills, status effects, Party Finder lingo,
+  and 190 character/location portraits. **Contains expansion spoilers.**
+
+## Popups and themes
+
+<!-- TODO(screenshot): Save screenshot to docs/screenshots/webview-popup.png, then uncomment the line below and remove the placeholder note.
+[![Hachidori Web popup rendering upstream theme, pitch accent, and FFXIV dictionary portrait in game](docs/screenshots/webview-popup.png)](docs/screenshots/webview-popup.png)
+-->
+> _[Screenshot placeholder: `docs/screenshots/webview-popup.png` — Hachidori Web (WebView2) popup in FFXIV showing exact upstream theme styling, pitch accent / frequencies, and a nested lookup or FFXIV character portrait.]_
+
+By default, popups render **Hachidori's real browser UI** inside FFXIV using
+Microsoft Edge WebView2 over a permanently click-through DirectComposition
+overlay (so clicking or scrolling a popup never steals OS focus from FFXIV):
+
+- **Full upstream parity:** every theme in Hachidori **Settings → Design**
+  (Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme, Crystal with
+  Grey/Beige/Retro Blue, and any future upstream themes), opacity, custom popup
+  CSS, pitch accent graphs, and dictionary images/SVGs render exactly as they do
+  in Chrome.
+- **Automatic bundle sync:** the plugin keeps a cached copy of Hachidori's web
+  frontend matched to your linked host version, checking your local
+  Chrome/Edge/Brave/Vivaldi extension install first and downloading from
+  `bee-san/hachidori` GitHub Releases otherwise, with automatic rollback to the
+  last verified version if a bundle fails to boot.
+- **In-game overrides:** open `/hachidori config` → **Theme** to pick a different
+  theme or variant for FFXIV only, add FFXIV-only CSS, point to a custom extension
+  folder, or click **Sync Hachidori Web now**.
+- **Built-in ImGui fallback:** if Microsoft Edge WebView2 Runtime is not installed,
+  while the bundle is syncing, or if you switch off **Hachidori Web** in the
+  **Theme** tab, the plugin seamlessly falls back to its built-in ImGui popup
+  renderer (which interprets bundled theme stylesheets for colours, gradients,
+  borders, shadows, Crystal's frame/crest, and headword styling). After an
+  upstream theme update, maintainers can refresh the fallback stylesheets with
+  `python -I scripts/sync_hachidori_themes.py <extension folder>`.
+
+## Freeze Frame for tooltips
+
+<!-- TODO(screenshot): Save screenshot to docs/screenshots/freeze-frame.png, then uncomment the line below and remove the placeholder note.
+[![Freeze Frame capturing an FFXIV item or action tooltip with a dictionary popup open](docs/screenshots/freeze-frame.png)](docs/screenshots/freeze-frame.png)
+-->
+> _[Screenshot placeholder: `docs/screenshots/freeze-frame.png` — Freeze Frame active over an FFXIV item, action, or status tooltip with the top control pill and a dictionary popup scanning words inside the tooltip.]_
+
+FFXIV hover tooltips (items, actions, traits, statuses) normally vanish as soon
+as you move the mouse away to scan their text. **Freeze Frame** solves this:
+
+1. Hover any item, skill, or UI element so its Japanese tooltip is visible.
+2. Press **`Ctrl + Shift + F`** (or run `/hachidori freeze`). The hotkey can be
+   changed in **Popup → Freeze Frame hotkey** (`Ctrl + Shift + F`, `Alt + F`,
+   `Ctrl + Space`, `Pause / Break`, `F9`, `Shift + Middle Click`, or command-only).
+3. The plugin captures a snapshot of the screen and every visible native Japanese
+   text block — prioritizing tooltips (`ItemDetail`, `ActionDetail`, `Tooltip`,
+   and other `*Detail` / `*Tooltip` windows).
+4. Freely hover any word on the frozen tooltip to open popups, hear pronunciation,
+   or mine to Anki. Use the top pill to toggle tooltip highlight boxes
+   (**Show/Hide Boxes**), copy the tooltip text into `/hachidori search`
+   (**Send to Search**), or exit.
+5. Press **`Esc`**, right-click outside any popup, or press the hotkey again to
+   return to the game immediately.
+
+## Immersion stats
+
+<!-- TODO(screenshot): Save screenshot to docs/screenshots/immersion-stats.png, then uncomment the line below and remove the placeholder note.
+[![Hachidori Immersion Stats dashboard showing reading rank, charts, heatmap, and NPCs](docs/screenshots/immersion-stats.png)](docs/screenshots/immersion-stats.png)
+-->
+> _[Screenshot placeholder: `docs/screenshots/immersion-stats.png` — `/hachidori stats` dashboard showing the FFXIV immersion rank bar, streaks, KPI cards, daily bar chart, 30-day heatmap, and Immersion Clock.]_
+
+Run `/hachidori stats` (or click **Stats** in the Settings header bar) to track
+your Japanese reading and mining progress in FFXIV across **Session**, **Today**,
+**7 Days**, **30 Days**, and **All Time**:
+
+- **Rank, streaks & KPIs:** FFXIV immersion rank with lifetime character XP bar,
+  current and best daily reading streaks, total Japanese characters (with kanji %
+  and reading equivalents), lines & pace (chars/hr and active time), Anki cards
+  mined, and unique kanji encountered (% of Joyo kanji).
+- **Overview:** daily characters bar chart (marking days you mined cards), 30-day
+  activity heatmap, 24-hour Immersion Clock with reading persona, and source
+  breakdown (Dialogue, Battle Talk, Chat).
+- **NPC Dialogue:** chattiest NPCs leaderboard (click any NPC to open their
+  dictionary entry and portrait) plus a filterable Recent NPC Dialogue Feed where
+  every line is directly hoverable for lookups and mining.
+- **Top Words & Kanji:** **Most Parsed Non-Trivial Words** (automatically filters
+  out particles, pronouns, auxiliaries, and single kana), **Most Looked Up /
+  Nemesis Words** (great candidates to mine), and a clickable **Kanji Encountered**
+  grid.
+- **Anki Cards:** browse cards mined in FFXIV (with `IMG`, `AUDIO`, `ANIM`, and
+  `TL` media badges, pitch/frequency, hoverable sentence, and **Open in Anki**)
+  or switch to the live **Latest from AnkiConnect** feed (with 7-day / 30-day
+  totals).
+- **Achievements & Export:** unlock immersion milestones as you read and mine, or
+  export your complete stats history to JSON.
 
 ## Offline mode
 
@@ -102,94 +226,107 @@ lookups keep working when Chrome is closed. Offline lookups need nothing else
 running; setting up and syncing need Hachidori linked through Anki as usual.
 
 1. With Hachidori linked, run `/hachidori config`, open **Connection**, and
-   choose **Set up offline mode**. Your dictionaries download once (about as
-   much disk space as Hachidori uses for them).
+   choose **Set up offline mode** (or use the button in **Quick Guide**). Your
+   dictionaries download once (about as much disk space as Hachidori uses for them).
 2. Live Hachidori is always used while it is linked. Each time it links again,
    the plugin compares dictionary revisions and downloads only what changed, and
    removes dictionaries you deleted in Hachidori. Settings such as dictionary
-   order, theme and audio sources are saved as you change them.
-3. The **Connection** tab shows which one is answering lookups, the disk space
+   order, theme, and audio sources are saved as you change them.
+3. The **Connection** tab shows which backend is answering lookups, the disk space
    used, the last sync, and **Turn off and delete offline data**.
 
-Offline lookups use the same engine and settings as Hachidori, so results match
-the browser's. Anki mining also works offline: the plugin fills your Hachidori
-Anki Template itself and adds the note through AnkiConnect, with the
-pronunciation, the game screenshot and dictionary images. It checks duplicates
+Offline lookups use the same engine (`hdw_native.dll`) and settings as Hachidori,
+so results match the browser's. Anki mining also works offline: the plugin fills
+your Hachidori Anki Template itself and adds the note through AnkiConnect, with
+pronunciation, the game screenshot, and dictionary images. It checks duplicates
 with Anki's own first-field check rather than Hachidori's word index, and leaves
-Templates that overwrite existing notes, use Smaller Anki cards or the pitch
-graph markers to Chrome. Offline, pronunciation uses your Audio URL and Yomitan
-JSON sources directly (browser speech needs Chrome), lookup counts are recorded
-once Hachidori is linked again, and NPC pictures need Chrome. The plugin warns
-when your Hachidori is newer than its built-in engine; a dictionary in a format
-it cannot read stays live-only until the plugin updates.
-
-## Popup themes
-
-Popups use the theme selected in Hachidori **Settings → Design**. Run
-`/hachidori config` and open the **Theme** tab to pick a different theme or
-colours for the game only, use the plugin's original look, or add CSS that only
-applies in FFXIV.
-
-Hachidori's themes are web pages, so the plugin interprets their stylesheets
-rather than running them: colours, backgrounds and vertical gradients, borders,
-corner radius, padding, shadows, Crystal's frame and crest, headword and reading
-colours and sizes, and CSS custom properties (`var()`) apply. Layout rules
-(flex, grid, positioning), images in CSS, and theme JavaScript do not; the
-popup keeps the plugin's layout. After a Hachidori update, refresh the bundled
-stylesheets with `python -I scripts/sync_hachidori_themes.py <extension folder>`.
+Templates that overwrite existing notes, use Smaller Anki cards, or pitch graph
+markers to Chrome. Offline, pronunciation uses your Audio URL and Yomitan JSON
+sources directly (browser speech needs Chrome), lookup counts are recorded once
+Hachidori is linked again, and NPC pictures need Chrome. The plugin warns when
+your Hachidori is newer than its built-in engine; a dictionary in a format it
+cannot read stays live-only until the plugin updates.
 
 ## Controller
 
-Read dialogue with a controller, like GSM's overlay: a cursor moves word by word,
-the dictionary opens at it, and one button mines the card. FFXIV uses every
-button, so this is a mode: while it is on, the controller drives Hachidori and
-the game ignores it; leave it to play again.
+<!-- TODO(screenshot): Save screenshot to docs/screenshots/controller-mode.png, then uncomment the line below and remove the placeholder note.
+[![Controller reading mode active over FFXIV dialogue with word cursor and button hints](docs/screenshots/controller-mode.png)](docs/screenshots/controller-mode.png)
+-->
+> _[Screenshot placeholder: `docs/screenshots/controller-mode.png` — Controller reading mode (`/hachidori pad`) active over FFXIV dialogue with the word underline/virtual cursor, open popup, and bottom hint bar.]_
 
-- **Enter**: put a macro with `/hachidori pad` on a cross hotbar slot. FFXIV
-  handles that press, so nothing else triggers. Or hold Back/Select (changeable
-  in `/hachidori config` → **Controller**); the game still sees that press.
-- **In the mode**: D-pad or left stick moves by word (◀▶) and line (▲▼);
-  A adds to Anki, X plays audio, LT/RT change the entry, the right stick scrolls,
-  RB moves into the popup for a nested lookup, B or LB backs out, Y switches
-  between words and characters, Back/Start leaves.
-- The mode ends by itself when the dialogue closes.
-- Blocking the game's input needs "plugin gamepad input" allowed in Dalamud's
-  settings; the hint bar warns if it is not.
+Read dialogue and UI windows with a controller: move word by word or glide a
+virtual cursor over any visible text, open the dictionary at it, and mine with
+one button. FFXIV uses every button, so this is a mode: while it is on, the
+controller drives Hachidori and the game ignores it; leave it to play again.
 
-## Card media: screenshot, voice line, GIF
+- **Enter:** put a macro with `/hachidori pad` on a cross hotbar slot (FFXIV
+  handles that press so nothing else triggers), or hold **Back / Select**
+  (changeable in `/hachidori config` → **Controller**).
+- **Navigate:**
+  - **Left stick:** glides a virtual cursor across any visible dialogue or UI
+    window text (cursor speed adjustable under Advanced).
+  - **DualSense / DualShock 4 touchpad (optional):** enable in the **Controller**
+    tab to steer the virtual cursor with the touchpad.
+  - **D-pad:** moves word by word (◀▶) and line by line (▲▼).
+  - **Right stick:** scrolls the popup.
+- **Default actions** (Xbox / PlayStation labels; all action buttons are
+  remappable under **Controller → Advanced**):
+  - **A / ✕:** add the selected entry to Anki
+  - **X / □:** play pronunciation audio
+  - **LT / RT (L2 / R2):** previous / next dictionary entry
+  - **RB / R1:** dive into the popup for a nested lookup
+  - **LB / L1:** cycle between open UI windows (or back out of a nested popup)
+  - **Y / △:** toggle between word mode and character mode
+  - **B / ○:** back out of a nested popup, or leave the mode
+  - **Back / Start (Select / Options):** leave the mode
+- Toggle **PlayStation button names** in the **Controller** tab to match your pad.
+- The mode ends automatically when dialogue closes (configurable).
+- Blocking the game's input requires **"plugin gamepad input"** enabled in
+  Dalamud's settings; the hint bar warns if it is off.
 
-Cards you add with **+** can get media straight from the game. Settings are in
-`/hachidori config` → **Mining**.
+## Card media: screenshot, voice line, animation, translation
 
-- **Screenshot** fills `{screenshot}` in your Hachidori Anki Template. Plugin
-  windows (the popup, the reader) are never in the picture.
-- **Voice line**: the plugin records only FFXIV's own sound (Windows 10 2004 or
-  later) and adds one second of padding before and after the detected speech.
-  Lower the in-game BGM volume for cleaner clips.
-- **TTS for unvoiced lines**: when a line had no voice, the sentence is spoken by
-  a local engine with VOICEVOX's API (VOICEVOX, AivisSpeech…) or any URL you give
-  that returns audio.
-- **Animation**: a few seconds of the scene from when the line appeared, as
-  animated AVIF (smallest, best quality), WebP or GIF. AVIF and WebP use FFmpeg,
-  which the plugin finds on PATH or in GSM's folder; without it you get a GIF.
-- **Sentence translation**: GSM's translation prompt and settings, with nearby
-  dialogue as context, through Gemini, Groq, OpenAI-compatible APIs, Ollama,
-  LM Studio, Z.ai or DeepL. You can also use your local Codex or Claude Code
-  login. **Import from GSM** copies your provider, models, keys and field.
+<!-- TODO(screenshot): Save screenshot to docs/screenshots/anki-card.png, then uncomment the line below and remove the placeholder note.
+[![Mined Anki card with FFXIV screenshot or animation, voice line audio, and sentence translation](docs/screenshots/anki-card.png)](docs/screenshots/anki-card.png)
+-->
+> _[Screenshot placeholder: `docs/screenshots/anki-card.png` — A mined Anki card showing the Japanese sentence, clean game screenshot or animation, recorded voice line / pronunciation audio, and AI sentence translation.]_
 
-Voice lines, TTS audio, animations and translations are added to the note through the
-[AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on right after
-Hachidori creates it. They go to a field named like *Sentence Audio* and a field
-named like *GIF*. Without a GIF field, the GIF replaces the screenshot in your
-picture field. You can name the fields yourself with **Advanced settings**.
+Cards you add with **+** can get media straight from the game, with no GSM
+required. Settings are in `/hachidori config` → **Mining**.
+
+- **Screenshot:** fills `{screenshot}` in your Hachidori Anki Template. Plugin
+  windows (the popup, the reader, stats) are never in the picture.
+- **Voice line:** records only FFXIV's own sound (Windows 10 2004 or later),
+  trims the clip to detected speech, and adds one second of padding before and
+  after. Lower the in-game BGM volume for cleaner clips.
+- **TTS for unvoiced lines:** when a line had no voice, the sentence can be spoken
+  by a local engine with VOICEVOX's API (VOICEVOX, AivisSpeech, …) or any custom
+  URL that returns audio.
+- **Animation:** captures a few seconds of the scene from when the line appeared
+  (default 720 px, 12 fps, 3 s) as animated **AVIF** (smallest, best quality),
+  **WebP**, or **GIF**. AVIF and WebP use FFmpeg, which the plugin finds on `PATH`
+  or in GSM's folder; without it you get a GIF.
+- **Sentence translation:** uses GSM's translation prompt and settings with nearby
+  dialogue as context, via **Gemini**, **Groq**, **OpenAI-compatible APIs**,
+  **Ollama**, **LM Studio**, **Z.ai**, or **DeepL**, as well as your local
+  **Codex** or **Claude Code** CLI login. **Import from GSM** copies your
+  provider, models, keys, prompts, and Anki field in one click.
+
+Voice lines, TTS audio, animations, and translations are added to the note through
+the [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on right after
+Hachidori creates it. They go to fields named like *Sentence Audio*, *GIF*, and
+*SentenceTranslation* (without a GIF field, the animation replaces the screenshot
+in your picture field). You can customize all field names with **Advanced settings**.
 
 ## Send text to GSM
 
-You no longer need GSM for screenshots or audio (see above). If you still use
-it, GameSentenceMiner can read game text from a local WebSocket. This is off by
-default, and the feed is only reachable from your own computer.
+You no longer need GSM for screenshots, audio, animations, or translation (see
+above). If you still use it, GameSentenceMiner can read game text from a local
+WebSocket. This is off by default, and the feed is only reachable from your own
+computer.
 
-1. Run `/hachidori config`, open the **GSM** tab and enable **Publish text for GSM**.
+1. Run `/hachidori config`, enable **Advanced settings** (if the **GSM** tab is
+   hidden), open **GSM**, and enable **Publish text for GSM**.
 2. Choose what to send:
 
    | Preset | Sends |
@@ -201,8 +338,8 @@ default, and the feed is only reachable from your own computer.
    Changing any checkbox shows **Custom**. You can also put the speaker's name
    before each line.
 3. Keep the default port `6677` if nothing else uses it. GSM's default sources
-   already include `localhost:6677`, `localhost:2333` and `localhost:9001`, so no GSM
-   setup is normally needed. If you change to another port, add it to GSM's
+   already include `localhost:6677`, `localhost:2333`, and `localhost:9001`, so no
+   GSM setup is normally needed. If you change to another port, add it to GSM's
    WebSocket sources.
 4. With GSM running, check that the tab shows a connected client, then use
    **Send test line**.
@@ -212,14 +349,22 @@ pages and programs on your computer can connect.
 
 ## Troubleshooting and limits
 
-- **No host:** keep Anki/Chrome running, check Hachidori Sharing, then use
+- **No host:** keep Anki and Chrome running, check Hachidori Sharing, then run
   `/hachidori reconnect`. If needed, update Hachidori and the Relay add-on.
-- **No popup:** check your scan key and enable **Show native hover targets (debug)**.
-  Set the game's text language to Japanese. Unusual layouts/fonts may affect hover.
-- **No chat popup:** check **Include native chat text** in the Popup tab and **Chat**
-  in the Capture tab. If it still fails, attach `/hachidori logs` output to an issue.
-  Lines containing icons can place the hover slightly off the character.
-- **GSM not connecting:** the GSM tab reports a port in use; pick another slot.
+- **Popups using ImGui fallback instead of Hachidori Web:** check **Theme** in
+  `/hachidori config` for status messages. Make sure **Microsoft Edge WebView2
+  Runtime** is installed (standard on Windows 11), then click **Sync Hachidori Web
+  now** if the bundle hasn't downloaded yet.
+- **No popup:** check your scan key and enable **Show native hover targets (debug)**
+  under **Popup → Advanced**. Set the game's text language to Japanese. Unusual
+  layouts/fonts may affect hover.
+- **Tooltip disappears before hovering it:** press `Ctrl + Shift + F` (or run
+  `/hachidori freeze`) while the tooltip is open to scan it in Freeze Frame.
+- **No chat popup:** check **Include native chat text** in the **Popup** tab and
+  **Chat** in the **Capture** tab. Lines containing icons can place the hover
+  slightly off the character. If it still fails, attach `/hachidori logs` output to
+  an issue.
+- **GSM not connecting:** the **GSM** tab reports a port in use; pick another slot.
 - **No audio:** check port `19633` and pronunciation sources in Hachidori.
 - **Offline mode not answering:** check the **Connection** tab for warnings, then
   open Chrome with Hachidori once and use **Sync now**.
@@ -228,11 +373,12 @@ pages and programs on your computer can connect.
 - `/hachidori logs` exports diagnostics locally. Review exports before attaching
   them to an [issue](https://github.com/KonyAHS/HachidoriFfxiv/issues).
 
-This is an early release. Native hover, chat hover, the GSM feed, cutscene layouts,
-GPU screenshots and real Anki saves need in-game validation. Video OCR, game
-voice-line recording, Anki screenshot/video attachments and arbitrary dictionary
-CSS are unsupported. Lookups send the selected text to your configured Hachidori
-host; mining and NPC image imports write to your Anki/Hachidori setup when requested.
+**Scope & privacy:** The plugin reads native FFXIV UI text directly rather than
+using video OCR. Lookups send the hovered text to your configured Hachidori host
+(or stay completely local in offline mode). Optional sentence translation sends
+the mined sentence and recent dialogue context to whichever AI provider or local
+CLI you configure. Anki mining and NPC picture imports write to your Anki and
+Hachidori setup only when you request them.
 
 ## Credits
 
@@ -242,15 +388,16 @@ under their own licenses, and their authors don't endorse or maintain this plugi
 **Works with**
 
 - [Hachidori](https://github.com/bee-san/hachidori) and
-  [Hachidori Relay](https://github.com/bee-san/hachidori-anki): dictionaries, lookups,
-  templates and Anki mining all come from your Hachidori host.
+  [Hachidori Relay](https://github.com/bee-san/hachidori-anki): dictionaries,
+  popups, templates, and Anki mining all come from your Hachidori host and web
+  frontend.
 - [hoshidicts](https://github.com/Manhhao/hoshidicts): the dictionary engine behind
   Hachidori, and the lookup format used here. Offline mode bundles Hachidori's
   build of it ([bee-san/hoshidicts](https://github.com/bee-san/hoshidicts)) with
   Hachidori's engine bindings, compiled for Windows, and Hachidori's KANJIDIC and
   Jitendex kanwa reading tables for furigana.
 - [GameSentenceMiner](https://github.com/bpwhelan/GameSentenceMiner): the optional
-  text feed is built to fit how GSM reads WebSocket sources.
+  text feed and translation settings import are built to fit GSM.
 
 **Built on**
 
@@ -258,19 +405,22 @@ under their own licenses, and their authors don't endorse or maintain this plugi
   [XIVLauncher](https://github.com/goatcorp/FFXIVQuickLauncher): the plugin framework.
 - [FFXIVClientStructs](https://github.com/aers/FFXIVClientStructs): the game UI
   structures used to read native text.
+- [Microsoft Edge WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/):
+  renders Hachidori's popup UI inside FFXIV.
 - [NAudio](https://github.com/naudio/NAudio),
   [NAudio.Vorbis](https://github.com/naudio/Vorbis),
   [NVorbis](https://github.com/NVorbis/NVorbis),
-  [Concentus](https://github.com/lostromb/concentus) and
-  [Concentus.Oggfile](https://github.com/lostromb/concentus.oggfile): audio playback.
+  [Concentus](https://github.com/lostromb/concentus), and
+  [Concentus.Oggfile](https://github.com/lostromb/concentus.oggfile): audio
+  playback and game voice recording.
 
 **Inspiration and reference**
 
-- [Yomitan](https://github.com/yomidevs/yomitan): popup design, dictionary format, and
-  the furigana and pitch accent logic this plugin's versions follow.
+- [Yomitan](https://github.com/yomidevs/yomitan): popup design, dictionary format,
+  and the furigana and pitch accent logic this plugin's versions follow.
 - [JL](https://github.com/rampaa/JL): hover scanning behaviour.
-- [TextToTalk](https://github.com/karashiiro/TextToTalk): the Dalamud text-to-speech
-  plugin, an example of serving game text over a local WebSocket.
+- [TextToTalk](https://github.com/karashiiro/TextToTalk): the Dalamud
+  text-to-speech plugin, an example of serving game text over a local WebSocket.
 
 Dictionary data has [its own sources and attribution](dictionaries/ffxiv/README.md#sources-and-attribution),
 including [XIVAPI's datamining tables](https://github.com/xivapi/ffxiv-datamining).
@@ -279,5 +429,5 @@ Bundled library licenses are in the [third-party notices](THIRD-PARTY-NOTICES.tx
 [Build and release](docs/DEVELOPMENT.md) · [License](LICENSE) ·
 [Third-party notices](THIRD-PARTY-NOTICES.txt)
 
-Plugin source: GPL-3.0-or-later. FFXIV names, text and images retain their original
-rights; see the dictionary's attribution. Not affiliated with Square Enix.
+Plugin source: GPL-3.0-or-later. FFXIV names, text, and images retain their
+original rights; see the dictionary's attribution. Not affiliated with Square Enix.

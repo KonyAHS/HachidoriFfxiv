@@ -47,6 +47,7 @@ await PublishChecks.Run(Check);
 await OfflineChecks.Run(Check);
 AnkiChecks.Run(Check);
 StatsChecks.Run(Check);
+await WebViewChecks.RunAsync(Check);
 
 Vector2 FixedMeasure(string s) => new(s.EnumerateRunes().Count() * 10, 12);
 var native = NativeTextLayout.Build("冒険\n者𠮷", 40, 40, 0, 12, 18, false, FixedMeasure);
@@ -108,6 +109,12 @@ var sparseChat = NativeChatLayout.Build("冒険\r\r続き"u8, 40, 72, 0, 12, 18,
 Check(sparseChat.Count == 2 && sparseChat[0].Layout.Hit(new(5, 4))?.Index == 0
     && sparseChat[1].Layout.Hit(new(5, 40))?.Index == 0,
     "chat preserves interior blank rows and the final row without a terminator");
+var clippedChat = NativeChatLayout.Build(mixedChat, 400, 60, 0, 18, 18, bottomAligned: true, MeasureChat, visibleTop: 6, visibleHeight: 29);
+Check(clippedChat.Count == 2 && clippedChat[1].Text.Contains("こんにちは")
+    && clippedChat[1].Layout.HitScreen(new(229, 32), Vector2.Zero, Vector2.One, new(0, 6), new(400, 35))?.Index
+        == clippedChat[1].Text.IndexOf('こ')
+    && clippedChat[1].Layout.HitScreen(new(229, 36), Vector2.Zero, Vector2.One, new(0, 6), new(400, 35)) is null,
+    "chat aligns bottom rows to the clipped visible viewport when parent ContainerNode clips ChatText");
 
 var mineRequest = new JsonObject { ["captureUnavailable"] = new JsonArray("screenshot", "sentence-audio", "gif") };
 var submit = HachidoriPayloads.Submit(mineRequest);

@@ -27,6 +27,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     private readonly LiveBackend live;
     private readonly LocalBackend? local;
     private readonly Anki.OfflineAnkiMiner? offlineAnki;
+    private string? lastCacheKey;
 
     /// <param name="offlineRoot">Where offline mode keeps its copy; null leaves offline mode out.</param>
     /// <param name="libraryDirectory">The folder holding hdw_native.dll.</param>
@@ -35,7 +36,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         this.config = config;
         Link = new HachidoriLink(() => new UriBuilder("ws", config.RelayHost, config.RelayPort, "/link").Uri,
             ex => Plugin.Log.Warning(ex, "Dropped a sharing frame"));
-        Link.SnapshotChanged += ClearCache;
+        Link.SnapshotChanged += OnSnapshotChanged;
         Link.ConnectionChanged += OnConnectionChanged;
         live = new LiveBackend(Link, http, () => $"http://{config.RelayHost}:{config.ApiPort}/");
         if (offlineRoot is not null && libraryDirectory is not null)
@@ -69,8 +70,21 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     public IEnumerable<JsonObject> Dictionaries =>
         (Snapshot["dictionaryState"]?["dictionaries"] as JsonArray)?.OfType<JsonObject>() ?? [];
 
+    private void OnSnapshotChanged()
+    {
+        // Only invalidate lookup/segment caches when dictionaries or options changed;
+        // lookupStats updates arrive after every lookup and must not wipe segmentCache.
+        var snap = Link.Snapshot;
+        var key = $"{snap["dictionaryState"]?.ToJsonString()}\u0001{snap["options"]?.ToJsonString()}";
+        if (string.Equals(key, lastCacheKey, StringComparison.Ordinal))
+            return;
+        lastCacheKey = key;
+        ClearCache();
+    }
+
     private void OnConnectionChanged()
     {
+        lastCacheKey = null;
         ClearCache();
         if (Link.Connected && local is not null)
             _ = local.FlushLookupStatsAsync(live, CancellationToken.None);

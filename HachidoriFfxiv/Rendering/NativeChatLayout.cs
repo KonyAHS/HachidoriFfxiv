@@ -14,7 +14,7 @@ internal static class NativeChatLayout
     // The node buffer can still include older rows above the visible window.
     public static IReadOnlyList<(string Text, NativeTextLayout Layout)> Build(ReadOnlySpan<byte> text,
         float width, float height, int alignment, float glyphHeight, float lineAdvance, bool bottomAligned,
-        Func<ReadOnlySpan<byte>, float> measure)
+        Func<ReadOnlySpan<byte>, float> measure, float visibleTop = 0f, float visibleHeight = -1f)
     {
         var lines = new List<(int Start, int End, string Text, (int Index, int Start, int End)[] Glyphs)>();
         var glyphs = new List<(int Index, int Start, int End)>();
@@ -53,18 +53,27 @@ internal static class NativeChatLayout
             EndLine(text.Length, text.Length);
 
         var parts = new List<(string, NativeTextLayout)>();
+        if (lines.Count == 0 || lineAdvance <= 0f)
+            return parts;
+
+        var viewTop = Math.Max(0f, visibleTop);
+        var viewHeight = visibleHeight > 0f ? Math.Min(height - viewTop, visibleHeight) : height;
+        if (viewHeight <= 0f)
+            return parts;
+
         // While scrolling history, start with the first buffered row. At the live
-        // end, place the last row against the bottom and let the node clip the top.
-        var visibleCount = Math.Min(lines.Count, (int)Math.Ceiling(height / lineAdvance));
+        // end, place the last row against the visible bottom and let the node clip the top.
+        var visibleCount = Math.Min(lines.Count, (int)Math.Ceiling(viewHeight / lineAdvance));
         var contentHeight = glyphHeight + (visibleCount - 1) * lineAdvance;
         var firstRow = bottomAligned ? lines.Count - visibleCount : 0;
         var y = bottomAligned
-            ? height - contentHeight
-            : Math.Max(0, height - contentHeight) * Math.Clamp(alignment / 3, 0, 2) / 2f;
+            ? viewTop + viewHeight - contentHeight
+            : viewTop + Math.Max(0, viewHeight - contentHeight) * Math.Clamp(alignment / 3, 0, 2) / 2f;
+        var viewBottom = viewTop + viewHeight;
         var horizontal = Math.Clamp(alignment % 3, 0, 2);
         for (var i = firstRow; i < firstRow + visibleCount; i++)
         {
-            if (y >= height) break;
+            if (y >= viewBottom) break;
             var line = lines[i];
             if (line.Text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value)))
             {
