@@ -112,6 +112,7 @@ Want to dig into configuration, platform fallbacks, or building from source?
 - **[Feature Guide](docs/FEATURES.md)** — WebView2 & ImGui popups, Freeze Frame, Offline mode, Card media & AnkiConnect fields, Controller bindings, NPC pictures, and GSM WebSocket setup.
 - **[OS & Steam Deck Compatibility](docs/COMPATIBILITY.md)** — Windows, Linux, Steam Deck, and macOS feature matrix and Steam Deck workflow tips.
 - **[FFXIV Custom Dictionary](dictionaries/ffxiv/README.md)** — Dictionary contents, installation, sources, and generator code.
+- **[Performance & Resource Use](docs/PERFORMANCE.md)** — Memory, CPU, GPU, disk and network cost of each feature, and lighter setups for low-end PCs and Steam Deck.
 - **[Troubleshooting & Limits](docs/TROUBLESHOOTING.md)** — Common fixes, diagnostics, and privacy scope.
 - **[Build & Release](docs/DEVELOPMENT.md)** — Building `hdw_native.dll`, parity tests, and packaging.
 
