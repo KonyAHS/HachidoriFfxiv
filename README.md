@@ -6,11 +6,11 @@
 
 **Read Japanese as you play FFXIV.**<br>Hover dialogue, subtitles, battle talk, chat, and frozen tooltips for Hachidori dictionary popups, pronunciation, immersion stats, and Anki mining with game media.
 
-[![Latest release](https://img.shields.io/github/v/release/KonyAHS/HachidoriFfxiv?label=release&color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest) [![GitHub stars](https://img.shields.io/github/stars/KonyAHS/HachidoriFfxiv?color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/stargazers) [![Build status](https://img.shields.io/github/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/KonyAHS/HachidoriFfxiv/actions/workflows/release.yml) [![Dalamud API 15](https://img.shields.io/badge/Dalamud_API-15-80602c)](#first-setup) [![GPL-3.0 license](https://img.shields.io/github/license/KonyAHS/HachidoriFfxiv?color=80602c)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/KonyAHS/HachidoriFfxiv?label=release&color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest) [![FFXIV Dictionary](https://img.shields.io/badge/FFXIV_Dictionary-Download_ZIP-24624f)](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest/download/FFXIV-Hachidori-JP-EN.zip) [![GitHub stars](https://img.shields.io/github/stars/KonyAHS/HachidoriFfxiv?color=24624f)](https://github.com/KonyAHS/HachidoriFfxiv/stargazers) [![Build status](https://img.shields.io/github/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/KonyAHS/HachidoriFfxiv/actions/workflows/release.yml) [![Dalamud API 15](https://img.shields.io/badge/Dalamud_API-15-80602c)](#first-setup) [![GPL-3.0 license](https://img.shields.io/github/license/KonyAHS/HachidoriFfxiv?color=80602c)](LICENSE)
 
-[Install](#first-setup) · [Features](#features) · [Popups & themes](#popups-and-themes) · [Freeze Frame](#freeze-frame-for-tooltips) · [Immersion stats](#immersion-stats) · [Card media](#card-media-screenshot-voice-line-animation-translation) · [Controller](#controller) · [Offline mode](#offline-mode) · [FFXIV dictionary](dictionaries/ffxiv/README.md)
+[Install](#first-setup) · [FFXIV dictionary](#ffxiv-custom-dictionary) · [OS & Steam Deck](#os-and-steam-deck-compatibility) · [Features](#features) · [Popups & themes](#popups-and-themes) · [Freeze Frame](#freeze-frame-for-tooltips) · [Immersion stats](#immersion-stats) · [Card media](#card-media-screenshot-voice-line-animation-translation) · [Controller](#controller) · [Offline mode](#offline-mode)
 
-Windows plugin for Dalamud, installed through a custom repository.
+Dalamud plugin for FFXIV, installed through a custom repository. Built for Windows with automatic compatibility fallbacks for Linux, Steam Deck, and macOS.
 
 </div>
 
@@ -126,16 +126,30 @@ if you prefer holding Shift, Ctrl, or Alt instead of plain hover.
   Hachidori cannot edit an installed dictionary, so the plugin keeps the pictures
   in its config folder (`npc-pictures`) and replaces the whole dictionary on each
   change. This requires host support for linked dictionary imports.
-- Optional: import [the FFXIV Japanese–English dictionary](dictionaries/ffxiv/README.md)
-  into Hachidori for 37,729 game names, skills, status effects, Party Finder lingo,
-  and 190 character/location portraits. **Contains expansion spoilers.**
+- Optional: download [`FFXIV-Hachidori-JP-EN.zip`](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest/download/FFXIV-Hachidori-JP-EN.zip)
+  (or click **Download FFXIV Dictionary (.zip)** inside `/hachidori config`) and
+  import it into Hachidori — see [FFXIV custom dictionary](#ffxiv-custom-dictionary)
+  below. **Contains expansion spoilers.**
+
+## FFXIV custom dictionary
+
+This repository also publishes **FFXIV Hachidori JP–EN** — a Yomitan/Hachidori v3
+dictionary ZIP built specifically for FFXIV (patch **7.58**, **37,729 entries**,
+**190 embedded character and location portraits**), covering NPCs & aliases,
+enemies, locations, jobs, duties, actions, status effects, Auto-Translate
+phrases, and Japanese Party Finder/raiding lingo.
+
+- **Direct download:** [`FFXIV-Hachidori-JP-EN.zip`](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest/download/FFXIV-Hachidori-JP-EN.zip)
+- **Guide, sources & generator code:** [`dictionaries/ffxiv/`](dictionaries/ffxiv/README.md)
+- **In-game shortcut:** open `/hachidori config` (**Quick Guide** or **Connection** tab) and click **Download FFXIV Dictionary (.zip)** to open the download directly in your browser.
+
+To install, open Hachidori (or Yomitan) **Settings → Dictionaries**, import
+`FFXIV-Hachidori-JP-EN.zip`, and place it above your general Japanese
+dictionaries. **Contains character names and portraits from all expansions.**
 
 ## Popups and themes
 
-<!-- TODO(screenshot): Save screenshot to docs/screenshots/webview-popup.png, then uncomment the line below and remove the placeholder note.
-[![Hachidori Web popup rendering upstream theme, pitch accent, and FFXIV dictionary portrait in game](docs/screenshots/webview-popup.png)](docs/screenshots/webview-popup.png)
--->
-> _[Screenshot placeholder: `docs/screenshots/webview-popup.png` — Hachidori Web (WebView2) popup in FFXIV showing exact upstream theme styling, pitch accent / frequencies, and a nested lookup or FFXIV character portrait.]_
+[![Hachidori Web popup rendering the Crystal theme and FFXIV dictionary character portrait for Urianger in game](docs/screenshots/webview-popup.png)](docs/screenshots/webview-popup.png)
 
 By default, popups render **Hachidori's real browser UI** inside FFXIV using
 Microsoft Edge WebView2 over a permanently click-through DirectComposition
@@ -164,10 +178,7 @@ overlay (so clicking or scrolling a popup never steals OS focus from FFXIV):
 
 ## Freeze Frame for tooltips
 
-<!-- TODO(screenshot): Save screenshot to docs/screenshots/freeze-frame.png, then uncomment the line below and remove the placeholder note.
-[![Freeze Frame capturing an FFXIV item or action tooltip with a dictionary popup open](docs/screenshots/freeze-frame.png)](docs/screenshots/freeze-frame.png)
--->
-> _[Screenshot placeholder: `docs/screenshots/freeze-frame.png` — Freeze Frame active over an FFXIV item, action, or status tooltip with the top control pill and a dictionary popup scanning words inside the tooltip.]_
+[![Freeze Frame scanning a frozen FFXIV action tooltip with a live dictionary popup](docs/screenshots/freeze-frame.webp)](docs/screenshots/freeze-frame.webp)
 
 FFXIV hover tooltips (items, actions, traits, statuses) normally vanish as soon
 as you move the mouse away to scan their text. **Freeze Frame** solves this:
@@ -188,10 +199,7 @@ as you move the mouse away to scan their text. **Freeze Frame** solves this:
 
 ## Immersion stats
 
-<!-- TODO(screenshot): Save screenshot to docs/screenshots/immersion-stats.png, then uncomment the line below and remove the placeholder note.
-[![Hachidori Immersion Stats dashboard showing reading rank, charts, heatmap, and NPCs](docs/screenshots/immersion-stats.png)](docs/screenshots/immersion-stats.png)
--->
-> _[Screenshot placeholder: `docs/screenshots/immersion-stats.png` — `/hachidori stats` dashboard showing the FFXIV immersion rank bar, streaks, KPI cards, daily bar chart, 30-day heatmap, and Immersion Clock.]_
+[![Hachidori Immersion Stats dashboard showing reading rank, KPI cards, daily chart, 30-day heatmap, and Immersion Clock](docs/screenshots/immersion-stats.png)](docs/screenshots/immersion-stats.png)
 
 Run `/hachidori stats` (or click **Stats** in the Settings header bar) to track
 your Japanese reading and mining progress in FFXIV across **Session**, **Today**,
@@ -249,10 +257,7 @@ cannot read stays live-only until the plugin updates.
 
 ## Controller
 
-<!-- TODO(screenshot): Save screenshot to docs/screenshots/controller-mode.png, then uncomment the line below and remove the placeholder note.
-[![Controller reading mode active over FFXIV dialogue with word cursor and button hints](docs/screenshots/controller-mode.png)](docs/screenshots/controller-mode.png)
--->
-> _[Screenshot placeholder: `docs/screenshots/controller-mode.png` — Controller reading mode (`/hachidori pad`) active over FFXIV dialogue with the word underline/virtual cursor, open popup, and bottom hint bar.]_
+[![Controller reading mode navigating FFXIV dialogue with the Hachidori Web popup and bottom button hints](docs/screenshots/controller-mode.webp)](docs/screenshots/controller-mode.webp)
 
 Read dialogue and UI windows with a controller: move word by word or glide a
 virtual cursor over any visible text, open the dictionary at it, and mine with
@@ -286,26 +291,28 @@ controller drives Hachidori and the game ignores it; leave it to play again.
 
 ## Card media: screenshot, voice line, animation, translation
 
-<!-- TODO(screenshot): Save screenshot to docs/screenshots/anki-card.png, then uncomment the line below and remove the placeholder note.
-[![Mined Anki card with FFXIV screenshot or animation, voice line audio, and sentence translation](docs/screenshots/anki-card.png)](docs/screenshots/anki-card.png)
--->
-> _[Screenshot placeholder: `docs/screenshots/anki-card.png` — A mined Anki card showing the Japanese sentence, clean game screenshot or animation, recorded voice line / pronunciation audio, and AI sentence translation.]_
+[![Mined Anki card featuring an animated FFXIV cutscene clip, pitch accent, audio, and dictionary definition](docs/screenshots/anki-card.webp)](docs/screenshots/anki-card.webp)
 
 Cards you add with **+** can get media straight from the game, with no GSM
 required. Settings are in `/hachidori config` → **Mining**.
 
 - **Screenshot:** fills `{screenshot}` in your Hachidori Anki Template. Plugin
   windows (the popup, the reader, stats) are never in the picture.
-- **Voice line:** records only FFXIV's own sound (Windows 10 2004 or later),
-  trims the clip to detected speech, and adds one second of padding before and
-  after. Lower the in-game BGM volume for cleaner clips.
-- **TTS for unvoiced lines:** when a line had no voice, the sentence can be spoken
-  by a local engine with VOICEVOX's API (VOICEVOX, AivisSpeech, …) or any custom
-  URL that returns audio.
+- **Voice line:** records only FFXIV's own sound on Windows 10 2004+, and
+  automatically falls back to standard system-output audio loopback on Linux /
+  Steam Deck (Wine/Proton/PipeWire) and older Windows 10. Trims the clip to
+  detected speech and adds one second of padding before and after. Lower the
+  in-game BGM volume (and other desktop audio when using system loopback) for
+  cleaner clips.
+- **TTS for unvoiced lines:** when a line had no voice (or on macOS where
+  CoreAudio has no built-in loopback), the sentence can be spoken by a local
+  engine with VOICEVOX's API (VOICEVOX, AivisSpeech, …) or any custom URL that
+  returns audio.
 - **Animation:** captures a few seconds of the scene from when the line appeared
   (default 720 px, 12 fps, 3 s) as animated **AVIF** (smallest, best quality),
-  **WebP**, or **GIF**. AVIF and WebP use FFmpeg, which the plugin finds on `PATH`
-  or in GSM's folder; without it you get a GIF.
+  **WebP**, or **GIF**. AVIF and WebP use FFmpeg, which the plugin finds on
+  `PATH`, in GSM's folder, or on standard Linux/macOS host paths under Wine;
+  without it you automatically get a built-in GIF.
 - **Sentence translation:** uses GSM's translation prompt and settings with nearby
   dialogue as context, via **Gemini**, **Groq**, **OpenAI-compatible APIs**,
   **Ollama**, **LM Studio**, **Z.ai**, or **DeepL**, as well as your local
@@ -347,14 +354,49 @@ computer.
 Each line is sent as JSON text: `{"sentence":"…"}`. Websites are refused, but local
 pages and programs on your computer can connect.
 
+## OS and Steam Deck compatibility
+
+FFXIV + Dalamud is primarily developed and tested on **Windows 10 (2004+) / Windows 11**, where every feature works natively. On **Linux** (XIVLauncher.Core / Wine / Proton), **Steam Deck** (SteamOS), **macOS** (XIV on Mac / Wine / CrossOver), and **older Windows 10**, the plugin automatically detects your environment and enables built-in fallbacks where Windows-only APIs are unavailable.
+
+> **Disclaimer:** Non-Windows platforms (Linux, Steam Deck, macOS) run FFXIV and Dalamud through Wine/Proton compatibility layers and are supported on a best-effort basis. The **Quick Guide** tab in `/hachidori config` shows your detected environment and any active fallbacks.
+
+| Feature | Windows 10 (2004+) / 11 | Linux / Steam Deck (XIVLauncher.Core) | macOS (XIV on Mac) | Automatic fallback |
+| --- | --- | --- | --- | --- |
+| **Native hover, chat, stats, reader, search, Anki mining** | Full | Full | Full | — |
+| **Popup rendering** | Hachidori Web (WebView2) | Built-in ImGui renderer | Built-in ImGui renderer | Automatically skips WebView2/DirectComposition on Wine & Gamescope (or if WebView2 Runtime is missing) and renders all bundled Hachidori themes via ImGui |
+| **Offline mode (`hdw_native.dll`)** | Full | Full | Full | Statically linked CRT (no VC++ redist required); falls back to live Hachidori if loading fails |
+| **Freeze Frame (tooltips)** | Full (`Ctrl + Shift + F`) | Full (`/hachidori freeze` or hotkey; `B`/`○` exits) | Full | Dim readable text cards if GPU viewport capture is unavailable; `KeyState` fallback under Wayland/Gamescope |
+| **Voice line recording** | FFXIV-only (process loopback) | System output audio (PipeWire / PulseAudio loopback) | Unavailable by default (CoreAudio has no native loopback) | Falls back from process loopback → standard WASAPI system loopback → optional local TTS (VOICEVOX / custom) |
+| **Pronunciation audio** | Ogg/Opus/WAV + Media Foundation (MP3/AAC) via WASAPI | Ogg/Opus/WAV built-in; MP3/AAC via host FFmpeg if Wine MF fails | Ogg/Opus/WAV built-in; MP3/AAC via host FFmpeg if Wine MF fails | Media Foundation → piped FFmpeg fallback; WASAPI output → WinMM (`waveOut`) fallback |
+| **Screenshots & animations** | JPEG + FFmpeg AVIF/WebP or GIF | JPEG + host FFmpeg AVIF/WebP or GIF | JPEG + host FFmpeg AVIF/WebP or GIF | Auto-detects Windows & host Linux/macOS FFmpeg; falls back to built-in pure-C# GIF encoder |
+| **Controller reading mode (`/hachidori pad`)** | Full (+ DualSense/DS4 HID touchpad) | Full (+ Steam Deck trackpads via Steam Input mouse) | Full | Left stick, D-pad, and mouse/trackpad virtual cursor work everywhere; Windows HID touchpad safely disabled if unsupported |
+
+### Steam Deck & Linux tips
+
+- **Recommended Steam Deck workflow (Gaming Mode):** Open native Linux **Anki** (with Hachidori Relay) and **Chrome** (with Hachidori) once in **Desktop Mode**, launch FFXIV, confirm the link in `/hachidori config`, and enable **Offline Mode** in the **Connection** tab. Once synced, lookups and pronunciation audio keep working in **Gaming Mode** with Chrome closed (open Anki when you want to mine new cards).
+- **Localhost sharing:** Wine/Proton shares `127.0.0.1` with the Linux/macOS host (including standard Flatpak Anki/Chrome installs), so keep default host `127.0.0.1` and ports `8771`, `19633`, `8765`.
+- **Cross-hotbar macros:** Bind `/hachidori pad` (Controller reading mode) and `/hachidori freeze` (Freeze Frame for item/skill tooltips) to cross-hotbar macros. In Freeze Frame, press **B / ○** (or click **Exit**) to return to the game.
+- **Gamepad blocking & trackpads:** Turn on **"Enable plugin gamepad input"** in Dalamud settings so `/hachidori pad` blocks game inputs while active. On Steam Deck, the built-in trackpads automatically glide the virtual cursor when mapped to mouse in Steam Input.
+- **FFmpeg for MP3 audio & AVIF/WebP:** If MP3 pronunciation sources fail under Wine Media Foundation or you want AVIF/WebP animations instead of GIF, make sure `ffmpeg` is installed on the host (`/usr/bin/ffmpeg` on Linux/SteamOS, `/opt/homebrew/bin/ffmpeg` on Apple Silicon macOS) or set its path in **Mining → Advanced**.
+
 ## Troubleshooting and limits
 
 - **No host:** keep Anki and Chrome running, check Hachidori Sharing, then run
   `/hachidori reconnect`. If needed, update Hachidori and the Relay add-on.
-- **Popups using ImGui fallback instead of Hachidori Web:** check **Theme** in
-  `/hachidori config` for status messages. Make sure **Microsoft Edge WebView2
-  Runtime** is installed (standard on Windows 11), then click **Sync Hachidori Web
-  now** if the bundle hasn't downloaded yet.
+- **Popups using ImGui fallback instead of Hachidori Web:** on Linux, Steam Deck,
+  and macOS this is automatic (WebView2 + DirectComposition is Windows-only, and
+  the ImGui renderer still renders bundled Hachidori themes). On Windows, check
+  **Theme** in `/hachidori config`, make sure **Microsoft Edge WebView2 Runtime**
+  is installed (standard on Windows 11), and click **Sync Hachidori Web now**.
+- **MP3 pronunciation fails on Linux / Steam Deck / macOS:** Wine's Media
+  Foundation often lacks MP3/AAC codecs; install `ffmpeg` on the host (or set its
+  path in **Mining → Advanced**) so the plugin's FFmpeg fallback can decode them,
+  or prefer Ogg/Opus audio sources.
+- **Voice recording on Linux / Steam Deck / macOS:** on Linux/Steam Deck and
+  Windows 10 older than 2004, voice recording automatically uses system-output
+  loopback (so lower other apps' audio for cleaner clips). On macOS, CoreAudio
+  has no built-in loopback — use **TTS** in **Mining** or a virtual loopback
+  audio driver.
 - **No popup:** check your scan key and enable **Show native hover targets (debug)**
   under **Popup → Advanced**. Set the game's text language to Japanese. Unusual
   layouts/fonts may affect hover.
