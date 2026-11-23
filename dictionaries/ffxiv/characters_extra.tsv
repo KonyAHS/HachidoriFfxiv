@@ -6,12 +6,12 @@ expression	reading	english	category	subtag	source	note
 サンクレッド・ウォータース	さんくれっど・うぉーたーす	Thancred Waters	character	Scions	curated-character-variant	Full name of Thancred; member of the Scions of the Seventh Dawn.
 ウリエンジェ・オギュレ	うりえんじぇ・おぎゅれ	Urianger Augurelt	character	Scions	curated-character-variant	Full name of Urianger; Archon and member of the Scions of the Seventh Dawn.
 タタル・タル	たたる・たる	Tataru Taru	character	Scions	curated-character-variant	Full name of Tataru; receptionist and treasurer of the Scions of the Seventh Dawn.
-エスティニアン・ヴァーリノ	えすてぃにあん・ゔぁーりの	Estinien Varlineau	character	Scions	curated-character-variant	Full name of Estinien; former Azure Dragoon and Scion of the Seventh Dawn.
-クルル・バルデシオン	くるる・ばるでしおん	Krile Baldesion	character	Scions	curated-character-variant	Full name of Krile; leader of the Students of Baldesion and Scion.
-グ・ラハ	ぐ・らは	G'raha Tia	character	Scions	curated-character-variant	Short name for グ・ラハ・ティア (G'raha Tia).
-ラハ	らは	G'raha Tia	character	Scions	curated-character-variant	Affectionate short nickname for グ・ラハ・ティア (G'raha Tia).
-グラハ	ぐらは	G'raha Tia	character	Scions	curated-character-variant	Dotless spelling of グ・ラハ・ティア (G'raha Tia).
-グラハティア	ぐらはてぃあ	G'raha Tia	character	Scions	curated-character-variant	Dotless spelling of グ・ラハ・ティア (G'raha Tia).
+エスティニアン・ヴァーリノ	えすてぃにあん・ゔぁーりの	Estinien Varlineau	character		curated-character-variant	Full name of Estinien.
+クルル・バルデシオン	くるる・ばるでしおん	Krile Baldesion	character		curated-character-variant	Full name of Krile.
+グ・ラハ	ぐ・らは	G'raha Tia	character		curated-character-variant	Short name for グ・ラハ・ティア (G'raha Tia).
+ラハ	らは	G'raha Tia	character		curated-character-variant	Affectionate short nickname for グ・ラハ・ティア (G'raha Tia).
+グラハ	ぐらは	G'raha Tia	character		curated-character-variant	Dotless spelling of グ・ラハ・ティア (G'raha Tia).
+グラハティア	ぐらはてぃあ	G'raha Tia	character		curated-character-variant	Dotless spelling of グ・ラハ・ティア (G'raha Tia).
 ミンフィリア・ウォード	みんふぃりあ・うぉーど	Minfilia Warde	character	Scions	curated-character-variant	Full name of Minfilia; Antecedent of the Scions of the Seventh Dawn.
 パパリモ・トトリモ	ぱぱりも・ととりも	Papalymo Totolymo	character	Scions	curated-character-variant	Full name of Papalymo; Archon of the Scions of the Seventh Dawn.
 イダ・ヘクスト	いだ・へくすと	Yda Hext	character	Scions	curated-character-variant	Full name of Yda; member of the Scions of the Seventh Dawn.
@@ -20,8 +20,8 @@ expression	reading	english	category	subtag	source	note
 ムーンブリダ・ウィルスンウィン	むーんぶりだ・うぃるすんうぃん	Moenbryda Wilfsunnwyn	character	Scions	curated-character-variant	Full name of Moenbryda; Sharlayan Archon and friend of Urianger.
 オルシュファン・グレイストーン	おるしゅふぁん・ぐれいすとーん	Haurchefant Greystone	character	Heavensward	curated-character-variant	Full name of Haurchefant; Lord of House Fortemps.
 アイメリク・ド・ボーレル	あいめりく・ど・ぼーれる	Aymeric de Borel	character	Heavensward	curated-character-variant	Full name of Aymeric; Lord Commander of the Temple Knights of Ishgard.
-イゼル・ダングラン	いぜる・だんぐらん	Ysayle Dangoulain	character	Heavensward	curated-character-variant	Full name of Ysayle (Lady Iceheart).
-氷の巫女	こおりのみこ	Lady Iceheart (Ysayle)	character	Heavensward	curated-character-variant	Title of Ysayle Dangoulain, leader of the heretics in Coerthas.
+イゼル・ダングラン	いぜる・だんぐらん	Ysayle Dangoulain	character	Heavensward	curated-character-variant	Full name of Ysayle.
+氷の巫女	こおりのみこ	Lady Iceheart	character	Heavensward	curated-character-variant	A leader among the heretics of Coerthas.
 シド・ガーロンド	しど・がーろんど	Cid Garlond	character	ARR	curated-character-variant	Full name of Cid; head of Garlond Ironworks.
 ネロ・トル・スカエウァ	ねろ・とる・すかえうぁ	Nero tol Scaeva	character	ARR	curated-character-variant	Full name of Nero; former Garlean engineer and rival of Cid.
 ネロ	ねろ	Nero tol Scaeva	character	ARR	curated-character-variant	Short name for ネロ・トル・スカエウァ.
@@ -34,7 +34,7 @@ expression	reading	english	category	subtag	source	note
 ガイウス・ヴァン・バエサル	がいうす・ゔぁん・ばえさる	Gaius van Baelsar	character	ARR	curated-character-variant	Full name of Gaius; former Legatus of the XIVth Imperial Legion.
 エメト	えめと	Emet-Selch	character	Shadowbringers	curated-character-variant	Common short nickname for エメトセルク (Emet-Selch).
 アシエン・ラハブレア	あしえん・らはぶれあ	Ascian Lahabrea	character	ARR	curated-character-variant	Full title of Lahabrea, Ascian Paragon.
-アシエン・エリディブス	あしえん・えりでぃぶす	Ascian Elidibus	character	Shadowbringers	curated-character-variant	Full title of Elidibus, Emissary of the Ascians.
+アシエン・エリディブス	あしえん・えりでぃぶす	Ascian Elidibus	character	ARR	curated-character-variant	Full title of Elidibus, Emissary of the Ascians.
 アシエン・ファダニエル	あしえん・ふぁだにえる	Ascian Fandaniel	character	Endwalker	curated-character-variant	Full title of Fandaniel.
 フルシュノ・ルヴェユール	ふるしゅの・るゔぇゆーる	Fourchenault Leveilleur	character	Endwalker	curated-character-variant	Full name of Fourchenault; father of Alphinaud and Alisaie.
 アメリアンス・ルヴェユール	あめりあんす・るゔぇゆーる	Ameliance Leveilleur	character	Endwalker	curated-character-variant	Full name of Ameliance; mother of Alphinaud and Alisaie.

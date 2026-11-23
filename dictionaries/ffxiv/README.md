@@ -12,12 +12,15 @@ systems, character portraits, and Japanese player/Party Finder lingo.
 
 > **Spoiler notice:** Contains character names, titles, and portraits across all FFXIV expansions.
 
-The current release (`2026.11.22.1`, game snapshot **7.58**) contains
+Dictionary revision `2026.11.23.1` (game snapshot **7.58**) contains
 **37,729 entries** across 31 categories:
 
 - **10,026 characters / NPCs** (including official NPC titles, full names,
   dotless spellings, and nicknames such as `ラマチ`, `ラハ`, `ゼノス`, `エメト`,
   `ヤシュトラ`)
+- **192 character introductions** drawn from each character's first encounters,
+  also shown on matching name variants. The descriptions avoid later plot
+  developments. [Character descriptions](character_descriptions.tsv)
 - **11,974 enemies / bosses**, **4,735 locations**, **1,380 FATEs**,
   **759 duties** (including Duty Roulettes & short names), **587 minions**,
   **358 mounts**, **43 jobs/classes**, **12 Guardian Deities (The Twelve)**

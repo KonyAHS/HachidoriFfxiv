@@ -148,6 +148,27 @@ def main():
         coverage = list(csv.DictReader(io.StringIO(z.read("character_coverage.tsv").decode("utf-8")), delimiter="\t"))
         assert sum(r["image_status"] == "embedded" for r in coverage) == report["images_by_category"]["character"]
 
+        descriptions = list(csv.DictReader(
+            io.StringIO(z.read("character_descriptions.tsv").decode("utf-8")), delimiter="\t"))
+        expressions_by_character = {row["character"]: row["japanese_names"].split(";") for row in coverage}
+        described_entries = 0
+        for row in descriptions:
+            character, description = row["character"], row["description"]
+            assert description.strip(), character
+            matched = False
+            japanese_names = row["japanese_names"]
+            expressions = japanese_names.split(";") if japanese_names else expressions_by_character[character]
+            for expression in expressions:
+                hits = [term for term in by_expr.get(expression, []) if term[2] == "character"]
+                for term in hits:
+                    card = term[5][0]["content"]["content"]
+                    has_description = any(block["content"] == description for block in card[1:])
+                    expected = len(hits) == 1 or card[0]["content"][-1]["content"].casefold() == character.casefold()
+                    assert has_description == expected, (character, expression, card)
+                    matched |= has_description
+                    described_entries += has_description
+            assert matched, f"Missing character description: {character}"
+
         # Verify every game-table row provenance matches pinned 7.58 CSVs
         tables = {}
         aligned = 0
@@ -179,6 +200,7 @@ def main():
                 aligned += 1
 
         print(f"PASS: official Yomitan v3 schemas, ZIP integrity, {len(terms):,} entries, {len(used)} embedded images, single-card structured formatting.")
+        print(f"PASS: {len(descriptions)} character introductions across {described_entries} dictionary entries.")
         print(f"PASS: {aligned:,} source-row references match the pinned 7.58 Japanese and English game tables.")
 
 

@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 COMMIT = "a9f3a282a0e6070fdc0469b6d4e3e7ea17e16edf"  # 7.58, 2026-11-18
 GAME_SNAPSHOT = "7.58"
-REVISION = "2026.11.22.1"
+REVISION = "2026.11.23.1"
 AKHMORNING_URL = "https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/"
 MAX_IMAGE_DIM = 360
 
@@ -708,8 +708,40 @@ def format_entry_glossary(entry, image):
     return [{"type": "structured-content", "content": {"tag": "div", "content": blocks}}]
 
 
+def apply_character_descriptions(entries, targets):
+    expressions_by_character = {t["page"]: t["expressions"] for t in targets if t["category"] == "character"}
+    characters_by_expression = {}
+    for entry in entries:
+        if entry["category"] == "character":
+            characters_by_expression.setdefault(entry["expression"], []).append(entry)
+
+    described = set()
+    with (ROOT / "character_descriptions.tsv").open(encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f, delimiter="\t"):
+            name, description = row["character"], row["description"]
+            if not name or not description or name in described:
+                raise ValueError(f"Invalid or duplicate character description: {row}")
+            japanese_names = row["japanese_names"]
+            expressions = japanese_names.split(";") if japanese_names else expressions_by_character.get(name, [])
+            matched = False
+            for expression in expressions:
+                matches = characters_by_expression.get(expression, [])
+                if len(matches) > 1:
+                    # Shared Japanese spellings can have different English meanings.
+                    matches = [entry for entry in matches if entry["english"].casefold() == name.casefold()]
+                for entry in matches:
+                    entry["note"] = description
+                    entry["sources"].append("curated-character-description")
+                    matched = True
+            if not matched:
+                raise ValueError(f"Character description without a dictionary entry: {name}")
+            described.add(name)
+
+
 def build(images):
     entries, sources, duplicate_merges = collect()
+    targets = json.loads((ROOT / "image_targets.json").read_text(encoding="utf-8"))
+    apply_character_descriptions(entries, targets)
     image_map = {}
     for image in images:
         for expression in image["expressions"]:
@@ -734,7 +766,7 @@ def build(images):
         "url": "https://github.com/xivapi/ffxiv-datamining",
         "description": (
             f"Comprehensive FFXIV Japanese-to-English dictionary (game data {GAME_SNAPSHOT}): "
-            "characters/NPCs (with titles, aliases & portraits), enemies, locations, jobs & abbreviations, "
+            "characters/NPCs (with titles, aliases, portraits & selected introductions), enemies, locations, jobs & abbreviations, "
             "duties, FATEs, player actions, traits, statuses, Auto-Translate, emotes, weather, titles, "
             "orchestrion rolls, The Twelve, mounts, minions, plus Japanese Party Finder & player lingo "
             "(AkhMorning, XIV JP Raids, and curated glossaries). Contains names/portraits from all expansions."
@@ -772,7 +804,7 @@ def build(images):
     with (ROOT / "character_coverage.tsv").open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["character", "focus_expansion", "japanese_names", "image_status", "image", "source"])
-        for target in json.loads((ROOT / "image_targets.json").read_text(encoding="utf-8")):
+        for target in targets:
             if target["category"] != "character":
                 continue
             image = by_page.get(target["page"])
@@ -805,7 +837,8 @@ def build(images):
         write("tag_bank_1.json", json_pretty_bytes(tag_bank))
         for start in range(0, len(bank), 5000):
             write(f"term_bank_{start // 5000 + 1}.json", json_bytes(bank[start:start + 5000]))
-        for filename in ("source_manifest.json", "image_manifest.json", "character_coverage.tsv", "curated.tsv", "lingo.tsv", "characters_extra.tsv", "README.md"):
+        for filename in ("source_manifest.json", "image_manifest.json", "character_coverage.tsv", "character_descriptions.tsv",
+                         "curated.tsv", "lingo.tsv", "characters_extra.tsv", "README.md"):
             p = ROOT / filename
             if p.exists():
                 write(filename, p.read_bytes())
