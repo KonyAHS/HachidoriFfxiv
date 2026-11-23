@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.GamePad;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
@@ -71,9 +72,10 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
     private bool showRegionOutlines = true;
     private DateTime enteredAt;
 
-    // Reliable hotkey + Esc edge tracking (works even when ImGui has no focus).
+    // Reliable hotkey + Esc + gamepad-B edge tracking (works even when ImGui has no focus).
     private bool primaryWasDown;
     private bool escWasDown;
+    private bool gamepadBackWasDown;
     private bool escPressedSinceLastDraw;
     private bool lastImGuiWantTextInput;
     private DateTime suppressKeysUntilUtc;
@@ -237,6 +239,14 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
         if (escDown && !escWasDown && (active || IsOpen))
             escPressedSinceLastDraw = true;
         escWasDown = escDown;
+
+        // Allow Steam Deck / controller users to exit Freeze Frame with B / Circle.
+        var padBackDown = false;
+        try { padBackDown = Plugin.Gamepad.Raw(GamepadButtons.East) > 0; }
+        catch { /* gamepad service unavailable */ }
+        if (padBackDown && !gamepadBackWasDown && (active || IsOpen) && (now - enteredAt).TotalMilliseconds > 250)
+            escPressedSinceLastDraw = true;
+        gamepadBackWasDown = padBackDown;
 
         var hotkey = config.FreezeFrameHotkey;
         if (hotkey == FreezeHotkey.None)
@@ -578,12 +588,38 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
     private static bool IsGameForeground()
     {
         var fg = GetForegroundWindow();
-        if (fg == 0) return false;
+        if (fg == 0)
+            return PlatformInfo.Current.IsWine; // Gamescope/Wayland under Wine can report a null foreground HWND while active.
         _ = GetWindowThreadProcessId(fg, out var pid);
         return pid == (uint)Environment.ProcessId;
     }
 
-    private static bool IsOsKeyDown(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
+    private static bool IsOsKeyDown(int vk)
+    {
+        if ((GetAsyncKeyState(vk) & 0x8000) != 0)
+            return true;
+        if (!PlatformInfo.Current.IsWine)
+            return false;
+        return vk switch
+        {
+            VkControl => IsGameKeyDown(VirtualKey.CONTROL) || IsGameKeyDown(VirtualKey.LCONTROL) || IsGameKeyDown(VirtualKey.RCONTROL),
+            VkShift => IsGameKeyDown(VirtualKey.SHIFT) || IsGameKeyDown(VirtualKey.LSHIFT) || IsGameKeyDown(VirtualKey.RSHIFT),
+            VkMenu => IsGameKeyDown(VirtualKey.MENU) || IsGameKeyDown(VirtualKey.LMENU) || IsGameKeyDown(VirtualKey.RMENU),
+            VkEscape => IsGameKeyDown(VirtualKey.ESCAPE),
+            VkF => IsGameKeyDown(VirtualKey.F),
+            VkSpace => IsGameKeyDown(VirtualKey.SPACE),
+            VkPause => IsGameKeyDown(VirtualKey.PAUSE),
+            VkF9 => IsGameKeyDown(VirtualKey.F9),
+            VkMButton => IsGameKeyDown(VirtualKey.MBUTTON),
+            _ => false,
+        };
+    }
+
+    private static bool IsGameKeyDown(VirtualKey vk)
+    {
+        try { return Plugin.KeyState.IsVirtualKeyValid(vk) && Plugin.KeyState[vk]; }
+        catch { return false; }
+    }
 
     private static int PrimaryOsVk(FreezeHotkey key) => key switch
     {

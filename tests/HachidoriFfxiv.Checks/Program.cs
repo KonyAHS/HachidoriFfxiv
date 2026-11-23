@@ -48,6 +48,7 @@ await OfflineChecks.Run(Check);
 AnkiChecks.Run(Check);
 StatsChecks.Run(Check);
 await WebViewChecks.RunAsync(Check);
+CheckFfxivDictionary(Check);
 
 Vector2 FixedMeasure(string s) => new(s.EnumerateRunes().Count() * 10, 12);
 var native = NativeTextLayout.Build("冒険\n者𠮷", 40, 40, 0, 12, 18, false, FixedMeasure);
@@ -481,4 +482,39 @@ static void CheckPopupThemes(Action<bool, string> check)
     var kept = RichText.ReadableColor(0xFFC8D8E8);
     RichText.SetContrast(0, 0);
     check(faint != 0xFFC8D8E8 && kept == 0xFFC8D8E8, "dictionary colours are only darkened where they would vanish");
+}
+
+static void CheckFfxivDictionary(Action<bool, string> check)
+{
+    check(FfxivDictionary.IsAllowedExternalUrl(FfxivDictionary.DownloadUrl)
+          && FfxivDictionary.IsAllowedExternalUrl(FfxivDictionary.GuideUrl)
+          && !FfxivDictionary.IsAllowedExternalUrl("file:///C:/Windows/notepad.exe")
+          && !FfxivDictionary.IsAllowedExternalUrl("javascript:alert(1)")
+          && !FfxivDictionary.TryOpenUrl("file:///C:/Windows/notepad.exe", out _),
+        "FFXIV dictionary URLs allow only http/https links");
+
+    var live = FfxivDictionary.FindInstalled([
+        new JsonObject { ["title"] = "Jitendex.org", ["revision"] = "2026-01-01", ["enabled"] = true },
+        new JsonObject { ["title"] = "FFXIV Hachidori JP–EN", ["revision"] = "2026.11.22.1", ["enabled"] = true },
+    ]);
+    check(live is { Title: "FFXIV Hachidori JP–EN", Revision: "2026.11.22.1", Enabled: true },
+        "FFXIV dictionary detection finds installed enabled dictionary");
+
+    var disabledHyphen = FfxivDictionary.FindInstalled([
+        new JsonObject { ["title"] = "FFXIV Hachidori JP-EN", ["revision"] = "2026.10.14.1", ["enabled"] = false },
+    ]);
+    check(disabledHyphen is { Revision: "2026.10.14.1", Enabled: false },
+        "FFXIV dictionary detection matches ASCII hyphen and disabled state");
+
+    var offline = FfxivDictionary.FindInstalledOffline([
+        new HachidoriFfxiv.Offline.OfflineDictionary
+        {
+            Id = "d1", Title = "FFXIV Hachidori JP–EN", Revision = "2026.11.22.1", Folder = "f1",
+        },
+    ]);
+    check(offline is { Title: "FFXIV Hachidori JP–EN", Revision: "2026.11.22.1", Enabled: true },
+        "FFXIV dictionary detection finds offline synced dictionary");
+
+    check(FfxivDictionary.FindInstalled([new JsonObject { ["title"] = "JMdict" }]) is null,
+        "FFXIV dictionary detection ignores unrelated dictionaries");
 }

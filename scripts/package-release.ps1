@@ -10,6 +10,9 @@ if ($Tag -cne "v$($taskManifest.AssemblyVersion)") { throw 'Tag must match the c
 $taskDist = Join-Path $taskRoot 'dist'
 New-Item -ItemType Directory -Force -Path $taskDist | Out-Null
 Copy-Item (Join-Path $taskOutput 'HachidoriFfxiv/latest.zip') (Join-Path $taskDist 'latest.zip')
+$taskDictZip = Join-Path $taskRoot 'dictionaries/ffxiv/FFXIV-Hachidori-JP-EN.zip'
+if (!(Test-Path -LiteralPath $taskDictZip -PathType Leaf)) { throw 'dictionaries/ffxiv/FFXIV-Hachidori-JP-EN.zip is missing.' }
+Copy-Item $taskDictZip (Join-Path $taskDist 'FFXIV-Hachidori-JP-EN.zip')
 $taskBase = "https://github.com/$Repository/releases/download/$Tag"
 $taskManifest | Add-Member NoteProperty RepoUrl "https://github.com/$Repository" -Force
 $taskManifest | Add-Member NoteProperty DownloadLinkInstall "$taskBase/latest.zip" -Force
@@ -42,7 +45,7 @@ try {
         }
 }
 finally { $taskNativeZip.Dispose() }
-$taskChecksums = foreach ($taskName in @('latest.zip', 'pluginmaster.json', 'source.zip', 'native-source.zip')) {
+$taskChecksums = foreach ($taskName in @('latest.zip', 'pluginmaster.json', 'FFXIV-Hachidori-JP-EN.zip', 'source.zip', 'native-source.zip')) {
     $taskHash = (Get-FileHash (Join-Path $taskDist $taskName) -Algorithm SHA256).Hash.ToLowerInvariant()
     "$taskHash  $taskName"
 }

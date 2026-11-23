@@ -52,7 +52,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin()
     {
-        DiagnosticLog.Write("plugin", "Starting plugin.");
+        DiagnosticLog.Write("plugin", $"Starting plugin on {PlatformInfo.Current.DisplayName} (wine={PlatformInfo.Current.IsWine}, steamDeck={PlatformInfo.Current.IsSteamDeck}, gamescope={PlatformInfo.Current.IsGamescope}, dcomp={PlatformInfo.Current.IsDirectCompositionAvailable}).");
         // Floating subtitles are shown in cutscenes, when Dalamud normally hides
         // plugin drawing. Keep dictionary popups usable there; retain user/Gpose hiding.
         PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
@@ -246,8 +246,18 @@ public sealed class Plugin : IDalamudPlugin
 
     private string ExportLogs()
     {
+        var platform = PlatformInfo.Current;
         var context = new System.Text.Json.Nodes.JsonObject
         {
+            ["platform"] = platform.DisplayName,
+            ["isWine"] = platform.IsWine,
+            ["wineVersion"] = platform.WineVersion,
+            ["hostOs"] = platform.HostOs.ToString(),
+            ["isSteamDeck"] = platform.IsSteamDeck,
+            ["isGamescope"] = platform.IsGamescope,
+            ["supportsWebView2Overlay"] = platform.SupportsWebView2Overlay,
+            ["supportsProcessAudioLoopback"] = platform.SupportsProcessAudioLoopback,
+            ["audioRecorderMode"] = media.Recorder?.Mode.ToString() ?? "Off",
             ["connected"] = service.Link.Connected,
             ["hostVersion"] = service.Link.HostVersion,
             ["dictionaryCount"] = service.Link.DictionaryCount,

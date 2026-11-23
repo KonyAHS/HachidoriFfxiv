@@ -1,5 +1,5 @@
 using System;
-using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using HachidoriFfxiv.Hachidori;
 using NAudio.Wave;
@@ -7,24 +7,32 @@ using NAudio.Wave.SampleProviders;
 
 namespace HachidoriFfxiv.Audio;
 
-/// <summary>Plays pronunciation audio (mp3/aac/wav through Media Foundation).</summary>
+/// <summary>
+/// Plays pronunciation audio via WASAPI, falling back automatically to Windows Multimedia
+/// (<c>winmm.dll</c> <c>waveOut</c>) if WASAPI fails to initialize (e.g. certain Wine/Proton/macOS audio backends).
+/// </summary>
 public sealed class AudioPlayer : IDisposable
 {
     private readonly Configuration config;
     private readonly object gate = new();
     private IWavePlayer? output;
+    private WinMmWaveOut? fallbackOutput;
     private WaveStream? reader;
     private int sequence;
     private bool disposed;
 
-    public AudioPlayer(Configuration config) => this.config = config;
+    public AudioPlayer(Configuration config)
+    {
+        this.config = config;
+        PronunciationDecoder.ConfiguredFfmpegPath = () => this.config.FfmpegPath;
+    }
 
     public string? LastError { get; private set; }
 
     public void PlayTerm(HachidoriService service, string expression, string reading)
     {
         LastError = null;
-        var mine = System.Threading.Interlocked.Increment(ref sequence);
+        var mine = Interlocked.Increment(ref sequence);
         _ = Task.Run(async () =>
         {
             try
@@ -58,11 +66,12 @@ public sealed class AudioPlayer : IDisposable
                 return;
             Stop();
             var stream = PronunciationDecoder.Open(data);
+            var vol = Math.Clamp(config.AudioVolume, 0f, 1f);
             WasapiOut? wasapi = null;
             try
             {
                 wasapi = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 100);
-                var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = Math.Clamp(config.AudioVolume, 0f, 1f) };
+                var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = vol };
                 wasapi.Init(volume);
                 wasapi.PlaybackStopped += (_, e) =>
                 {
@@ -77,12 +86,34 @@ public sealed class AudioPlayer : IDisposable
                 output = wasapi;
                 DiagnosticLog.Write("audio", $"Playing {stream.WaveFormat}; bytes={data.Length}");
                 LastError = null;
+                return;
             }
-            catch
+            catch (Exception wasapiEx)
             {
                 wasapi?.Dispose();
-                stream.Dispose();
-                throw;
+                DiagnosticLog.Write("audio", $"WASAPI playback failed ({wasapiEx.Message}); trying WinMM waveOut fallback.");
+                try
+                {
+                    if (stream.CanSeek)
+                        stream.Position = 0;
+                    var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = vol };
+                    var winmm = WinMmWaveOut.Start(volume, err =>
+                    {
+                        LastError = err;
+                        DiagnosticLog.Write("audio", $"WinMM playback error: {err}");
+                    });
+                    fallbackOutput = winmm;
+                    stream.Dispose();
+                    DiagnosticLog.Write("audio", $"Playing via WinMM fallback ({volume.WaveFormat}); bytes={data.Length}");
+                    LastError = null;
+                    return;
+                }
+                catch (Exception winmmEx)
+                {
+                    stream.Dispose();
+                    DiagnosticLog.Write("audio", $"WinMM fallback failed: {winmmEx.Message}");
+                    throw new InvalidOperationException($"Audio playback failed (WASAPI: {wasapiEx.Message}; WinMM: {winmmEx.Message})", wasapiEx);
+                }
             }
         }
     }
@@ -93,8 +124,10 @@ public sealed class AudioPlayer : IDisposable
         {
             output?.Stop();
             output?.Dispose();
+            fallbackOutput?.Dispose();
             reader?.Dispose();
             output = null;
+            fallbackOutput = null;
             reader = null;
         }
     }
@@ -104,7 +137,7 @@ public sealed class AudioPlayer : IDisposable
         lock (gate)
         {
             disposed = true;
-            System.Threading.Interlocked.Increment(ref sequence);
+            Interlocked.Increment(ref sequence);
             Stop();
         }
     }

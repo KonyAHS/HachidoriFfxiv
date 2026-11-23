@@ -87,20 +87,27 @@ public sealed class WebViewPopupController : IDisposable
         service.Link.WordStatusChanged += OnWordStatusChanged;
         Bundles.BundleChanged += OnBundleChanged;
 
-        if (config.UseWebViewPopup)
+        if (config.UseWebViewPopup && PlatformSupported)
             StartInitialSync();
+        else if (config.UseWebViewPopup && !PlatformSupported)
+            DiagnosticLog.Write("webview", $"Skipping WebView2 on {PlatformInfo.Current.DisplayName}; using built-in ImGui popup renderer.");
     }
 
     public HachidoriBundleManager Bundles { get; }
 
+    /// <summary>True on native Windows with DirectComposition; false on Wine/Proton/Steam Deck/macOS.</summary>
+    public bool PlatformSupported => PlatformInfo.Current.SupportsWebView2Overlay;
+
     /// <summary>True when WebView2 is enabled, booted, and ready to render Hachidori's real frontend.</summary>
-    public bool Active => !disposed && config.UseWebViewPopup && config.FollowHachidoriTheme && host is { IsReady: true };
+    public bool Active => !disposed && PlatformSupported && config.UseWebViewPopup && config.FollowHachidoriTheme && host is { IsReady: true };
 
-    public bool RuntimeAvailable => WebViewPopupHost.IsRuntimeAvailable(out _);
+    public bool RuntimeAvailable => PlatformSupported && WebViewPopupHost.IsRuntimeAvailable(out _);
 
-    public string? LastError => host?.LastError ?? controllerError ?? Bundles.LastError;
+    public string? LastError => !PlatformSupported ? null : host?.LastError ?? controllerError ?? Bundles.LastError;
 
-    public string StatusText => host?.StatusText ?? (Bundles.Ready ? "Starting WebView2 host…" : "Waiting for Hachidori Web bundle…");
+    public string StatusText => !PlatformSupported
+        ? $"Hachidori Web (WebView2) is Windows-only — using built-in ImGui renderer on {PlatformInfo.Current.DisplayName}."
+        : host?.StatusText ?? (Bundles.Ready ? "Starting WebView2 host…" : "Waiting for Hachidori Web bundle…");
 
     public bool AnyOpen => Active && host!.AnyOpen;
 
@@ -116,13 +123,15 @@ public sealed class WebViewPopupController : IDisposable
     public void NotifySettingsChanged()
     {
         snapshotDirty = true;
-        if (config.UseWebViewPopup && host is null && !startAttempted)
+        if (PlatformSupported && config.UseWebViewPopup && host is null && !startAttempted)
             StartInitialSync();
     }
 
     /// <summary>Triggers a manual sync of Hachidori's frontend bundle (local browser install or GitHub Releases).</summary>
     public Task<bool> SyncBundleNowAsync(bool force = true)
     {
+        if (!PlatformSupported)
+            return Task.FromResult(false);
         var target = service.Link.Connected ? service.Link.HostVersion : null;
         return Task.Run(async () =>
         {
@@ -161,7 +170,7 @@ public sealed class WebViewPopupController : IDisposable
     {
         if (disposed) return;
 
-        if (!config.UseWebViewPopup || !config.FollowHachidoriTheme)
+        if (!PlatformSupported || !config.UseWebViewPopup || !config.FollowHachidoriTheme)
         {
             ReleasePointerState(0, 0);
             if (host is { AnyOpen: true }) host.CloseAll();
@@ -462,6 +471,7 @@ public sealed class WebViewPopupController : IDisposable
 
     private void EnsureHostStarted(bool restartIfFailed = false)
     {
+        if (!PlatformSupported) return;
         lock (hostLock)
         {
             if (disposed || !Bundles.Ready) return;
@@ -527,7 +537,7 @@ public sealed class WebViewPopupController : IDisposable
     private void OnConnectionChanged()
     {
         snapshotDirty = true;
-        if (!service.Link.Connected || !config.UseWebViewPopup || !config.AutoSyncWebViewBundle)
+        if (!PlatformSupported || !service.Link.Connected || !config.UseWebViewPopup || !config.AutoSyncWebViewBundle)
             return;
 
         var hostVer = service.Link.HostVersion;

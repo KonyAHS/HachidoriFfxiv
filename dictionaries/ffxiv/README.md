@@ -4,6 +4,14 @@ A comprehensive Japanese → English dictionary ZIP for Hachidori and Yomitan. I
 supplements a general Japanese dictionary with FFXIV's localized names, game
 systems, character portraits, and Japanese player/Party Finder lingo.
 
+## Download
+
+- **Direct download (latest release):** [`FFXIV-Hachidori-JP-EN.zip`](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest/download/FFXIV-Hachidori-JP-EN.zip)
+- **Repository file:** [`FFXIV-Hachidori-JP-EN.zip`](FFXIV-Hachidori-JP-EN.zip)
+- **Generator & data source code:** [`build_dictionary.py`](build_dictionary.py), [`validate_dictionary.py`](validate_dictionary.py), and the TSV/image datasets in this folder.
+
+> **Spoiler notice:** Contains character names, titles, and portraits across all FFXIV expansions.
+
 The current release (`2026.11.22.1`, game snapshot **7.58**) contains
 **37,729 entries** across 31 categories:
 
@@ -30,13 +38,15 @@ The current release (`2026.11.22.1`, game snapshot **7.58**) contains
 
 ## Import
 
-1. In Hachidori (or Yomitan), open **Settings → Dictionaries** and import
+1. Download [`FFXIV-Hachidori-JP-EN.zip`](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest/download/FFXIV-Hachidori-JP-EN.zip)
+   (you can also open this link from inside FFXIV via `/hachidori config` → **Quick Guide** or **Connection**).
+2. In Hachidori (or Yomitan), open **Settings → Dictionaries** and import
    `FFXIV-Hachidori-JP-EN.zip`.
-2. Enable **FFXIV Hachidori JP–EN** and place it above your general dictionaries
+3. Enable **FFXIV Hachidori JP–EN** and place it above your general dictionaries
    if you prefer FFXIV meanings first. Keep your general dictionaries enabled.
-3. Try `ヤ・シュトラ`, `ラマチ`, `ゼノス`, `クリ目`, `取り抜け`, `頭割り`,
+4. Try `ヤ・シュトラ`, `ラマチ`, `ゼノス`, `クリ目`, `取り抜け`, `頭割り`,
    `シャキる`, `オスッテ`, `被ダメージ上昇`, `リムサ・ロミンサ`, and `星芒祭`.
-4. If you already have an older version of **FFXIV Hachidori JP–EN** installed,
+5. If you already have an older version of **FFXIV Hachidori JP–EN** installed,
    remove it before importing the new ZIP to avoid duplicate definitions.
 
 ## Sources and attribution

@@ -164,9 +164,14 @@ public sealed class WebViewPopupHost : IDisposable
     public Task<bool> WaitUntilReadyAsync(TimeSpan timeout) =>
         readyTcs.Task.WaitAsync(timeout);
 
-    /// <summary>Returns true if WebView2 Runtime is installed on this Windows machine.</summary>
+    /// <summary>Returns true if WebView2 Runtime and DirectComposition overlays are available on this OS.</summary>
     public static bool IsRuntimeAvailable(out string? version)
     {
+        if (!PlatformInfo.Current.SupportsWebView2Overlay)
+        {
+            version = null;
+            return false;
+        }
         try
         {
             version = CoreWebView2Environment.GetAvailableBrowserVersionString();
@@ -550,6 +555,9 @@ public sealed class WebViewPopupHost : IDisposable
 
     private unsafe void InitializeDirectComposition()
     {
+        if (!PlatformInfo.Current.IsDirectCompositionAvailable)
+            throw new InvalidOperationException($"DirectComposition is not available on {PlatformInfo.Current.DisplayName}.");
+
         var iid = IidIDCompositionDevice;
         var hr = DCompositionCreateDevice(0, ref iid, out dcompDevice);
         if (hr != 0 || dcompDevice == 0)

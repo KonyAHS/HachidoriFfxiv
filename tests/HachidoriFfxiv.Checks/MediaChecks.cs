@@ -205,7 +205,84 @@ static class MediaChecks
             "without a screenshot, {screenshot} is declared unavailable");
 
         // ----------------------------------------------- live game-audio capture
+        CheckPlatformAndFallbacks(check);
         await LiveLoopbackAsync(check);
+    }
+
+    private static void CheckPlatformAndFallbacks(Action<bool, string> check)
+    {
+        static Func<string, string?> Env(params (string K, string V)[] pairs) =>
+            k => pairs.FirstOrDefault(p => string.Equals(p.K, k, StringComparison.OrdinalIgnoreCase)).V;
+
+        var win11 = HachidoriFfxiv.PlatformInfo.Classify(null, null, Env(), false, null, true, new Version(10, 0, 22631));
+        check(win11.IsNativeWindows && !win11.IsWine && win11.SupportsWebView2Overlay && win11.SupportsProcessAudioLoopback && !win11.HasCompatibilityFallbacks,
+            "PlatformInfo identifies native Windows 11 with full support");
+
+        var oldWin10 = HachidoriFfxiv.PlatformInfo.Classify(null, null, Env(), false, null, true, new Version(10, 0, 18363));
+        check(oldWin10.IsNativeWindows && oldWin10.SupportsWebView2Overlay && !oldWin10.SupportsProcessAudioLoopback && oldWin10.HasCompatibilityFallbacks,
+            "PlatformInfo flags pre-2004 Windows 10 for system-loopback audio fallback");
+
+        var linux = HachidoriFfxiv.PlatformInfo.Classify("9.0", "Linux", Env(("XL_WINEONLINUX", "1")), false, "ID=arch\n", true, new Version(10, 0, 19041));
+        check(linux.IsWine && linux.HostOs == HachidoriFfxiv.HostOsKind.Linux && !linux.IsSteamDeck
+              && !linux.SupportsWebView2Overlay && !linux.SupportsProcessAudioLoopback,
+            "PlatformInfo identifies Linux (Wine/Proton) and disables Windows-only overlays/process-loopback");
+
+        var deck = HachidoriFfxiv.PlatformInfo.Classify("9.0", "Linux", Env(("SteamDeck", "1"), ("GAMESCOPE_WAYLAND_DISPLAY", "gamescope-0")), false, "ID=steamos\nVARIANT_ID=steamdeck\n", false, new Version(10, 0, 19041));
+        check(deck.IsWine && deck.IsSteamDeck && deck.IsGamescope && deck.HostOs == HachidoriFfxiv.HostOsKind.Linux
+              && deck.DisplayName.Contains("Steam Deck", StringComparison.Ordinal) && deck.DisplayName.Contains("Gaming Mode", StringComparison.Ordinal),
+            "PlatformInfo identifies Steam Deck Gaming Mode (SteamOS/Gamescope)");
+
+        var mac = HachidoriFfxiv.PlatformInfo.Classify("8.0.1", "Darwin", Env(), true, null, false, new Version(10, 0, 19041));
+        check(mac.IsWine && mac.HostOs == HachidoriFfxiv.HostOsKind.MacOs && !mac.IsSteamDeck
+              && !mac.SupportsWebView2Overlay && mac.DisplayName.Contains("macOS", StringComparison.Ordinal),
+            "PlatformInfo identifies macOS (XIV on Mac / Wine)");
+
+        // System loopback format conversion: 44.1 kHz stereo IEEE float -> 48 kHz mono float.
+        var srcFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 2);
+        var srcFrames = 441; // 10 ms
+        var rawFloat = new byte[srcFrames * 2 * 4];
+        for (var i = 0; i < srcFrames; i++)
+        {
+            var s = MathF.Sin(i * 2f * MathF.PI * 440f / 44100f) * 0.5f;
+            BitConverter.TryWriteBytes(rawFloat.AsSpan(i * 8, 4), s);
+            BitConverter.TryWriteBytes(rawFloat.AsSpan(i * 8 + 4, 4), s);
+        }
+        float[] converted = [];
+        var count48k = GameAudioRecorder.ConvertToMono48k(rawFloat, srcFormat, ref converted);
+        var peak48k = converted.AsSpan(0, count48k).ToArray().Max(Math.Abs);
+        check(Math.Abs(count48k - 480) <= 2 && peak48k > 0.45f && peak48k < 0.55f,
+            $"system loopback converter resamples 44.1 kHz stereo float to 48 kHz mono ({count48k} frames, peak {peak48k:0.00})");
+
+        // 48 kHz 16-bit PCM 6-channel surround downmix.
+        var pcmFormat = new WaveFormat(48000, 16, 6);
+        var rawPcm = new byte[100 * 6 * 2];
+        for (var i = 0; i < 100; i++)
+            for (var c = 0; c < 6; c++)
+                BitConverter.TryWriteBytes(rawPcm.AsSpan((i * 6 + c) * 2, 2), (short)16384);
+        var countPcm = GameAudioRecorder.ConvertToMono48k(rawPcm, pcmFormat, ref converted);
+        check(countPcm == 100 && Math.Abs(converted[50] - 0.5f) < 0.01f,
+            "system loopback converter downmixes multi-channel PCM cleanly");
+
+        // WinMM PCM16 conversion fallback helper.
+        var sig = new NAudio.Wave.SampleProviders.SignalGenerator(48000, 1) { Gain = 0.5, Frequency = 440 };
+        var take = new NAudio.Wave.SampleProviders.OffsetSampleProvider(sig) { Take = TimeSpan.FromMilliseconds(50) };
+        var pcm16 = HachidoriFfxiv.Audio.WinMmWaveOut.ReadPcm16(take, 1);
+        check(pcm16.Length == 2400 * 2 && pcm16.Any(b => b != 0),
+            "WinMM fallback converts sample provider to 16-bit PCM");
+
+        // FFmpeg piped MP3 decode fallback (used when Wine Media Foundation lacks MP3/AAC codecs).
+        var anyFfmpeg = Ffmpeg.FindAny();
+        var mp3Fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "tone.mp3");
+        if (anyFfmpeg is not null && File.Exists(mp3Fixture))
+        {
+            var wavBytes = HachidoriFfxiv.Audio.PronunciationDecoder.DecodeWithFfmpeg(File.ReadAllBytes(mp3Fixture), anyFfmpeg);
+            check(wavBytes.Length > 44 && wavBytes.AsSpan(0, 4).SequenceEqual("RIFF"u8),
+                $"FFmpeg piped audio fallback decodes MP3 to WAV ({wavBytes.Length} bytes)");
+        }
+        else
+        {
+            Console.WriteLine("SKIP: FFmpeg piped audio fallback check (no FFmpeg found)");
+        }
     }
 
     /// <summary>Plays a tone in this process and checks process loopback hears it. Skipped without a sound device.</summary>

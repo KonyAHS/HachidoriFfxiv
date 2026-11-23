@@ -15,6 +15,7 @@
     <Compile Include="../../HachidoriFfxiv/Hachidori/WordSpans.cs" Link="WordSpans.cs" />
     <Compile Include="../../HachidoriFfxiv/Hachidori/NpcImageDictionary.cs" Link="NpcImageDictionary.cs" />
     <Compile Include="../../HachidoriFfxiv/Hachidori/NpcPictureLibrary.cs" Link="NpcPictureLibrary.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/FfxivDictionary.cs" Link="FfxivDictionary.cs" />
     <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs" Link="Offline/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Anki/*.cs" Exclude="../../HachidoriFfxiv/Anki/OfflineAnkiMiner.cs" Link="Anki/%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../HachidoriFfxiv/Anki/Data/*.json" LogicalName="HachidoriFfxiv.Anki.%(Filename).json" />
@@ -24,7 +25,9 @@
     <Compile Include="../../HachidoriFfxiv/Publishing/PublishGate.cs" Link="PublishGate.cs" />
     <Compile Include="../../HachidoriFfxiv/Publishing/TextWebSocketServer.cs" Link="TextWebSocketServer.cs" />
     <Compile Include="../../HachidoriFfxiv/DiagnosticLog.cs" Link="DiagnosticLog.cs" />
+    <Compile Include="../../HachidoriFfxiv/PlatformInfo.cs" Link="PlatformInfo.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/PronunciationDecoder.cs" Link="PronunciationDecoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Audio/WinMmWaveOut.cs" Link="WinMmWaveOut.cs" />
     <Compile Include="../../HachidoriFfxiv/Rendering/*.cs" Link="Rendering/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Rendering/Css/*.cs" Exclude="../../HachidoriFfxiv/Rendering/Css/PopupThemeProvider.cs" Link="Rendering/Css/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Ui/ThemePainter.cs" Link="ThemePainter.cs" />

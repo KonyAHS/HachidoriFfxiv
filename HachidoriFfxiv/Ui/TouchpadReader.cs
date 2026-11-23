@@ -86,48 +86,55 @@ internal sealed class TouchpadReader : IDisposable
 
     private void ReadLoop(SafeFileHandle h, ushort pid, int reportLen)
     {
-        var buffer = new byte[Math.Max(64, reportLen)];
-        var prevTouching = false;
-        var prevId = -1;
-        var prevX = 0;
-        var prevY = 0;
-        var isDualSense = pid is DualSensePid or DualSenseEdgePid;
-
-        while (!stopping && !h.IsInvalid && !h.IsClosed)
+        try
         {
-            if (!ReadFile(h, buffer, (uint)buffer.Length, out var read, nint.Zero) || read == 0)
-                break;
+            var buffer = new byte[Math.Max(64, reportLen)];
+            var prevTouching = false;
+            var prevId = -1;
+            var prevX = 0;
+            var prevY = 0;
+            var isDualSense = pid is DualSensePid or DualSenseEdgePid;
 
-            var offset = TouchOffset(isDualSense, buffer[0], (int)read);
-            if (offset < 0)
-                continue;
-
-            var header = buffer[offset];
-            var down = (header & 0x80) == 0;
-            var id = header & 0x7F;
-            var x = buffer[offset + 1] | ((buffer[offset + 2] & 0x0F) << 8);
-            var y = (buffer[offset + 2] >> 4) | (buffer[offset + 3] << 4);
-
-            lock (gate)
+            while (!stopping && !h.IsInvalid && !h.IsClosed)
             {
-                touching = down;
-                if (down && prevTouching && id == prevId)
+                if (!ReadFile(h, buffer, (uint)buffer.Length, out var read, nint.Zero) || read == 0)
+                    break;
+
+                var offset = TouchOffset(isDualSense, buffer[0], (int)read);
+                if (offset < 0)
+                    continue;
+
+                var header = buffer[offset];
+                var down = (header & 0x80) == 0;
+                var id = header & 0x7F;
+                var x = buffer[offset + 1] | ((buffer[offset + 2] & 0x0F) << 8);
+                var y = (buffer[offset + 2] >> 4) | (buffer[offset + 3] << 4);
+
+                lock (gate)
                 {
-                    var dx = x - prevX;
-                    var dy = y - prevY;
-                    // Ignore huge single-packet jumps from palm/edge noise.
-                    if (Math.Abs(dx) < 400 && Math.Abs(dy) < 400)
+                    touching = down;
+                    if (down && prevTouching && id == prevId)
                     {
-                        accumX += dx;
-                        accumY += dy;
+                        var dx = x - prevX;
+                        var dy = y - prevY;
+                        // Ignore huge single-packet jumps from palm/edge noise.
+                        if (Math.Abs(dx) < 400 && Math.Abs(dy) < 400)
+                        {
+                            accumX += dx;
+                            accumY += dy;
+                        }
                     }
                 }
-            }
 
-            prevTouching = down;
-            prevId = id;
-            prevX = x;
-            prevY = y;
+                prevTouching = down;
+                prevId = id;
+                prevX = x;
+                prevY = y;
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("controller", $"Touchpad HID read stopped: {ex.Message}");
         }
     }
 
@@ -146,57 +153,64 @@ internal sealed class TouchpadReader : IDisposable
 
     private static (SafeFileHandle Handle, ushort Pid, int ReportLen)? OpenSonyController()
     {
-        HidD_GetHidGuid(out var hidGuid);
-        var set = SetupDiGetClassDevs(ref hidGuid, nint.Zero, nint.Zero, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-        if (set == nint.Zero || set == new nint(-1))
-            return null;
         try
         {
-            var data = new SP_DEVICE_INTERFACE_DATA { cbSize = (uint)Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>() };
-            for (uint index = 0; SetupDiEnumDeviceInterfaces(set, nint.Zero, ref hidGuid, index, ref data); index++)
+            HidD_GetHidGuid(out var hidGuid);
+            var set = SetupDiGetClassDevs(ref hidGuid, nint.Zero, nint.Zero, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+            if (set == nint.Zero || set == new nint(-1))
+                return null;
+            try
             {
-                SetupDiGetDeviceInterfaceDetail(set, ref data, nint.Zero, 0, out var needed, nint.Zero);
-                if (needed == 0 || needed > 4096)
-                    continue;
-                var detail = Marshal.AllocHGlobal((int)needed);
-                try
+                var data = new SP_DEVICE_INTERFACE_DATA { cbSize = (uint)Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>() };
+                for (uint index = 0; SetupDiEnumDeviceInterfaces(set, nint.Zero, ref hidGuid, index, ref data); index++)
                 {
-                    Marshal.WriteInt32(detail, IntPtr.Size == 8 ? 8 : 6);
-                    if (!SetupDiGetDeviceInterfaceDetail(set, ref data, detail, needed, out _, nint.Zero))
+                    SetupDiGetDeviceInterfaceDetail(set, ref data, nint.Zero, 0, out var needed, nint.Zero);
+                    if (needed == 0 || needed > 4096)
                         continue;
-                    var path = Marshal.PtrToStringUni(detail + 4);
-                    if (string.IsNullOrEmpty(path))
-                        continue;
-                    var h = CreateFile(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nint.Zero, OPEN_EXISTING, 0, nint.Zero);
-                    if (h.IsInvalid)
+                    var detail = Marshal.AllocHGlobal((int)needed);
+                    try
                     {
-                        h.Dispose();
-                        continue;
-                    }
-
-                    var attrs = new HIDD_ATTRIBUTES { Size = Marshal.SizeOf<HIDD_ATTRIBUTES>() };
-                    if (HidD_GetAttributes(h, ref attrs)
-                        && attrs.VendorID == SonyVid
-                        && attrs.ProductID is DualSensePid or DualSenseEdgePid or DualShock4V1Pid or DualShock4V2Pid)
-                    {
-                        var reportLen = 64;
-                        if (HidD_GetPreparsedData(h, out var preparsed))
+                        Marshal.WriteInt32(detail, IntPtr.Size == 8 ? 8 : 6);
+                        if (!SetupDiGetDeviceInterfaceDetail(set, ref data, detail, needed, out _, nint.Zero))
+                            continue;
+                        var path = Marshal.PtrToStringUni(detail + 4);
+                        if (string.IsNullOrEmpty(path))
+                            continue;
+                        var h = CreateFile(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nint.Zero, OPEN_EXISTING, 0, nint.Zero);
+                        if (h.IsInvalid)
                         {
-                            try
-                            {
-                                if (HidP_GetCaps(preparsed, out var caps) == HIDP_STATUS_SUCCESS && caps.InputReportByteLength > 0)
-                                    reportLen = caps.InputReportByteLength;
-                            }
-                            finally { HidD_FreePreparsedData(preparsed); }
+                            h.Dispose();
+                            continue;
                         }
-                        return (h, attrs.ProductID, reportLen);
+
+                        var attrs = new HIDD_ATTRIBUTES { Size = Marshal.SizeOf<HIDD_ATTRIBUTES>() };
+                        if (HidD_GetAttributes(h, ref attrs)
+                            && attrs.VendorID == SonyVid
+                            && attrs.ProductID is DualSensePid or DualSenseEdgePid or DualShock4V1Pid or DualShock4V2Pid)
+                        {
+                            var reportLen = 64;
+                            if (HidD_GetPreparsedData(h, out var preparsed))
+                            {
+                                try
+                                {
+                                    if (HidP_GetCaps(preparsed, out var caps) == HIDP_STATUS_SUCCESS && caps.InputReportByteLength > 0)
+                                        reportLen = caps.InputReportByteLength;
+                                }
+                                finally { HidD_FreePreparsedData(preparsed); }
+                            }
+                            return (h, attrs.ProductID, reportLen);
+                        }
+                        h.Dispose();
                     }
-                    h.Dispose();
+                    finally { Marshal.FreeHGlobal(detail); }
                 }
-                finally { Marshal.FreeHGlobal(detail); }
             }
+            finally { SetupDiDestroyDeviceInfoList(set); }
         }
-        finally { SetupDiDestroyDeviceInfoList(set); }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("controller", $"Windows HID touchpad probe unavailable: {ex.Message}");
+        }
 
         return null;
     }

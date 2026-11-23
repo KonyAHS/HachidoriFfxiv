@@ -2,12 +2,25 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NAudio.Wave;
 
 namespace HachidoriFfxiv.Media;
 
+/// <summary>How <see cref="GameAudioRecorder"/> is currently capturing audio.</summary>
+public enum GameAudioCaptureMode
+{
+    None,
+    /// <summary>Windows 10 2004+ per-process loopback (records only FFXIV).</summary>
+    ProcessLoopback,
+    /// <summary>Standard WASAPI system output loopback fallback (Linux/Steam Deck via Wine/Proton, or older Windows).</summary>
+    SystemLoopback,
+}
+
 /// <summary>
-/// Records only the game's own audio with Windows' process loopback (Windows 10 2004 or later),
-/// so voice lines can be cut from it. Other programs (music players, Discord) are not recorded.
+/// Records the game's audio so voice lines can be cut from it.
+/// Prefers Windows 10 2004+ per-process loopback (FFXIV only), and automatically falls back
+/// to standard WASAPI system-output loopback on Linux / Steam Deck (Wine / Proton / PipeWire),
+/// older Windows 10, or whenever process loopback is unavailable.
 /// </summary>
 public sealed class GameAudioRecorder : IDisposable
 {
@@ -16,6 +29,7 @@ public sealed class GameAudioRecorder : IDisposable
     private Thread? thread;
     private volatile bool stopping;
     private volatile bool running;
+    private volatile GameAudioCaptureMode mode;
 
     public GameAudioRecorder(double bufferSeconds)
     {
@@ -24,6 +38,7 @@ public sealed class GameAudioRecorder : IDisposable
 
     public AudioRing Ring { get; }
     public bool Running => running && !stopping;
+    public GameAudioCaptureMode Mode => mode;
     public string? Error { get; private set; }
 
     public void Start()
@@ -45,6 +60,28 @@ public sealed class GameAudioRecorder : IDisposable
 
     private void Run()
     {
+        string? processError = null;
+        if (PlatformInfo.Current.SupportsProcessAudioLoopback)
+        {
+            if (RunProcessLoopback(out processError) || stopping)
+                return;
+            DiagnosticLog.Write("audio", $"Process loopback unavailable ({processError}); trying system loopback fallback.");
+        }
+
+        if (RunSystemLoopback(out var systemError) || stopping)
+            return;
+
+        mode = GameAudioCaptureMode.None;
+        Error = PlatformInfo.Current.HostOs == HostOsKind.MacOs
+            ? "Game audio recording is unavailable on macOS (CoreAudio has no built-in loopback). Enable TTS below for spoken cards, or route audio through a virtual loopback device."
+            : $"Game audio recording is unavailable: {systemError ?? processError ?? "no loopback audio device found"}. You can still use TTS below for sentence audio.";
+        DiagnosticLog.Write("audio", Error);
+    }
+
+    /// <summary>Tier 1: Windows 10 2004+ per-process loopback (captures only FFXIV).</summary>
+    private bool RunProcessLoopback(out string? error)
+    {
+        error = null;
         IAudioClient? client = null;
         IAudioCaptureClient? capture = null;
         using var ready = new AutoResetEvent(false);
@@ -64,7 +101,9 @@ public sealed class GameAudioRecorder : IDisposable
             capture = (IAudioCaptureClient)service;
             Check(client.Start(), "Start");
             Error = null;
+            mode = GameAudioCaptureMode.ProcessLoopback;
             running = true;
+            DiagnosticLog.Write("audio", "Started Windows per-process loopback recording (FFXIV only).");
             var mono = new float[SampleRate];
             while (!stopping)
             {
@@ -92,11 +131,12 @@ public sealed class GameAudioRecorder : IDisposable
             }
 
             client.Stop();
+            return true;
         }
         catch (Exception ex)
         {
-            Error = $"Game audio recording is unavailable: {ex.Message}";
-            DiagnosticLog.Write("audio", Error);
+            error = ex.Message;
+            return false;
         }
         finally
         {
@@ -105,6 +145,141 @@ public sealed class GameAudioRecorder : IDisposable
             if (client is not null) Marshal.ReleaseComObject(client);
         }
     }
+
+    /// <summary>Tier 2: Standard WASAPI default-endpoint loopback (works on Linux/Steam Deck via Wine/PipeWire and older Windows).</summary>
+    private bool RunSystemLoopback(out string? error)
+    {
+        error = null;
+        WasapiLoopbackCapture? capture = null;
+        using var stopped = new ManualResetEventSlim(false);
+        Exception? asyncFailure = null;
+        try
+        {
+            capture = new WasapiLoopbackCapture();
+            var format = capture.WaveFormat;
+            float[] scratch = [];
+            capture.DataAvailable += (_, e) =>
+            {
+                if (stopping || e.BytesRecorded <= 0)
+                    return;
+                var converted = ConvertToMono48k(e.Buffer.AsSpan(0, e.BytesRecorded), format, ref scratch);
+                if (converted <= 0)
+                    return;
+                var ticks = Stopwatch.GetTimestamp() - (long)(converted * (double)Stopwatch.Frequency / SampleRate);
+                Ring.Write(scratch.AsSpan(0, converted), ticks);
+            };
+            capture.RecordingStopped += (_, e) =>
+            {
+                asyncFailure = e.Exception;
+                stopped.Set();
+            };
+
+            capture.StartRecording();
+            Error = null;
+            mode = GameAudioCaptureMode.SystemLoopback;
+            running = true;
+            DiagnosticLog.Write("audio", $"Started system WASAPI loopback fallback ({format.SampleRate} Hz, {format.Channels} ch, {format.Encoding}) on {PlatformInfo.Current.DisplayName}.");
+
+            while (!stopping && !stopped.IsSet)
+                stopped.Wait(100);
+
+            try { capture.StopRecording(); } catch { /* already stopped */ }
+            stopped.Wait(500);
+            if (asyncFailure is not null && !stopping)
+            {
+                error = asyncFailure.Message;
+                return false;
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+        finally
+        {
+            running = false;
+            try { capture?.Dispose(); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Converts interleaved WASAPI loopback bytes (IEEE float 32-bit or PCM 16/24/32-bit, any channel count and sample rate)
+    /// into 48 kHz mono float samples inside <paramref name="output"/>, returning the sample count written.
+    /// </summary>
+    internal static int ConvertToMono48k(ReadOnlySpan<byte> bytes, WaveFormat format, ref float[] output)
+    {
+        var channels = Math.Max(1, format.Channels);
+        var bytesPerSample = format.BitsPerSample / 8;
+        var frameBytes = channels * bytesPerSample;
+        if (frameBytes <= 0 || bytes.Length < frameBytes || format.SampleRate <= 0)
+            return 0;
+
+        var srcFrames = bytes.Length / frameBytes;
+        var isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
+            || (format.Encoding == WaveFormatEncoding.Extensible && format.BitsPerSample == 32 && format is WaveFormatExtensible ext && ext.SubFormat == KsdDataFormatSubtypeIeeeFloat);
+
+        // Downmix to mono at source sample rate.
+        var monoSrc = srcFrames <= 4096 ? stackalloc float[srcFrames] : new float[srcFrames];
+        var invCh = 1f / channels;
+        for (var i = 0; i < srcFrames; i++)
+        {
+            float sum = 0;
+            var frameOffset = i * frameBytes;
+            for (var c = 0; c < channels; c++)
+            {
+                var off = frameOffset + c * bytesPerSample;
+                sum += ReadSample(bytes.Slice(off, bytesPerSample), isFloat);
+            }
+            monoSrc[i] = sum * invCh;
+        }
+
+        if (format.SampleRate == SampleRate)
+        {
+            if (output.Length < srcFrames)
+                output = new float[srcFrames];
+            monoSrc.CopyTo(output);
+            return srcFrames;
+        }
+
+        // Linear resample to 48 kHz.
+        var dstFrames = Math.Max(1, (int)Math.Round(srcFrames * (double)SampleRate / format.SampleRate));
+        if (output.Length < dstFrames)
+            output = new float[dstFrames];
+        var step = (double)format.SampleRate / SampleRate;
+        for (var i = 0; i < dstFrames; i++)
+        {
+            var pos = i * step;
+            var idx = (int)pos;
+            if (idx >= srcFrames - 1)
+            {
+                output[i] = monoSrc[srcFrames - 1];
+            }
+            else
+            {
+                var frac = (float)(pos - idx);
+                output[i] = monoSrc[idx] + (monoSrc[idx + 1] - monoSrc[idx]) * frac;
+            }
+        }
+        return dstFrames;
+    }
+
+    private static float ReadSample(ReadOnlySpan<byte> sample, bool isFloat)
+    {
+        if (isFloat && sample.Length == 4)
+            return MemoryMarshal.Read<float>(sample);
+        return sample.Length switch
+        {
+            2 => MemoryMarshal.Read<short>(sample) / 32768f,
+            3 => ((sample[0] | (sample[1] << 8) | ((sbyte)sample[2] << 16)) / 8388608f),
+            4 => MemoryMarshal.Read<int>(sample) / 2147483648f,
+            1 => (sample[0] - 128) / 128f,
+            _ => 0f,
+        };
+    }
+
+    private static readonly Guid KsdDataFormatSubtypeIeeeFloat = new("00000003-0000-0010-8000-00aa00389b71");
 
     private static void Check(int hr, string step)
     {

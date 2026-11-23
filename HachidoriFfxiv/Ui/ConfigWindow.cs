@@ -113,6 +113,9 @@ public sealed class ConfigWindow : Window
     private DateTime resetNoticeUntil = DateTime.MinValue;
     private string? mediaTest;
     private string? exportedLog;
+    private string? dictionaryNotice;
+    private bool dictionaryNoticeIsError;
+    private DateTime dictionaryNoticeUntil = DateTime.MinValue;
     private bool confirmRemoveOffline;
     private bool ankiConnectedHint;
     private bool firstDraw = true;
@@ -436,6 +439,8 @@ public sealed class ConfigWindow : Window
         ImGui.TextWrapped("Hover native Japanese dialogue, battle talk, and chat for Yomitan-style dictionary popups, pitch accent, audio, and one-click Anki card mining with game media.");
         ImGui.Spacing();
 
+        DrawPlatformCompatibilityGuide(scale);
+
         // Step 1: Connect dictionary backend
         if (Section("guide-step1", dictReady ? "Step 1: Connect Dictionaries  [Ready]" : "Step 1: Connect Dictionaries  [Action Needed]", defaultOpen: true, accent: dictReady ? AccentGreen : AccentAmber))
         {
@@ -469,6 +474,23 @@ public sealed class ConfigWindow : Window
                         _ = offline.SetUpAsync();
                 }
             }
+        }
+
+        // Optional: Custom FFXIV dictionary
+        var installedFfxivDict = FindInstalledFfxivDictionary();
+        var dictHeader = installedFfxivDict is { Enabled: true }
+            ? "Optional: Custom FFXIV Dictionary  [Installed]"
+            : installedFfxivDict is not null
+                ? "Optional: Custom FFXIV Dictionary  [Disabled]"
+                : "Optional: Custom FFXIV Dictionary";
+        var dictAccent = installedFfxivDict is { Enabled: true }
+            ? AccentGreen
+            : installedFfxivDict is not null
+                ? AccentAmber
+                : AccentCyan;
+        if (Section("guide-ffxiv-dict", dictHeader, defaultOpen: installedFfxivDict is null, accent: dictAccent))
+        {
+            DrawFfxivDictionaryBody(scale, installedFfxivDict, "guide");
         }
 
         // Step 2: Scanning & testing
@@ -560,6 +582,62 @@ public sealed class ConfigWindow : Window
         }
     }
 
+    private void DrawPlatformCompatibilityGuide(float scale)
+    {
+        var platform = PlatformInfo.Current;
+        var missingWebViewOnWindows = platform.SupportsWebView2Overlay && webView is { RuntimeAvailable: false };
+        var showOpen = platform.HasCompatibilityFallbacks || missingWebViewOnWindows;
+        var badge = platform.HasCompatibilityFallbacks
+            ? $"{platform.DisplayName} · Compatibility Mode"
+            : missingWebViewOnWindows
+                ? $"{platform.DisplayName} · ImGui Fallback"
+                : $"{platform.DisplayName} · Full Support";
+        var accent = platform.HasCompatibilityFallbacks || missingWebViewOnWindows ? AccentAmber : AccentCyan;
+
+        if (!Section("guide-platform", $"OS & Platform Compatibility  [{badge}]", defaultOpen: showOpen, accent: accent))
+            return;
+
+        if (platform.IsWine)
+        {
+            ImGui.TextColored(AccentAmber, $"Detected {platform.DisplayName}. Automatic fallbacks are enabled where Windows-only APIs are unavailable:");
+            ImGui.BulletText("Popups: using the built-in ImGui renderer with bundled Hachidori themes (Hachidori Web / WebView2 is Windows-only).");
+            if (platform.HostOs == HostOsKind.MacOs)
+                ImGui.BulletText("Voice recording: macOS CoreAudio has no built-in loopback; enable TTS in Mining for spoken cards or route audio through a virtual loopback device.");
+            else
+                ImGui.BulletText("Voice recording: using standard system-output loopback fallback (may include other desktop apps; lower BGM/other audio for cleaner clips).");
+            ImGui.BulletText("Pronunciation & animations: Ogg/Opus/WAV and GIF work built-in; install FFmpeg on the host for MP3/AAC fallback and AVIF/WebP animations.");
+            ImGui.BulletText("Anki & Chrome: run native Linux/macOS Anki (with Hachidori Relay) and Chrome normally — 127.0.0.1 is shared with the game.");
+
+            if (platform.IsSteamDeck)
+            {
+                ImGui.Spacing();
+                ImGui.TextColored(AccentCyan, "Steam Deck tips:");
+                ImGui.BulletText("Best workflow: open Chrome + Anki once in Desktop Mode, link Hachidori, and enable Offline Mode so lookups work in Gaming Mode with Chrome closed.");
+                ImGui.BulletText("Put /hachidori pad and /hachidori freeze on cross-hotbar macros (press B / Circle to exit Freeze Frame).");
+                ImGui.BulletText("Enable \"plugin gamepad input\" in Dalamud settings; the left stick and Steam Deck trackpads (as mouse) both move the virtual cursor.");
+            }
+
+            ImGui.Spacing();
+            ImGui.TextDisabled("Disclaimer: Linux, Steam Deck, and macOS support runs via Wine/Proton/XIV on Mac compatibility fallbacks and is best-effort compared to native Windows.");
+        }
+        else if (!platform.SupportsProcessAudioLoopback)
+        {
+            ImGui.TextColored(AccentAmber, $"Detected {platform.DisplayName} (pre-2004). Voice recording automatically falls back to system-output audio loopback instead of FFXIV-only loopback.");
+            if (missingWebViewOnWindows)
+                ImGui.BulletText("Microsoft Edge WebView2 Runtime is not installed — popups are using the built-in ImGui fallback.");
+        }
+        else if (missingWebViewOnWindows)
+        {
+            ImGui.TextColored(AccentAmber, "Microsoft Edge WebView2 Runtime was not detected — popups are using the built-in ImGui renderer.");
+            ImGui.TextWrapped("Install Microsoft Edge WebView2 Runtime for exact upstream Hachidori Web themes, or keep using the built-in ImGui themes.");
+        }
+        else
+        {
+            ImGui.TextWrapped($"Detected {platform.DisplayName} with full native support (WebView2 popups, per-process FFXIV audio recording, GPU screenshots/Freeze Frame, and Offline Mode).");
+            ImGui.TextDisabled("Playing on Linux, Steam Deck (XIVLauncher.Core), or macOS (XIV on Mac)? The plugin automatically detects Wine/Proton and enables built-in fallbacks (ImGui themes, system audio loopback / TTS, FFmpeg/GIF). Non-Windows platforms are supported on a best-effort basis.");
+        }
+    }
+
     // -------------------------------------------------------------- Popup tab
 
     private void DrawPopupTab()
@@ -646,7 +724,11 @@ public sealed class ConfigWindow : Window
         {
             DrawUseWebViewControl();
 
-            if (!config.UseWebViewPopup)
+            if (webView is { PlatformSupported: false })
+            {
+                ImGui.TextColored(AccentCyan, $"Running on {PlatformInfo.Current.DisplayName} — Hachidori Web (WebView2) is Windows-only; automatically using the built-in ImGui renderer with bundled Hachidori themes.");
+            }
+            else if (!config.UseWebViewPopup)
             {
                 ImGui.TextDisabled("Using the legacy ImGui popup renderer.");
             }
@@ -661,7 +743,7 @@ public sealed class ConfigWindow : Window
             }
             else if (webView is { RuntimeAvailable: false })
             {
-                ImGui.TextColored(AccentAmber, "Microsoft Edge WebView2 Runtime is not installed — using legacy ImGui fallback.");
+                ImGui.TextColored(AccentAmber, "Microsoft Edge WebView2 Runtime is not installed — using built-in ImGui fallback.");
             }
             else if (webView?.Bundles.Syncing == true)
             {
@@ -669,17 +751,17 @@ public sealed class ConfigWindow : Window
             }
             else if (webView?.Bundles.Ready == true)
             {
-                ImGui.TextColored(AccentAmber, $"{webView.StatusText} — using legacy ImGui fallback until ready.");
+                ImGui.TextColored(AccentAmber, $"{webView.StatusText} — using built-in ImGui fallback until ready.");
             }
             else
             {
-                ImGui.TextColored(AccentAmber, "Waiting for Hachidori Web bundle — using legacy ImGui fallback until ready.");
+                ImGui.TextColored(AccentAmber, "Waiting for Hachidori Web bundle — using built-in ImGui fallback until ready.");
             }
 
-            if (webView?.LastError is { Length: > 0 } wvError && config.UseWebViewPopup)
+            if (webView?.LastError is { Length: > 0 } wvError && config.UseWebViewPopup && webView.PlatformSupported)
                 ImGui.TextColored(AccentRed, $"WebView status: {wvError}");
 
-            if (webView is not null)
+            if (webView is { PlatformSupported: true })
             {
                 using (ImRaii.Disabled(webView.Bundles.Syncing))
                 {
@@ -818,7 +900,12 @@ public sealed class ConfigWindow : Window
                 if (recorder.Error is { } audioError)
                     ImGui.TextColored(AccentAmber, audioError);
                 else if (recorder.Running)
-                    ImGui.TextDisabled("Recording game audio.");
+                {
+                    if (recorder.Mode == GameAudioCaptureMode.SystemLoopback)
+                        ImGui.TextColored(AccentAmber, "Recording system output audio (compatibility fallback — other apps' audio may be included; lower BGM/other apps for cleaner clips).");
+                    else
+                        ImGui.TextDisabled("Recording FFXIV game audio only (Windows process loopback).");
+                }
             }
 
             if (Advanced && config.RecordVoiceLines)
@@ -1056,6 +1143,7 @@ public sealed class ConfigWindow : Window
             Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
             Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
             Checkbox("Use DualSense/DS4 touchpad for virtual cursor", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v);
+            HelpMarker("Reads Sony DualSense / DualShock 4 touchpads via Windows HID (primarily Windows). On Steam Deck, the built-in trackpads already glide the virtual cursor automatically when mapped to mouse in Steam Input.");
             if (Advanced)
                 DrawControllerCursorSpeedControl();
         }
@@ -1296,6 +1384,22 @@ public sealed class ConfigWindow : Window
             }
         }
 
+        var installedFfxivDict = FindInstalledFfxivDictionary();
+        var dictConnTitle = installedFfxivDict is { Enabled: true }
+            ? "Custom FFXIV Dictionary  [Installed]"
+            : installedFfxivDict is not null
+                ? "Custom FFXIV Dictionary  [Disabled]"
+                : "Custom FFXIV Dictionary";
+        var dictConnAccent = installedFfxivDict is { Enabled: true }
+            ? AccentGreen
+            : installedFfxivDict is not null
+                ? AccentAmber
+                : AccentCyan;
+        if (Section("conn-ffxiv-dict", dictConnTitle, defaultOpen: installedFfxivDict is null, accent: dictConnAccent))
+        {
+            DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, installedFfxivDict, "conn");
+        }
+
         if (service.Offline is { } offline && Section("conn-offline", config.OfflineMode ? "Offline Mode  [Enabled]" : "Offline Mode", defaultOpen: true, accent: config.OfflineMode ? AccentGreen : null))
         {
             DrawOfflineModeBody(offline);
@@ -1315,6 +1419,84 @@ public sealed class ConfigWindow : Window
                     ImGui.SetClipboardText(exportedLog);
             }
         }
+    }
+
+    private InstalledFfxivDictionary? FindInstalledFfxivDictionary()
+    {
+        var live = FfxivDictionary.FindInstalled(service.Dictionaries);
+        if (live is not null)
+            return live;
+        if (service.Offline is { } offline)
+            return FfxivDictionary.FindInstalledOffline(offline.Store.Manifest.Dictionaries);
+        return null;
+    }
+
+    private void DrawFfxivDictionaryBody(float scale, InstalledFfxivDictionary? installed, string scopeId)
+    {
+        if (installed is { Enabled: true })
+        {
+            var rev = string.IsNullOrWhiteSpace(installed.Revision) ? string.Empty : $" (rev {installed.Revision})";
+            ImGui.TextColored(AccentGreen, $"Installed: {installed.Title}{rev}");
+            ImGui.TextDisabled("To update, remove the older entry in Hachidori → Settings → Dictionaries, then import the latest ZIP.");
+        }
+        else if (installed is not null)
+        {
+            var rev = string.IsNullOrWhiteSpace(installed.Revision) ? string.Empty : $" (rev {installed.Revision})";
+            ImGui.TextColored(AccentAmber, $"Installed but disabled: {installed.Title}{rev}");
+            ImGui.TextDisabled("Enable it in Hachidori → Settings → Dictionaries to see FFXIV definitions.");
+        }
+        else
+        {
+            ImGui.TextWrapped("37,729 FFXIV Japanese→English entries: NPCs & 190 character/location portraits, enemies, locations, actions, status effects, and JP Party Finder lingo. Import the downloaded ZIP in Hachidori → Settings → Dictionaries.");
+            ImGui.TextDisabled("Note: contains character names and portraits from all expansions (spoilers).");
+        }
+
+        ImGui.Spacing();
+        var downloadLabel = installed is not null
+            ? $"Download latest ({FfxivDictionary.ArchiveFileName})##ffxiv-dict-dl-{scopeId}"
+            : $"Download FFXIV Dictionary (.zip)##ffxiv-dict-dl-{scopeId}";
+        if (ImGui.Button(downloadLabel))
+            OpenDictionaryLink(FfxivDictionary.DownloadUrl, "Opened download in your browser — import the ZIP in Hachidori → Settings → Dictionaries.");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(FfxivDictionary.DownloadUrl);
+
+        ImGui.SameLine(0, 6 * scale);
+        if (ImGui.Button($"Guide & source##ffxiv-dict-guide-{scopeId}"))
+            OpenDictionaryLink(FfxivDictionary.GuideUrl, "Opened FFXIV dictionary guide and source code in your browser.");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(FfxivDictionary.GuideUrl);
+
+        ImGui.SameLine(0, 6 * scale);
+        if (ImGui.Button($"Copy link##ffxiv-dict-copy-{scopeId}"))
+        {
+            ImGui.SetClipboardText(FfxivDictionary.DownloadUrl);
+            SetDictionaryNotice("Copied download link to clipboard.", isError: false);
+        }
+
+        if (dictionaryNotice is not null && DateTime.UtcNow < dictionaryNoticeUntil)
+            ImGui.TextColored(dictionaryNoticeIsError ? AccentAmber : AccentCyan, dictionaryNotice);
+        else if (dictionaryNotice is not null)
+            dictionaryNotice = null;
+    }
+
+    private void OpenDictionaryLink(string url, string successMessage)
+    {
+        if (FfxivDictionary.TryOpenUrl(url, out var error))
+        {
+            SetDictionaryNotice(successMessage, isError: false);
+        }
+        else
+        {
+            ImGui.SetClipboardText(url);
+            SetDictionaryNotice($"Could not open browser ({error ?? "unknown error"}). Copied link to clipboard instead.", isError: true);
+        }
+    }
+
+    private void SetDictionaryNotice(string message, bool isError)
+    {
+        dictionaryNotice = message;
+        dictionaryNoticeIsError = isError;
+        dictionaryNoticeUntil = DateTime.UtcNow.AddSeconds(6);
     }
 
     private void DrawOfflineModeBody(Offline.OfflineMode offline)
@@ -2078,6 +2260,8 @@ public sealed class ConfigWindow : Window
         Add("Connection", "Hachidori Relay & Host", "Yomitan API port (audio)", "19633 audio pronunciation port", true, DrawApiPortControl);
         Add("Connection", "Hachidori Relay & Host", "Anki Template ID", "template deck model", true, DrawAnkiTemplateIdControl);
         Add("Connection", "Hachidori Relay & Host", "{document-title}", "anki document title ffxiv", true, DrawDocumentTitleControl);
+        Add("Connection", "Custom FFXIV Dictionary", "Download custom FFXIV dictionary", "ffxiv dictionary download zip portraits lingo yomitan hachidori custom glossary", false, () =>
+            DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, FindInstalledFfxivDictionary(), "search"));
         Add("Connection", "Offline Mode", "Offline mode", "local dictionaries sync hdw_native", false, () =>
         {
             if (service.Offline is { } offline)
