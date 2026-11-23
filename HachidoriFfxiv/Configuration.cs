@@ -34,7 +34,7 @@ public enum FreezeHotkey
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
 
     // Connection to Hachidori (through the Hachidori Relay add-on running inside Anki).
     public string RelayHost { get; set; } = "127.0.0.1";
@@ -182,12 +182,22 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Raises settings saved by earlier builds to the current defaults; true if anything changed.</summary>
     public bool Migrate()
     {
-        if (AnimationDefaults >= 1)
-            return false;
-        if (GifWidth <= 400) GifWidth = 720;
-        if (GifFps <= 8) GifFps = 12;
-        AnimationDefaults = 1;
-        return true;
+        var changed = false;
+        if (AnimationDefaults < 1)
+        {
+            if (GifWidth <= 400) GifWidth = 720;
+            if (GifFps <= 8) GifFps = 12;
+            AnimationDefaults = 1;
+            changed = true;
+        }
+        if (Version < 2)
+        {
+            // The reader overlay is opt-in: turn it off once for settings saved by earlier builds.
+            ReaderEnabled = false;
+            Version = 2;
+            changed = true;
+        }
+        return changed;
     }
     public string AnkiConnectUrl { get; set; } = "http://127.0.0.1:8765";
 

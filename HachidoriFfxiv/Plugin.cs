@@ -121,7 +121,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori config · /hachidori logs",
+            HelpMessage = "Open Hachidori for FFXIV settings. /hachidori help lists more commands.",
         });
         CommandManager.AddHandler(LegacyCommand, new CommandInfo(OnCommand)
         {
@@ -130,7 +130,6 @@ public sealed class Plugin : IDalamudPlugin
 
         PluginInterface.UiBuilder.Draw += Draw;
         PluginInterface.UiBuilder.OpenConfigUi += configWindow.Toggle;
-        PluginInterface.UiBuilder.OpenMainUi += search.Toggle;
     }
 
     private static Configuration LoadConfiguration()
@@ -220,6 +219,9 @@ public sealed class Plugin : IDalamudPlugin
             case "reconnect":
                 service.Link.Reconnect();
                 return;
+            case "help":
+                ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori logs");
+                return;
             case "logs":
                 try { ChatGui.Print($"Hachidori for FFXIV debug log: {ExportLogs()}"); }
                 catch (System.Exception ex) { ChatGui.PrintError($"Hachidori for FFXIV log export failed: {ex.Message}"); }
@@ -235,7 +237,6 @@ public sealed class Plugin : IDalamudPlugin
     {
         PluginInterface.UiBuilder.Draw -= Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= configWindow.Toggle;
-        PluginInterface.UiBuilder.OpenMainUi -= search.Toggle;
         CommandManager.RemoveHandler(Command);
         CommandManager.RemoveHandler(LegacyCommand);
         windows.RemoveAllWindows();

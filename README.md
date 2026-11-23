@@ -101,6 +101,7 @@ Live Hachidori is used whenever Chrome is linked. Enable **Offline Mode** in `/h
 | `/hachidori pictures` | Manage custom NPC picture dictionary |
 | `/hachidori reconnect` | Reconnect to Hachidori Relay |
 | `/hachidori logs` | Export redacted diagnostic log |
+| `/hachidori help` | List these commands in chat |
 
 ---
 
