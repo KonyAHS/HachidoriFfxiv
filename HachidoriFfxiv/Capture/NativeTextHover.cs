@@ -27,7 +27,7 @@ public sealed unsafe class NativeTextHover : IDisposable
     private readonly record struct TextStyle(ushort Width, ushort Height, byte FontSize, byte AlignmentFontType,
         byte LineSpacing, byte CharSpacing, TextFlags Flags, bool ChatBottomAligned, int ChatClipTop, int ChatClipHeight);
     private sealed record Cached(TextStyle Style, byte[] Raw, Part[] Parts);
-    private sealed record Region(string Addon, Part Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale);
+    private sealed record Region(string Addon, Part Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale, bool Body = false);
     private sealed class ChatScrollState
     {
         public bool WasBottom = true;
@@ -51,8 +51,14 @@ public sealed unsafe class NativeTextHover : IDisposable
     private DateTime lastChatProbe;
     private Action<FrozenRegion[]>? pendingFreezeCallback;
 
-    /// <summary>A scannable native text block with its glyph cells on screen, for controller navigation.</summary>
-    public sealed record TextTarget(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext> Context);
+    /// <summary>
+    /// A scannable native text block with its glyph cells on screen, for controller navigation.
+    /// <paramref name="Body"/> marks a window's main text (Talk's dialogue rather than the speaker's name).
+    /// </summary>
+    public sealed record TextTarget(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext> Context, bool Body = false);
+
+    // The node being read as the current addon's main text; set only while ReadAddon walks that addon.
+    private AtkTextNode* bodyNode;
 
     /// <summary>An immutable snapshot of a visible native text block captured for Freeze Frame inspection.</summary>
     public sealed record FrozenRegion(
@@ -344,8 +350,19 @@ public sealed unsafe class NativeTextHover : IDisposable
         return false;
     }
 
-    private void ReadAddon(AtkUnitBase* addon, string name, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse) =>
-        ReadNodes(&addon->UldManager, name, 0, next, visited, seen, ignoreMouse);
+    private void ReadAddon(AtkUnitBase* addon, string name, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse)
+    {
+        // Talk has a dedicated dialogue node; the speaker's name node sits above it.
+        bodyNode = name == "Talk" ? ((AddonTalk*)addon)->AtkTextNode228 : null;
+        try
+        {
+            ReadNodes(&addon->UldManager, name, 0, next, visited, seen, ignoreMouse);
+        }
+        finally
+        {
+            bodyNode = null;
+        }
+    }
 
     private void ReadChat(AtkUnitBase* hovered, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse, bool forceAllow = false)
     {
@@ -481,8 +498,9 @@ public sealed unsafe class NativeTextHover : IDisposable
                 ChatLinesChanged.Invoke(recent);
             }
         }
+        var body = bodyNode != null && node == bodyNode;
         foreach (var part in cached.Parts)
-            next.Add(new Region(name, part, min, max, clipMin, clipMax, scale));
+            next.Add(new Region(name, part, min, max, clipMin, clipMax, scale, body));
     }
 
     private static readonly string[] ChatPanels = ["ChatLogPanel_0", "ChatLogPanel_1", "ChatLogPanel_2", "ChatLogPanel_3"];
@@ -545,7 +563,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             {
                 var sentence = NameKana.Apply(block.ScanText, PlayerName.Replacements(config), ref index);
                 return new ScanContext(sentence, index, $"{config.DocumentTitle} — {addon}");
-            }));
+            }, region.Body));
         }
 
         return list;

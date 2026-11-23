@@ -162,6 +162,9 @@ public sealed class Configuration : IPluginConfiguration
     public string TtsUrl { get; set; } = "http://127.0.0.1:50021";
     public string TtsSpeaker { get; set; } = "1";
     public bool TtsPost { get; set; } = false;
+    public bool TtsInjectOst { get; set; } = true;
+    public float TtsOstVolume { get; set; } = 0.28f;
+    public bool TtsOstRespectMute { get; set; } = true;
     public bool CaptureGif { get; set; } = true;
     public string GifField { get; set; } = string.Empty;
     public bool GifReplacesScreenshot { get; set; } = true;
@@ -209,6 +212,22 @@ public sealed class Configuration : IPluginConfiguration
     // Anki (mining is done by the Hachidori host with its own Anki Template)
     public string AnkiTemplateId { get; set; } = string.Empty;
     public string DocumentTitle { get; set; } = "FINAL FANTASY XIV";
+
+    // Immersion Stats: customizable goals, expansion tracking, and ecosystem compatibility
+    public int DailyCharGoal { get; set; } = 0;
+    public int DailyMinutesGoal { get; set; } = 0;
+    public int DailyCardsGoal { get; set; } = 0;
+    public long CustomCharGoal { get; set; } = 0;
+    public string CustomGoalLabel { get; set; } = string.Empty;
+    public string GoalExpansionId { get; set; } = "all";
+    public long ExpansionStartingChars { get; set; } = 0;
+    public string GoalMsqQuestName { get; set; } = string.Empty;
+    public int StatsDayStartHour { get; set; } = 4;
+    public bool StatsUseRubiAdaptiveTime { get; set; } = true;
+    public bool StatsWriteHistoryCsv { get; set; } = true;
+    public bool StatsWriteTidepoolSqlite { get; set; } = true;
+    public string GsmApiUrl { get; set; } = "http://127.0.0.1:7275";
+    public string KechimochiActivityType { get; set; } = "Playing";
 
     public void ResetPopupDefaults()
     {
@@ -272,6 +291,9 @@ public sealed class Configuration : IPluginConfiguration
         TtsUrl = d.TtsUrl;
         TtsSpeaker = d.TtsSpeaker;
         TtsPost = d.TtsPost;
+        TtsInjectOst = d.TtsInjectOst;
+        TtsOstVolume = d.TtsOstVolume;
+        TtsOstRespectMute = d.TtsOstRespectMute;
         CaptureGif = d.CaptureGif;
         GifField = d.GifField;
         GifReplacesScreenshot = d.GifReplacesScreenshot;

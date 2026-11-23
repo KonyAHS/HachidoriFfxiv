@@ -165,6 +165,20 @@ internal static class TrimChecks
         var samples = (float[])decodeWav.GetType().GetField("Item1")!.GetValue(decodeWav)!;
         check(samples.Length == tone.Length && samples.Max() > 0.25f, "trimmed libraries read stereo TTS WAV as mono samples");
 
+        // OST Ogg Vorbis seek + slice extraction and TTS + OST mixing through the trimmed NVorbis/Concentus libraries.
+        var extractor = plugin.GetType("HachidoriFfxiv.Media.ScdOstExtractor")!;
+        var oggFixture = File.ReadAllBytes(Path.Combine(fixtures, "tone.ogg"));
+        var track = extractor.GetMethod("FromOggData")!.Invoke(null, ["music/test/BGM_Test.scd", oggFixture, 0L, 0L])!;
+        var ostSlice = (float[]?)extractor.GetMethod("ExtractSlice")!.Invoke(null, [track, 0.1, rate, rate]);
+        check(ostSlice is { Length: rate } && ostSlice.Max(Math.Abs) > 0.05f,
+            "trimmed libraries seek and decode Ogg Vorbis OST slices via NVorbis");
+        var mixResult = clips.GetMethod("MixTtsWithOst")!.Invoke(null, [samples, 24000, ostSlice!, 0.28f, rate, 0.2f, 0.2f])!;
+        var mixedSamples = (float[])mixResult.GetType().GetField("Item1")!.GetValue(mixResult)!;
+        var mixedFlag = (bool)mixResult.GetType().GetField("Item2")!.GetValue(mixResult)!;
+        var mixedOpus = (byte[])clips.GetMethod("EncodeOpus")!.Invoke(null, [mixedSamples, rate, 64000])!;
+        check(mixedFlag && mixedSamples.Max(Math.Abs) <= 0.90f && mixedOpus.AsSpan(0, 4).SequenceEqual("OggS"u8),
+            "trimmed libraries mix TTS with OST and encode to Ogg Opus");
+
         using (var devices = new MMDeviceEnumerator())
         {
             if (!devices.HasDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia))

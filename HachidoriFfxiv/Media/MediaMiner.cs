@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using HachidoriFfxiv.Capture;
 
@@ -33,6 +34,7 @@ public sealed class MediaMiner : IDisposable
 
     public GameFrames Frames { get; }
     public LineTimeline Timeline { get; } = new();
+    public BgmTracker Bgm { get; } = new();
     public TtsClient Tts { get; }
     public AnkiConnect Anki { get; }
     public Translator Translator { get; }
@@ -44,16 +46,24 @@ public sealed class MediaMiner : IDisposable
     private void OnLine(GameLine line)
     {
         var now = Stopwatch.GetTimestamp();
-        Timeline.OnLine(line, now);
+        BgmSnapshot? bgm = null;
         if (line.Source is LineSource.Talk or LineSource.BattleTalk)
+        {
+            if (Tts.Enabled && config.TtsInjectOst)
+                bgm = Bgm.CaptureNow(now);
             Frames.OnLineStarted(now);
+        }
+        Timeline.OnLine(line, now, bgm);
     }
 
     /// <summary>Call once per frame from UiBuilder.Draw.</summary>
     public void Draw()
     {
+        var now = Stopwatch.GetTimestamp();
         Frames.Draw();
-        Timeline.OnWindows(capture.TalkVisible, capture.BattleTalkVisible, Stopwatch.GetTimestamp());
+        Timeline.OnWindows(capture.TalkVisible, capture.BattleTalkVisible, now);
+        if (Tts.Enabled && config.TtsInjectOst)
+            Bgm.Update(now);
         if (config.RecordVoiceLines && recorder is null)
         {
             recorder = new GameAudioRecorder(Math.Clamp(config.VoiceBufferSeconds, 30, 300));
@@ -153,7 +163,7 @@ public sealed class MediaMiner : IDisposable
         return warnings.Count > 0 ? $"{summary} Skipped {string.Join("; ", warnings)}.".Trim() : summary;
     }
 
-    /// <summary>The game's voice for the line, else TTS for the sentence, as (bytes, extension, description).</summary>
+    /// <summary>The game's voice for the line, else TTS for the sentence (optionally mixed with clean OST), as (bytes, extension, description).</summary>
     private async Task<(byte[] Data, string Ext, string Kind)?> SentenceAudioAsync(LineSpan? span, string sentence)
     {
         if (config.RecordVoiceLines && recorder is { Running: true } rec && span is not null)
@@ -166,14 +176,54 @@ public sealed class MediaMiner : IDisposable
         if (!Tts.Enabled)
             return null;
         var text = span?.Line.Text ?? sentence;
+        var bgmSnapshot = ResolveBgmForTts(span);
+        var (data, ext, mixedOst, _) = await SynthesizeTtsAsync(text, bgmSnapshot).ConfigureAwait(false);
+        return (data, ext, mixedOst ? "TTS + OST audio" : "TTS audio");
+    }
+
+    /// <summary>Tests TTS synthesis (and clean OST injection when enabled) for Settings → Mining.</summary>
+    public async Task<(byte[] Data, string Ext, bool MixedOst, BgmSnapshot? Bgm)> TestTtsAsync(string text)
+    {
+        var bgmSnapshot = config.TtsInjectOst ? Bgm.CurrentAt(Stopwatch.GetTimestamp()) : null;
+        return await SynthesizeTtsAsync(text, bgmSnapshot).ConfigureAwait(false);
+    }
+
+    private BgmSnapshot? ResolveBgmForTts(LineSpan? span)
+    {
+        if (!config.TtsInjectOst)
+            return null;
+        return span?.Bgm ?? Bgm.CurrentAt(Stopwatch.GetTimestamp());
+    }
+
+    private async Task<(byte[] Data, string Ext, bool MixedOst, BgmSnapshot? Bgm)> SynthesizeTtsAsync(string text, BgmSnapshot? bgmSnapshot)
+    {
         var speech = await Tts.SpeakAsync(text).ConfigureAwait(false);
-        if (AudioClips.Extension(speech) == "wav")
+        var decoded = AudioClips.DecodeAudio(speech);
+        if (decoded is null)
+            return (speech, AudioClips.Extension(speech) ?? "mp3", false, null);
+
+        var (samples, rate) = decoded.Value;
+        if (config.TtsInjectOst && bgmSnapshot is not null && (!config.TtsOstRespectMute || !bgmSnapshot.Muted))
         {
-            var (samples, rate) = AudioClips.DecodeWav(speech);
-            return (AudioClips.EncodeOpus(AudioClips.Normalize(AudioClips.Trim(samples, rate)), rate), "ogg", "TTS audio");
+            const int outputRate = 48000;
+            var (_, _, _, totalSamples) = AudioClips.PrepareTtsForOst(samples, rate, outputRate);
+            var ostStartSeconds = Math.Max(0.0, bgmSnapshot.ElapsedSeconds - AudioClips.OstPreRollSeconds);
+            var ostSlice = await Task.Run(() => Bgm.ExtractSlice(bgmSnapshot, ostStartSeconds, totalSamples, outputRate)).ConfigureAwait(false);
+            if (ostSlice is not null)
+            {
+                var (mixed, mixedOst) = AudioClips.MixTtsWithOst(samples, rate, ostSlice, config.TtsOstVolume, outputRate);
+                if (mixedOst)
+                {
+                    DiagnosticLog.Write("ost", $"Mixed {bgmSnapshot.DisplayName} @ {ostStartSeconds:0.0}s ({(bgmSnapshot.FromEngineClock ? "engine" : "wall")} clock) into TTS ({mixed.Length / (double)outputRate:0.1}s).");
+                    return (AudioClips.EncodeOpus(mixed, outputRate, bitrate: 64000), "ogg", true, bgmSnapshot);
+                }
+            }
         }
 
-        return (speech, AudioClips.Extension(speech) ?? "mp3", "TTS audio");
+        if (AudioClips.Extension(speech) == "wav")
+            return (AudioClips.EncodeOpus(AudioClips.Normalize(AudioClips.Trim(samples, rate)), rate), "ogg", false, null);
+
+        return (speech, AudioClips.Extension(speech) ?? "mp3", false, null);
     }
 
     /// <summary>The line's audio from the game recording, or null when the line was not voiced.</summary>
@@ -252,25 +302,55 @@ public sealed class MediaMiner : IDisposable
 
     private string? ffmpegPath;
     private string? ffmpegConfigured;
-    private readonly LinkedList<(long Start, Task<(byte[] Data, string Ext, string? Note)> Encoded)> clips = new();
+    private const int MaxCachedClips = 6;
+    private readonly LinkedList<(long Start, Task<(byte[] Data, string Ext, string? Note)> Encoded, CancellationTokenSource Cancel)> clips = new();
+
+    // At most this many background clip encodes (each may be an FFmpeg process) run at once.
+    // Clips wait their turn holding only their raw frames, and the cache limit above bounds how many wait.
+    private readonly SemaphoreSlim clipEncodeSlots = new(2, 2);
 
     /// <summary>Encodes each line's clip as soon as it is complete, so only small files are kept and mining is instant.</summary>
     private void OnClip(long start, List<GifFrame> frames)
     {
-        var task = Task.Run(() => EncodeAsync(frames));
+        var cts = new CancellationTokenSource();
+        var task = Task.Run(() => EncodeClipAsync(frames, cts.Token));
         lock (clips)
         {
-            clips.AddLast((start, task));
-            while (clips.Count > 6)
+            clips.AddLast((start, task, cts));
+            while (clips.Count > MaxCachedClips)
+            {
+                // An evicted clip can no longer be mined: stop its encode (and FFmpeg) and drop its frames.
+                var evicted = clips.First!.Value;
                 clips.RemoveFirst();
+                CancelClip(evicted.Encoded, evicted.Cancel);
+            }
         }
     }
 
-    private async Task<(byte[] Data, string Ext, string? Note)> EncodeAsync(IReadOnlyList<GifFrame> frames)
+    private static void CancelClip(Task encoded, CancellationTokenSource cts)
+    {
+        try { cts.Cancel(); } catch (ObjectDisposedException) { }
+        _ = encoded.ContinueWith(_ => cts.Dispose(), TaskScheduler.Default);
+    }
+
+    private async Task<(byte[] Data, string Ext, string? Note)> EncodeClipAsync(List<GifFrame> frames, CancellationToken ct)
+    {
+        await clipEncodeSlots.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await EncodeAsync(frames, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            clipEncodeSlots.Release();
+        }
+    }
+
+    private async Task<(byte[] Data, string Ext, string? Note)> EncodeAsync(IReadOnlyList<GifFrame> frames, CancellationToken ct = default)
     {
         var ffmpeg = config.AnimationFormat != AnimationFormat.Gif ? FfmpegPath : null;
         return await AnimationEncoder.EncodeAsync(frames, Math.Clamp(config.GifFps, 2, 24), config.AnimationFormat, ffmpeg,
-            Math.Clamp(config.AvifCrf, 10, 55), Math.Clamp(config.WebpQuality, 30, 100)).ConfigureAwait(false);
+            Math.Clamp(config.AvifCrf, 10, 55), Math.Clamp(config.WebpQuality, 30, 100), ct).ConfigureAwait(false);
     }
 
     /// <summary>FFmpeg for AVIF, looked up once per configured path.</summary>
@@ -296,7 +376,16 @@ public sealed class MediaMiner : IDisposable
             lock (clips)
                 encoded = clips.FirstOrDefault(c => c.Start == span.Start).Encoded;
             if (encoded is not null)
-                return await encoded.ConfigureAwait(false);
+            {
+                try
+                {
+                    return await encoded.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Evicted while this mine was looking it up: encode from the buffer below.
+                }
+            }
         }
 
         // Mined within the line's first seconds (or an old line): use what is buffered now.
@@ -311,6 +400,12 @@ public sealed class MediaMiner : IDisposable
     {
         capture.LineCaptured -= OnLine;
         Frames.ClipReady -= OnClip;
+        lock (clips)
+        {
+            foreach (var clip in clips)
+                CancelClip(clip.Encoded, clip.Cancel);
+            clips.Clear();
+        }
         recorder?.Dispose();
         Frames.Dispose();
         Tts.Dispose();

@@ -29,6 +29,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
     [PluginService] internal static IGamepadState Gamepad { get; private set; } = null!;
     [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
 
     private readonly WindowSystem windows = new("HachidoriFfxiv");
     private readonly Configuration config;
@@ -42,6 +43,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WebViewPopupController webView;
     private readonly Media.MediaMiner media;
     private readonly StatsTracker stats;
+    private readonly FfxivMsqResolver msqResolver;
     private readonly AnkiCardFeed ankiFeed;
     private readonly GamepadNavigator gamepad;
     private readonly FreezeFrameOverlay freezeFrame;
@@ -73,8 +75,17 @@ public sealed class Plugin : IDalamudPlugin
             System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "stats"),
             text => service.Link.Connected || (service.Offline?.Ready == true)
                 ? service.SegmentAsync(text)
-                : System.Threading.Tasks.Task.FromResult<System.Collections.Generic.IReadOnlyList<WordSpan>>([]));
+                : System.Threading.Tasks.Task.FromResult<System.Collections.Generic.IReadOnlyList<WordSpan>>([]),
+            options: new StatsTrackerOptions
+            {
+                GameTitle = () => config.DocumentTitle,
+                DayStartHour = () => config.StatsDayStartHour,
+                UseRubiAdaptiveTime = () => config.StatsUseRubiAdaptiveTime,
+                WriteHistoryCsv = () => config.StatsWriteHistoryCsv,
+                WriteTidepoolSqlite = () => config.StatsWriteTidepoolSqlite,
+            });
         capture.LineCaptured += OnLineCapturedForStats;
+        msqResolver = new FfxivMsqResolver(DataManager);
         ankiFeed = new AnkiCardFeed(media.Anki);
         popups.Media = media;
         popups.Stats = stats;
@@ -93,7 +104,7 @@ public sealed class Plugin : IDalamudPlugin
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
         freezeFrame = new FreezeFrameOverlay(config, nativeHover, service, popups, text => search.SetText(text));
-        statsWindow = new StatsWindow(config, stats, ankiFeed, popups, fonts);
+        statsWindow = new StatsWindow(config, stats, ankiFeed, popups, fonts, msqResolver);
         configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs,
             openStats: statsWindow.Toggle,
             openSearchSample: sample => { if (sample is not null) search.SetText(sample); else search.Toggle(); },
@@ -258,6 +269,12 @@ public sealed class Plugin : IDalamudPlugin
             ["supportsWebView2Overlay"] = platform.SupportsWebView2Overlay,
             ["supportsProcessAudioLoopback"] = platform.SupportsProcessAudioLoopback,
             ["audioRecorderMode"] = media.Recorder?.Mode.ToString() ?? "Off",
+            ["ttsInjectOst"] = config.TtsInjectOst,
+            ["ttsOstVolume"] = config.TtsOstVolume,
+            ["bgmTrack"] = media.Bgm.LastSnapshot?.FilePath,
+            ["bgmElapsedSeconds"] = media.Bgm.LastSnapshot is { } bgmSnap ? System.Math.Round(bgmSnap.ElapsedSeconds, 1) : null,
+            ["bgmEngineClock"] = media.Bgm.LastSnapshot?.FromEngineClock,
+            ["bgmMuted"] = media.Bgm.BgmMutedInGame,
             ["connected"] = service.Link.Connected,
             ["hostVersion"] = service.Link.HostVersion,
             ["dictionaryCount"] = service.Link.DictionaryCount,

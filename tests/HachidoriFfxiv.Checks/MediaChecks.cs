@@ -87,6 +87,9 @@ static class MediaChecks
         check(wavRate == 24000 && wavSamples.Length == 24000 && AudioClips.Extension(wav.ToArray()) == "wav",
             "TTS WAV decodes to mono samples");
 
+        // ----------------------------------------------------- OST extraction & TTS mixing
+        CheckOstExtractionAndMixing(check);
+
         // ------------------------------------------------------------------- GIF
         var frames = Enumerable.Range(0, 3).Select(f =>
         {
@@ -207,6 +210,63 @@ static class MediaChecks
         // ----------------------------------------------- live game-audio capture
         CheckPlatformAndFallbacks(check);
         await LiveLoopbackAsync(check);
+    }
+
+    private static void CheckOstExtractionAndMixing(Action<bool, string> check)
+    {
+        const int rate = 48000;
+
+        // Loop position resolution: before loop, inside loop, multiple loop wraps, and non-looping end.
+        check(ScdOstExtractor.ResolveStartSample(500, 10000, 2000, 8000) == 500
+              && ScdOstExtractor.ResolveStartSample(8500, 10000, 2000, 8000) == 2500
+              && ScdOstExtractor.ResolveStartSample(20500, 10000, 2000, 8000) == 2500
+              && ScdOstExtractor.ResolveStartSample(4000, 10000, 0, 0) == 4000
+              && ScdOstExtractor.ResolveStartSample(12000, 10000, 0, 0) == -1,
+            "OST loop position wraps across loop bounds and stops past non-looping tracks");
+
+        // Extract a slice across a loop boundary from a real Ogg Vorbis fixture.
+        var oggPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "tone.ogg");
+        var oggBytes = File.ReadAllBytes(oggPath);
+        var track = ScdOstExtractor.FromOggData("music/test/BGM_Test_Loop.scd", oggBytes, loopStartSample: 2000, loopEndSample: 8000);
+        check(track is { Loops: true } && track.SampleRate > 0 && track.TotalSamples >= 8000,
+            "OST extractor loads Ogg Vorbis metadata and loop points");
+        var loopedSlice = ScdOstExtractor.ExtractSlice(track!, startSeconds: 5.0, outputSamples: rate, outputRate: rate);
+        check(loopedSlice is { Length: rate } && loopedSlice.Max(Math.Abs) > 0.05f,
+            "OST extractor wraps long elapsed timestamps and seamlessly loops across boundaries");
+
+        // LRU cache returns the same track without re-invoking the loader.
+        var cache = new OstTrackCache(maxEntries: 2);
+        var loads = 0;
+        var t1 = cache.GetOrAdd(track!.FilePath, 0, () => { loads++; return track; });
+        var t2 = cache.GetOrAdd(track!.FilePath, 0, () => { loads++; return track; });
+        check(ReferenceEquals(t1, t2) && loads == 1, "OST track cache reuses decoded SCD tracks for repeated mines");
+
+        // Mix 24 kHz TTS speech with a loud 48 kHz OST bed.
+        const int ttsRate = 24000;
+        var ttsSpeech = Enumerable.Range(0, ttsRate)
+            .Select(i => 0.35f * MathF.Sin(2f * MathF.PI * 300f * i / ttsRate))
+            .ToArray();
+        var (_, preSamples, postSamples, totalSamples) = AudioClips.PrepareTtsForOst(ttsSpeech, ttsRate, rate);
+        var loudOst = Enumerable.Range(0, totalSamples)
+            .Select(i => 0.90f * MathF.Sin(2f * MathF.PI * 110f * i / rate))
+            .ToArray();
+
+        var (mixed, mixedOst) = AudioClips.MixTtsWithOst(ttsSpeech, ttsRate, loudOst, ostVolume: 0.25f, outputRate: rate);
+        var startEdge = Math.Abs(mixed[0]);
+        var endEdge = Math.Abs(mixed[^1]);
+        var preRollRms = MathF.Sqrt(mixed.AsSpan(preSamples / 2, preSamples / 2).ToArray().Select(v => v * v).Average());
+        var midSpeechRms = MathF.Sqrt(mixed.AsSpan(preSamples + rate / 4, rate / 2).ToArray().Select(v => v * v).Average());
+        var peak = mixed.Max(Math.Abs);
+        check(mixedOst && mixed.Length == totalSamples
+              && startEdge < 0.01f && endEdge < 0.02f
+              && preRollRms > 0.01f && preRollRms < midSpeechRms * 0.6f
+              && peak <= 0.895f,
+            $"TTS + OST mix balances loud OST below speech with smooth fade-in/out (preRms={preRollRms:0.000}, speechRms={midSpeechRms:0.000}, peak={peak:0.00})");
+
+        // Silent OST slice falls back cleanly without padding dead silence.
+        var (silentMixed, silentFlag) = AudioClips.MixTtsWithOst(ttsSpeech, ttsRate, new float[totalSamples], ostVolume: 0.28f, outputRate: rate);
+        check(!silentFlag && silentMixed.Length > 0 && silentMixed.Length < totalSamples,
+            "silent OST falls back to clean trimmed TTS without dead-air padding");
     }
 
     private static void CheckPlatformAndFallbacks(Action<bool, string> check)

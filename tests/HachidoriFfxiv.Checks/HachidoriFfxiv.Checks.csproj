@@ -33,6 +33,7 @@
     <Compile Include="../../HachidoriFfxiv/Ui/ThemePainter.cs" Link="ThemePainter.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AudioRing.cs" Link="Media/AudioRing.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AudioClips.cs" Link="Media/AudioClips.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/ScdOstExtractor.cs" Link="Media/ScdOstExtractor.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GifEncoder.cs" Link="Media/GifEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnimationEncoder.cs" Link="Media/AnimationEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/TranslationPrompt.cs" Link="Media/TranslationPrompt.cs" />
@@ -40,7 +41,7 @@
     <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="Media/ScreenshotMedia.cs" />
-    <Compile Include="../../HachidoriFfxiv/Stats/*.cs" Link="Stats/%(Filename)%(Extension)" />
+    <Compile Include="../../HachidoriFfxiv/Stats/*.cs" Exclude="../../HachidoriFfxiv/Stats/FfxivMsqResolver.cs" Link="Stats/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/WebView/HachidoriBundleManager.cs" Link="WebView/HachidoriBundleManager.cs" />
     <Compile Include="../../HachidoriFfxiv/WebView/HachidoriWebBridge.cs" Link="WebView/HachidoriWebBridge.cs" />
     <Compile Include="../../HachidoriFfxiv/WebView/WebViewPopupHost.cs" Link="WebView/WebViewPopupHost.cs" />
@@ -53,6 +54,7 @@
     <Reference Include="Lumina" HintPath="$(DalamudLibPath)/Lumina.dll" />
     <None Include="Fixtures/*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="$(DalamudLibPath)/cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(DalamudLibPath)/e_sqlite3.dll" Link="e_sqlite3.dll" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />

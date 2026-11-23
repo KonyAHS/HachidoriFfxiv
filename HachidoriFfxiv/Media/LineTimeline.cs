@@ -12,6 +12,8 @@ public sealed class LineSpan
     public required GameLine Line { get; init; }
     public required long Start { get; init; }
     public long? End { get; set; }
+    /// <summary>The playing OST and its playback timing when this line appeared, for clean TTS + OST mixing.</summary>
+    public BgmSnapshot? Bgm { get; init; }
 }
 
 /// <summary>
@@ -23,7 +25,7 @@ public sealed class LineTimeline
     private readonly List<LineSpan> spans = new();
     private readonly object gate = new();
 
-    public void OnLine(GameLine line, long now)
+    public void OnLine(GameLine line, long now, BgmSnapshot? bgm = null)
     {
         if (line.Source is not (LineSource.Talk or LineSource.BattleTalk))
             return;
@@ -31,7 +33,7 @@ public sealed class LineTimeline
         {
             foreach (var open in spans.Where(s => s.End is null))
                 open.End = now;
-            spans.Add(new LineSpan { Line = line, Start = now });
+            spans.Add(new LineSpan { Line = line, Start = now, Bgm = bgm });
             if (spans.Count > 200)
                 spans.RemoveRange(0, spans.Count - 200);
         }

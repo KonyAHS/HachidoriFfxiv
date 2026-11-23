@@ -6,7 +6,15 @@ $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path $PSScriptRoot -Parent
 $taskOutput = Join-Path $taskRoot 'HachidoriFfxiv/bin/x64/Release'
 $taskManifest = Get-Content (Join-Path $taskOutput 'HachidoriFfxiv.json') -Raw | ConvertFrom-Json
-if ($Tag -cne "v$($taskManifest.AssemblyVersion)") { throw 'Tag must match the complete plugin version, e.g. v0.1.5.0.' }
+# Dalamud stamps a four-part AssemblyVersion (2.0 -> 2.0.0.0); a tag may omit trailing .0 parts.
+function Get-TaskFullVersion([string]$taskValue) {
+    $taskParts = @($taskValue.Split('.'))
+    while ($taskParts.Count -lt 4) { $taskParts += '0' }
+    return [version]($taskParts -join '.')
+}
+if ($Tag -cnotmatch '^v\d+(\.\d+){1,3}$' -or (Get-TaskFullVersion $Tag.Substring(1)) -ne (Get-TaskFullVersion $taskManifest.AssemblyVersion)) {
+    throw "Tag $Tag must match the plugin version $($taskManifest.AssemblyVersion), e.g. v2.0 or v2.0.0.0."
+}
 $taskDist = Join-Path $taskRoot 'dist'
 New-Item -ItemType Directory -Force -Path $taskDist | Out-Null
 Copy-Item (Join-Path $taskOutput 'HachidoriFfxiv/latest.zip') (Join-Path $taskDist 'latest.zip')

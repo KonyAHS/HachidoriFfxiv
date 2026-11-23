@@ -49,7 +49,8 @@ rejects version downgrades, backs up replaced files and checks the installed has
 Check `%APPDATA%/XIVLauncher/dalamud.log` for a successful reload.
 
 To release, update `<Version>` in the project, commit to `main`, then push a
-matching tag, for example `v0.1.5.0`. The workflow builds, runs offline checks,
+matching tag, for example `v2.0` (trailing `.0` parts may be omitted; the
+assembly version is still `2.0.0.0`). The workflow builds, runs offline checks,
 and publishes `latest.zip`, `pluginmaster.json`, `source.zip`,
 `native-source.zip` (the patched sources `hdw_native.dll` was built from) and
 checksums.
@@ -59,7 +60,7 @@ points to the latest release's feed. No manual feed commits are needed.
 Run the packaging step locally from a committed checkout with:
 
 ```powershell
-./scripts/package-release.ps1 -Repository KonyAHS/HachidoriFfxiv -Tag v0.1.5.0
+./scripts/package-release.ps1 -Repository KonyAHS/HachidoriFfxiv -Tag v2.0
 ```
 
 CI downloads official Dalamud assemblies. It stops if the stable distribution

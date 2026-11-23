@@ -5,10 +5,10 @@
 | Symptom | What to check |
 | --- | --- |
 | **No host connected** | Keep Anki and Chrome running, verify **Sharing through Anki** in Hachidori **Settings → Sharing**, then run `/hachidori reconnect`. Update Hachidori and Hachidori Relay if outdated. |
-| **Popups using ImGui instead of Hachidori Web** | Automatic on Linux, Steam Deck, and macOS (WebView2 + DirectComposition is Windows-only). On Windows, check **Theme** in `/hachidori config`, verify **Microsoft Edge WebView2 Runtime** is installed, and click **Sync Hachidori Web now**. |
+| **Popups using ImGui instead of Hachidori Web** | Automatic on Linux, Steam Deck, and macOS (WebView2 + DirectComposition is Windows-only). On Windows, check **Popup → Appearance** in `/hachidori config`, verify **Microsoft Edge WebView2 Runtime** is installed, and click **Sync Hachidori Web now**. |
 | **No popup on hover** | Check your **Scan key** in **Popup**, verify FFXIV's text language is Japanese, and enable **Show native hover targets (debug)** under **Popup → Advanced**. |
 | **Tooltip vanishes before hovering** | Press `Ctrl + Shift + F` (or run `/hachidori freeze`) while the tooltip is open to scan it in Freeze Frame. |
-| **No chat popup** | Enable **Include native chat text** in **Popup** and **Chat** in **Capture**. Lines with inline icons can offset hover positions slightly. |
+| **No chat popup** | Enable **Include chat** in **Popup** and **Chat** in **Reader & Text**. Lines with inline icons can offset hover positions slightly. |
 | **No pronunciation audio / MP3 fails on Linux/macOS** | Check audio API port `19633` and Hachidori audio sources. On Linux/Steam Deck/macOS, Wine's Media Foundation often lacks MP3/AAC codecs — install host `ffmpeg` (or set its path in **Mining → Advanced**) or prefer Ogg/Opus sources. |
 | **Voice recording on Linux / macOS / older Win 10** | Linux/Steam Deck and Windows 10 older than 2004 fall back to system-output loopback (lower other apps' audio for cleaner clips). On macOS, CoreAudio lacks built-in loopback — use **TTS** in **Mining** or a virtual loopback driver. |
 | **Offline mode not answering** | Check **Connection** for warnings, then open Chrome with Hachidori once and click **Sync now**. |

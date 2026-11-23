@@ -10,7 +10,7 @@ By default on Windows, popups render **Hachidori's real browser UI** inside FFXI
 
 - **Full upstream parity:** Every theme in Hachidori **Settings → Design** (Default and palettes, Nazeka, Plain, JL, Bee's Theme, Crystal with Grey/Beige/Retro Blue, and future upstream themes), opacity, custom popup CSS, pitch accent graphs, and dictionary images/SVGs render identically to Chrome.
 - **Automatic bundle sync:** Keeps a cached copy of Hachidori's web frontend matched to your host version (checking local Chrome/Edge/Brave/Vivaldi extensions first, otherwise downloading from `bee-san/hachidori` Releases), with automatic rollback if a bundle fails to boot.
-- **In-game overrides:** Open `/hachidori config` → **Theme** to override the theme or variant for FFXIV only, add FFXIV-only CSS, point to a custom extension folder, or click **Sync Hachidori Web now**.
+- **In-game overrides:** Open `/hachidori config` → **Popup** → **Appearance** to override the theme or colours for FFXIV only. Turn on **Show advanced** to add FFXIV-only CSS, point to a custom extension folder, or click **Sync Hachidori Web now**.
 - **Built-in ImGui fallback:** Used automatically on Linux/Steam Deck/macOS, if WebView2 Runtime is missing, while syncing, or when **Hachidori Web** is toggled off. Interprets bundled theme stylesheets for colors, vertical gradients, borders, shadows, Crystal's frame/crest, and headword styling (layout rules like flex/grid, CSS images, and theme JS are ignored). Maintainers can refresh fallback stylesheets with:
 
 ```powershell
@@ -77,7 +77,7 @@ Configure card media under `/hachidori config` → **Mining**:
 
 ### AnkiConnect field mapping
 
-Voice lines, TTS audio, animations, and translations are attached through [AnkiConnect](https://ankiweb.net/shared/info/2055492159) right after Hachidori creates the note. Default target fields match names like *Sentence Audio*, *GIF* (without a GIF field, the animation replaces the screenshot), and *SentenceTranslation*. Customize field names under **Mining → Advanced settings**.
+Voice lines, TTS audio, animations, and translations are attached through [AnkiConnect](https://ankiweb.net/shared/info/2055492159) right after Hachidori creates the note. Default target fields match names like *Sentence Audio*, *GIF* (without a GIF field, the animation replaces the screenshot), and *SentenceTranslation*. Customize field names under **Mining → AnkiConnect & Fields** with **Show advanced** on.
 
 ---
 
@@ -117,7 +117,7 @@ Exits automatically when dialogue closes (configurable).
 ## NPC Pictures & Player Name
 
 - **NPC pictures (`/hachidori pictures`):** Click the camera button on a popup to crop an NPC screenshot into one shared **FFXIV NPC pictures** dictionary on your Hachidori host. `/hachidori pictures` lists, removes, and merges older single-picture dictionaries. Source images live in the plugin's `npc-pictures` config folder and rebuild the dictionary on each edit (requires Hachidori linked dictionary import support).
-- **Katakana player name:** Configure your character's katakana reading in **Capture** so sentences, TTS, and mined cards read naturally.
+- **Katakana player name:** Configure your character's katakana reading in **Reader & Text** so sentences, TTS, and mined cards read naturally.
 
 ---
 
@@ -125,7 +125,7 @@ Exits automatically when dialogue closes (configurable).
 
 If you still want [GameSentenceMiner](https://github.com/bpwhelan/GameSentenceMiner) to receive live game text:
 
-1. Open `/hachidori config`, enable **Advanced settings** (if **GSM** is hidden), open **GSM**, and enable **Publish text for GSM**.
+1. Open `/hachidori config`, turn on **Show advanced** (if **GSM** is hidden), open **GSM**, and enable **Publish text for GSM**.
 2. Choose a preset (toggling checkboxes switches to **Custom**; optionally prepend speaker names):
 
    | Preset | Sends |

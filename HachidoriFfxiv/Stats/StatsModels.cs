@@ -9,13 +9,55 @@ public enum StatsRange
     Today,
     Last7Days,
     Last30Days,
+    Last12Months,
     AllTime,
 }
+
+/// <summary>User-customizable daily & long-term reading goals and expansion tracking options.</summary>
+public sealed record GoalSettings(
+    int DailyCharGoal = 0,
+    int DailyMinutesGoal = 0,
+    int DailyCardsGoal = 0,
+    long CustomCharGoal = 0,
+    string CustomGoalLabel = "",
+    string GoalExpansionId = ExpansionEstimates.AllMsqId,
+    long ExpansionStartingChars = 0,
+    int DayStartHour = 0)
+{
+    public bool HasAnyDailyGoal => DailyCharGoal > 0 || DailyMinutesGoal > 0 || DailyCardsGoal > 0;
+}
+
+public sealed record GoalProgressSummary(
+    GoalSettings Settings,
+    int TodayChars,
+    double TodayActiveSeconds,
+    int TodayCardsMined,
+    bool TodayCharsMet,
+    bool TodayTimeMet,
+    bool TodayCardsMet,
+    bool TodayAllMet,
+    int CharGoalDaysMet,
+    int TimeGoalDaysMet,
+    int CardGoalDaysMet,
+    int AllGoalsDaysMet,
+    int PeriodDayCount,
+    int CurrentGoalStreak,
+    int BestGoalStreak);
+
+public sealed record PeriodComparison(
+    string PriorLabel,
+    long PriorChars,
+    int PriorLines,
+    int PriorCardsMined,
+    double PriorActiveSeconds,
+    string CharsDeltaText,
+    string TimeDeltaText,
+    string CardsDeltaText);
 
 /// <summary>Persisted immersion statistics document (saved atomically as JSON).</summary>
 public sealed class StatsData
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public Dictionary<string, DailyBucket> Days { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, NpcProfile> NpcProfiles { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, WordMeta> WordDetails { get; set; } = new(StringComparer.Ordinal);
@@ -23,6 +65,10 @@ public sealed class StatsData
     public List<DialogueLogEntry> RecentDialogue { get; set; } = new();
     public LongestMonologueRecord? LongestLine { get; set; }
     public int BestStreakDays { get; set; }
+    /// <summary>Learned Rubi adaptive pace (64 µs/char units; 0 = not learned yet).</summary>
+    public int AdaptivePace { get; set; }
+    /// <summary>Stable keys for imported external lines/daily rows so re-imports never double-count.</summary>
+    public HashSet<string> ImportedKeys { get; set; } = new(StringComparer.Ordinal);
 }
 
 public sealed class DailyBucket
@@ -133,6 +179,9 @@ public sealed class StatsSnapshot
     public LongestMonologueRecord? LongestLine { get; init; }
     public DayPoint? MostActiveDay { get; init; }
     public required IReadOnlyList<AchievementItem> Achievements { get; init; }
+    public PeriodComparison? Comparison { get; init; }
+    public GoalProgressSummary? Goals { get; init; }
+    public ExpansionJourneySummary? ExpansionJourney { get; init; }
 
     public double CharsPerHour => ActiveSeconds >= 30 ? JapaneseChars / (ActiveSeconds / 3600.0) : 0;
     public double KanjiPercent => JapaneseChars > 0 ? 100.0 * KanjiChars / JapaneseChars : 0;

@@ -399,6 +399,7 @@ public sealed class GamepadNavigator : IDisposable
 
     private readonly List<RichBlock> stopBlocks = new();
     private readonly List<string> stopAddons = new();
+    private readonly List<bool> stopBodies = new();
 
     private RichBlock? StopBlock(CursorStop stop, int forLevel) => stop.Target < stopBlocks.Count ? stopBlocks[stop.Target] : null;
     private string StopAddon(CursorStop stop) => stop.Target < stopAddons.Count ? stopAddons[stop.Target] : string.Empty;
@@ -417,7 +418,8 @@ public sealed class GamepadNavigator : IDisposable
         }
         if (order.Count <= 1) return current;
         var idx = order.FindIndex(o => o.Addon == curAddon);
-        return order[(idx + 1) % order.Count].FirstIndex;
+        var next = order[(idx + 1) % order.Count];
+        return FirstStopIn(stops, next.Addon) ?? next.FirstIndex;
     }
 
     /// <summary>Where the cursor may stop at a level: word starts (or characters) of its text, in reading order.</summary>
@@ -425,12 +427,13 @@ public sealed class GamepadNavigator : IDisposable
     {
         stopBlocks.Clear();
         stopAddons.Clear();
+        stopBodies.Clear();
         contexts = new List<Func<RichBlock, int, ScanContext>?>();
-        var blocks = new List<(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext>? Context)>();
+        var blocks = new List<(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext>? Context, bool Body)>();
         if (atLevel == 0)
         {
             foreach (var target in nativeHover.Targets().OrderBy(t => t.Cells.Min(c => c.Min.Y)).ThenBy(t => t.Cells.Min(c => c.Min.X)))
-                blocks.Add((target.Addon, target.Block, target.Cells, target.Context));
+                blocks.Add((target.Addon, target.Block, target.Cells, target.Context, target.Body));
         }
         else
         {
@@ -438,16 +441,17 @@ public sealed class GamepadNavigator : IDisposable
             {
                 var cells = RichText.GlyphRects(block);
                 if (cells.Count > 0)
-                    blocks.Add((string.Empty, block, cells, null));
+                    blocks.Add((string.Empty, block, cells, null, false));
             }
         }
 
         var stops = new List<CursorStop>();
-        foreach (var (addon, block, cells, context) in blocks)
+        foreach (var (addon, block, cells, context, body) in blocks)
         {
             var target = stopBlocks.Count;
             stopBlocks.Add(block);
             stopAddons.Add(addon);
+            stopBodies.Add(body);
             contexts.Add(context);
             var text = block.ScanText;
             HashSet<int>? starts = null;
@@ -498,21 +502,36 @@ public sealed class GamepadNavigator : IDisposable
         if (level == 0)
         {
             var focused = nativeHover.FocusedAddonName;
-            if (!string.IsNullOrEmpty(focused) && !HudAddons.Contains(focused))
-            {
-                for (var i = 0; i < stops.Count; i++)
-                    if (StopAddon(stops[i]) == focused)
-                        return i;
-            }
+            if (!string.IsNullOrEmpty(focused) && !HudAddons.Contains(focused) && FirstStopIn(stops, focused) is { } inFocused)
+                return inFocused;
             for (var i = 0; i < stops.Count; i++)
             {
                 var addon = StopAddon(stops[i]);
                 if (!string.IsNullOrEmpty(addon) && !HudAddons.Contains(addon))
-                    return i;
+                    return FirstStopIn(stops, addon) ?? i;
             }
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// The first stop of a window, starting at its main text when it has one: in a Talk
+    /// window that is the dialogue, not the speaker's name drawn above it.
+    /// </summary>
+    private int? FirstStopIn(List<CursorStop> stops, string addon)
+    {
+        int? first = null;
+        for (var i = 0; i < stops.Count; i++)
+        {
+            if (StopAddon(stops[i]) != addon)
+                continue;
+            if (stops[i].Target < stopBodies.Count && stopBodies[stops[i].Target])
+                return i;
+            first ??= i;
+        }
+
+        return first;
     }
 
     /// <summary>The stop under (or snapped to) the touchpad/mouse pointer, or null if far from any text.</summary>
