@@ -481,9 +481,10 @@
     const dpr = window.devicePixelRatio || 1;
     if (payload.documentTitle) document.title = String(payload.documentTitle);
 
+    const anchorEl = document.getElementById("ffxiv-anchor");
     const beforeEl = document.getElementById("ffxiv-before");
     const targetEl = document.getElementById("ffxiv-target");
-    if (!beforeEl || !targetEl) return;
+    if (!anchorEl || !beforeEl || !targetEl) return;
 
     const beforeText = sentence.slice(0, charIndex);
     const targetText = sentence.slice(charIndex);
@@ -495,8 +496,8 @@
     const cssTop = (rect.top || 0) / dpr;
     const cssWidth = Math.max(8, (rect.width || 16) / dpr);
     const cssHeight = Math.max(12, (rect.height || 20) / dpr);
-    targetEl.style.left = `${cssLeft}px`;
-    targetEl.style.top = `${cssTop}px`;
+    anchorEl.style.left = `${cssLeft}px`;
+    anchorEl.style.top = `${cssTop}px`;
     targetEl.style.minWidth = `${cssWidth}px`;
     targetEl.style.height = `${cssHeight}px`;
     targetEl.style.fontSize = `${cssHeight}px`;

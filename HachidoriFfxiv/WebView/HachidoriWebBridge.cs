@@ -88,9 +88,93 @@ public sealed class HachidoriWebBridge
     private readonly ConcurrentDictionary<string, ScreenshotMedia> pendingScreenshots = new(StringComparer.Ordinal);
     private readonly object projectionLock = new();
     private readonly object preflightGate = new();
+    private readonly object miningContextLock = new();
+    private readonly List<JsonArray> recentLookupResults = [];
+    private const int MaxCachedLookups = 8;
+    private (string Sentence, int CharIndex)? activeLookupContext;
     private CancellationTokenSource? activePreflightCts;
     private string? lastProjectedOptionsJson;
     private int lastProjectedRevision;
+
+    /// <summary>Records the full FFXIV text box for the active root WebView lookup so Anki mining preserves the entire line.</summary>
+    public void SetActiveLookupContext(string sentence, int charIndex)
+    {
+        lock (miningContextLock)
+        {
+            activeLookupContext = string.IsNullOrEmpty(sentence)
+                ? null
+                : (sentence, Math.Clamp(charIndex, 0, sentence.Length));
+        }
+    }
+
+    /// <summary>Clears the active root WebView lookup context (e.g. when popups close).</summary>
+    public void ClearActiveLookupContext()
+    {
+        lock (miningContextLock)
+        {
+            activeLookupContext = null;
+        }
+    }
+
+    /// <summary>
+    /// Joins single FFXIV line wraps inside a text box (matching <see cref="Rendering.Japanese.NormaliseGameText"/>),
+    /// turns paragraph breaks into a single space, trims surrounding whitespace, and remaps
+    /// <paramref name="charIndex"/> and <paramref name="tokenLength"/> to the normalized string.
+    /// </summary>
+    public static (string Sentence, int CharIndex, int TokenLength) NormalizeLookupContext(string sentence, int charIndex, int tokenLength = 1)
+    {
+        if (string.IsNullOrEmpty(sentence))
+            return (string.Empty, 0, 1);
+
+        var rawStart = Math.Clamp(charIndex, 0, sentence.Length);
+        var rawEnd = Math.Clamp(rawStart + Math.Max(1, tokenLength), rawStart, sentence.Length);
+
+        var sb = new System.Text.StringBuilder(sentence.Length);
+        var map = new int[sentence.Length + 1];
+
+        for (var i = 0; i < sentence.Length; i++)
+        {
+            map[i] = sb.Length;
+            var c = sentence[i];
+            if (c == '\u200B')
+                continue;
+            if (c is '\r' or '\n')
+            {
+                var j = i;
+                var breaks = 0;
+                while (j < sentence.Length && sentence[j] is '\r' or '\n')
+                {
+                    if (sentence[j] == '\r' && j + 1 < sentence.Length && sentence[j + 1] == '\n')
+                        j += 2;
+                    else
+                        j++;
+                    breaks++;
+                }
+                for (var k = i; k < j; k++)
+                    map[k] = sb.Length;
+                // Keep paragraph breaks (blank lines) as a space; drop single line wraps inside Japanese prose.
+                if (breaks >= 2 && sb.Length > 0 && sb[^1] != ' ')
+                    sb.Append(' ');
+                i = j - 1;
+                continue;
+            }
+            sb.Append(c);
+        }
+        map[sentence.Length] = sb.Length;
+
+        var joined = sb.ToString();
+        var trimStart = 0;
+        while (trimStart < joined.Length && char.IsWhiteSpace(joined[trimStart]))
+            trimStart++;
+        var trimEnd = joined.Length;
+        while (trimEnd > trimStart && char.IsWhiteSpace(joined[trimEnd - 1]))
+            trimEnd--;
+
+        var normalized = joined[trimStart..trimEnd];
+        var mappedStart = Math.Clamp(map[rawStart] - trimStart, 0, normalized.Length);
+        var mappedEnd = Math.Clamp(map[rawEnd] - trimStart, mappedStart, normalized.Length);
+        return (normalized, mappedStart, Math.Max(1, mappedEnd - mappedStart));
+    }
 
     /// <summary>Cancels any in-flight popup preflight batch (e.g. when a new lookup opens or popups close).</summary>
     public void CancelPendingPreflights()
@@ -241,11 +325,17 @@ public sealed class HachidoriWebBridge
             {
                 var forward = (JsonObject)message.DeepClone();
                 if (target == "hachidori-anki" && type == "hd_anki_preflight" && forward["request"] is JsonObject preReq)
+                {
+                    EnrichMiningRequest(preReq);
                     ApplyMediaCapabilities(preReq, getOptions());
+                }
 
                 reply = await backend.SendRuntimeMessageAsync(target, type, forward, ct).ConfigureAwait(false);
                 if (type == "hd_lookup")
+                {
+                    CacheLookupResults(reply);
                     backend.RecordLookup(reply);
+                }
             }
 
             return NormalizeReply(reply, type, requestId);
@@ -295,6 +385,7 @@ public sealed class HachidoriWebBridge
                     continue;
                 }
                 var reqCopy = (JsonObject)reqObj.DeepClone();
+                EnrichMiningRequest(reqCopy);
                 ApplyMediaCapabilities(reqCopy, opts);
                 validIndices.Add(i);
                 validRequests.Add(reqCopy);
@@ -349,6 +440,7 @@ public sealed class HachidoriWebBridge
         var request = message["request"] as JsonObject
             ?? throw new InvalidOperationException("Anki submission is missing its request payload.");
         var copy = (JsonObject)request.DeepClone();
+        EnrichMiningRequest(copy);
         ApplyMediaCapabilities(copy, opts);
 
         ScreenshotMedia? screenshot = null;
@@ -399,6 +491,143 @@ public sealed class HachidoriWebBridge
         }
 
         return reply;
+    }
+
+    private void CacheLookupResults(JsonObject reply)
+    {
+        if (reply["results"] is not JsonArray { Count: > 0 } results)
+            return;
+        var clone = (JsonArray)results.DeepClone();
+        lock (miningContextLock)
+        {
+            recentLookupResults.Add(clone);
+            if (recentLookupResults.Count > MaxCachedLookups)
+                recentLookupResults.RemoveAt(0);
+        }
+    }
+
+    /// <summary>
+    /// Restores full FFXIV text-box sentence context for root lookups (undoing Yomitan/Hachidori's
+    /// terminator splitting) and restores full lookup glossaries when per-dictionary themes such as
+    /// Crystal/JL project <c>term.glossaries</c> down to a single section, while keeping the clicked
+    /// section's dictionary first for <c>{glossary-first}</c>.
+    /// </summary>
+    private void EnrichMiningRequest(JsonObject request)
+    {
+        RestoreFullSentence(request);
+        RestoreFullGlossaries(request);
+    }
+
+    private void RestoreFullSentence(JsonObject request)
+    {
+        (string Sentence, int CharIndex)? ctx;
+        lock (miningContextLock)
+            ctx = activeLookupContext;
+        if (ctx is not { } active || active.Sentence.Length == 0)
+            return;
+
+        var full = active.Sentence;
+        var charIndex = active.CharIndex;
+        var reqSentence = request["sentence"]?.ToString() ?? string.Empty;
+        if (full.Length <= reqSentence.Length)
+            return;
+
+        var matched = request["matched"]?.ToString() ?? string.Empty;
+        if (matched.Length > 0 && (charIndex + matched.Length > full.Length
+            || !full.AsSpan(charIndex, matched.Length).SequenceEqual(matched)))
+        {
+            return;
+        }
+
+        var reqOffset = request["matchOffset"] is JsonValue mv && mv.TryGetValue<int>(out var off) ? off : 0;
+        if (reqSentence.Length > 0)
+        {
+            var expectedStart = charIndex - reqOffset;
+            if (expectedStart < 0 || expectedStart + reqSentence.Length > full.Length)
+                return;
+            if (!full.AsSpan(expectedStart, reqSentence.Length).SequenceEqual(reqSentence))
+                return;
+        }
+
+        request["sentence"] = full;
+        request["matchOffset"] = charIndex;
+    }
+
+    private void RestoreFullGlossaries(JsonObject request)
+    {
+        if (request["term"] is not JsonObject term
+            || term["glossaries"] is not JsonArray currentGlossaries
+            || currentGlossaries.Count == 0)
+        {
+            return;
+        }
+
+        // Leave native kanji-entry mining untouched.
+        foreach (var g in currentGlossaries)
+        {
+            if (g is JsonObject go && go["kanji"] is JsonObject)
+                return;
+        }
+
+        var expr = term["expression"]?.ToString() ?? string.Empty;
+        var reading = term["reading"]?.ToString() ?? string.Empty;
+        if (expr.Length == 0)
+            return;
+
+        var currentDicts = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var g in currentGlossaries)
+        {
+            var dict = g?["dictionary"]?.ToString();
+            if (!string.IsNullOrEmpty(dict))
+                currentDicts.Add(dict);
+        }
+        if (currentDicts.Count == 0)
+            return;
+
+        JsonArray? matchedFullGlossaries = null;
+        lock (miningContextLock)
+        {
+            for (var i = recentLookupResults.Count - 1; i >= 0 && matchedFullGlossaries is null; i--)
+            {
+                foreach (var item in recentLookupResults[i])
+                {
+                    if (item?["term"] is not JsonObject candTerm) continue;
+                    if (!string.Equals(candTerm["expression"]?.ToString(), expr, StringComparison.Ordinal)) continue;
+                    if (!string.Equals(candTerm["reading"]?.ToString() ?? string.Empty, reading, StringComparison.Ordinal)) continue;
+                    if (candTerm["glossaries"] is not JsonArray candGlossaries || candGlossaries.Count <= currentGlossaries.Count)
+                        continue;
+
+                    var candDicts = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var cg in candGlossaries)
+                    {
+                        var dict = cg?["dictionary"]?.ToString();
+                        if (!string.IsNullOrEmpty(dict))
+                            candDicts.Add(dict);
+                    }
+                    if (candDicts.Count > currentDicts.Count && currentDicts.IsSubsetOf(candDicts))
+                    {
+                        matchedFullGlossaries = candGlossaries;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (matchedFullGlossaries is null)
+            return;
+
+        // Keep the clicked dictionary section first so {glossary-first} / MainDefinition honors the user's choice,
+        // and append the remaining dictionaries so {glossary} / {glossary-brief} / {single-glossary-...} have all dictionaries.
+        var merged = new JsonArray();
+        foreach (var g in currentGlossaries)
+            merged.Add(g?.DeepClone());
+        foreach (var g in matchedFullGlossaries)
+        {
+            var dict = g?["dictionary"]?.ToString();
+            if (string.IsNullOrEmpty(dict) || !currentDicts.Contains(dict))
+                merged.Add(g?.DeepClone());
+        }
+        term["glossaries"] = merged;
     }
 
     private void ApplyMediaCapabilities(JsonObject request, WebBridgeOptions opts)

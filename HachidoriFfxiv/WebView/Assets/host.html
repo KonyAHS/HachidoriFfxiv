@@ -24,23 +24,20 @@
         padding: 0;
         opacity: 0;
         pointer-events: none;
-        white-space: pre;
+        white-space: nowrap;
         line-height: 1;
         z-index: 0;
       }
       #ffxiv-before {
-        position: fixed;
-        left: -99999px;
-        top: -99999px;
-        opacity: 0;
-        pointer-events: none;
-        white-space: pre;
+        display: inline-block;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+        vertical-align: top;
       }
       #ffxiv-target {
-        position: fixed;
-        opacity: 0;
-        pointer-events: none;
-        white-space: pre;
+        display: inline-block;
+        vertical-align: top;
         line-height: 1;
       }
     </style>

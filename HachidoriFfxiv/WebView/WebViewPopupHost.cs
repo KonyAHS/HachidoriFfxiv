@@ -321,6 +321,9 @@ public sealed class WebViewPopupHost : IDisposable
     {
         if (!IsReady) return;
         bridge.CancelPendingPreflights();
+        var (normSentence, normIndex, normTokenLength) = HachidoriWebBridge.NormalizeLookupContext(sentence, charIndex, tokenLength);
+        if (normSentence.Length == 0 || normIndex >= normSentence.Length) return;
+        bridge.SetActiveLookupContext(normSentence, normIndex);
         // Wake the overlay HWND immediately so Chromium's document.visibilityState is visible while laying out the popup.
         Interlocked.Exchange(ref lookupPendingUntilUtcTicks, DateTime.UtcNow.AddMilliseconds(750).Ticks);
         if (!headless)
@@ -340,9 +343,9 @@ public sealed class WebViewPopupHost : IDisposable
         PostJson(new JsonObject
         {
             ["kind"] = "showLookup",
-            ["sentence"] = sentence,
-            ["charIndex"] = charIndex,
-            ["tokenLength"] = Math.Max(1, tokenLength),
+            ["sentence"] = normSentence,
+            ["charIndex"] = normIndex,
+            ["tokenLength"] = normTokenLength,
             ["documentTitle"] = documentTitle,
             ["anchorRect"] = new JsonObject
             {
@@ -357,6 +360,7 @@ public sealed class WebViewPopupHost : IDisposable
     public void CloseAll()
     {
         bridge.CancelPendingPreflights();
+        bridge.ClearActiveLookupContext();
         Interlocked.Exchange(ref lookupPendingUntilUtcTicks, 0);
         if (!IsReady) return;
         PostJson(new JsonObject { ["kind"] = "closeAll" });

@@ -215,6 +215,89 @@ internal static class WebViewChecks
               && backend.AttachedNoteId == 12345
               && backend.RecordedMinedNoteId == 12345,
             "bridge attaches FFXIV screenshot, runs post-mine media hook, and records immersion stats on Anki submit");
+
+        // NormalizeLookupContext joins single FFXIV line wraps, turns paragraph breaks into spaces, and remaps offsets.
+        var wrappedRaw = "  待て、ラウバーン局長！\nだが、思\n案の末に殺めたこともまた事実！  ";
+        var wrappedExpected = "待て、ラウバーン局長！だが、思案の末に殺めたこともまた事実！";
+        var (normSent, normIdx, normLen) = HachidoriWebBridge.NormalizeLookupContext(
+            wrappedRaw, wrappedRaw.IndexOf("思", StringComparison.Ordinal), 3);
+        check(normSent == wrappedExpected
+              && normIdx == wrappedExpected.IndexOf("思案", StringComparison.Ordinal)
+              && normLen == 2,
+            $"NormalizeLookupContext joins wrapped lines and remaps offsets (sent='{normSent}', idx={normIdx}, len={normLen})");
+
+        var paraRaw = "第一文。\n\n第二文の言葉。";
+        var paraExpected = "第一文。 第二文の言葉。";
+        var (paraSent, paraIdx, _) = HachidoriWebBridge.NormalizeLookupContext(
+            paraRaw, paraRaw.IndexOf("第二文", StringComparison.Ordinal), 3);
+        check(paraSent == paraExpected && paraIdx == paraExpected.IndexOf("第二文", StringComparison.Ordinal),
+            $"NormalizeLookupContext turns blank-line paragraph breaks into a space (sent='{paraSent}', idx={paraIdx})");
+
+        // Full FFXIV text box sentence + full multi-dictionary glossaries restoration on Crystal/JL projected submits.
+        var fullBox = "待て、ラウバーン局長！正式な裁きも経ず冒険者さん、お待たせしました！";
+        var wordStart = fullBox.IndexOf("冒険者", StringComparison.Ordinal);
+        bridge.SetActiveLookupContext(fullBox, wordStart);
+        await bridge.HandleRpcAsync(new JsonObject
+        {
+            ["target"] = "hoshidicts-offscreen",
+            ["type"] = "hd_lookup",
+            ["requestId"] = "lookup-enrich",
+            ["text"] = "冒険者さん",
+        });
+
+        // Simulate Crystal theme projecting term.glossaries down to only the 2nd dictionary ("FFXIV") and Hachidori splitting sentence.
+        await bridge.HandleRpcAsync(new JsonObject
+        {
+            ["target"] = "hachidori-anki",
+            ["type"] = "hd_anki_submit",
+            ["requestId"] = "submit-crystal-2nd",
+            ["request"] = new JsonObject
+            {
+                ["sentence"] = "正式な裁きも経ず冒険者さん、お待たせしました！",
+                ["matchOffset"] = 8,
+                ["matched"] = "冒険者",
+                ["term"] = new JsonObject
+                {
+                    ["expression"] = "冒険者",
+                    ["reading"] = "ぼうけんしゃ",
+                    ["glossaries"] = new JsonArray(
+                        new JsonObject { ["dictionary"] = "FFXIV", ["glossary"] = "[\"Adventurer (Warrior of Light)\"]" }),
+                },
+            },
+        });
+        var enrichedDicts = (backend.SubmittedRequest?["term"]?["glossaries"] as JsonArray ?? [])
+            .Select(g => g?["dictionary"]?.ToString() ?? string.Empty).ToArray();
+        check(backend.SubmittedRequest?["sentence"]?.ToString() == fullBox
+              && backend.SubmittedRequest?["matchOffset"]?.GetValue<int>() == wordStart
+              && backend.AttachedSentence == fullBox,
+            "bridge restores full multi-sentence FFXIV text box and matchOffset for root lookups");
+        check(enrichedDicts.SequenceEqual(["FFXIV", "Jitendex"]),
+            $"bridge restores remaining lookup dictionaries while keeping clicked Crystal section first ([{string.Join(", ", enrichedDicts)}])");
+
+        // Nested definition lookup (different sentence not from the FFXIV box) keeps its own definition sentence untouched.
+        await bridge.HandleRpcAsync(new JsonObject
+        {
+            ["target"] = "hachidori-anki",
+            ["type"] = "hd_anki_submit",
+            ["requestId"] = "submit-nested",
+            ["request"] = new JsonObject
+            {
+                ["sentence"] = "危険を冒して旅をする人。",
+                ["matchOffset"] = 0,
+                ["matched"] = "危険",
+                ["term"] = new JsonObject
+                {
+                    ["expression"] = "危険",
+                    ["reading"] = "きけん",
+                    ["glossaries"] = new JsonArray(
+                        new JsonObject { ["dictionary"] = "Jitendex", ["glossary"] = "[\"danger\"]" }),
+                },
+            },
+        });
+        check(backend.SubmittedRequest?["sentence"]?.ToString() == "危険を冒して旅をする人。"
+              && backend.SubmittedRequest?["matchOffset"]?.GetValue<int>() == 0,
+            "bridge preserves definition sentence when mining from a nested popup");
+        bridge.ClearActiveLookupContext();
     }
 
     private static async Task CheckLiveWebViewThemesAsync(Action<bool, string> check)
@@ -304,7 +387,11 @@ internal static class WebViewChecks
 
             host.PushStorageUpdate(bridge.BuildProjectedSnapshot(), 0.8f, npcPicturesAvailable: true);
             await Task.Delay(350);
-            host.ShowLookup("冒険者さん、お待たせしました！", 0, new Vector2(80, 60), new Vector2(140, 84), "FINAL FANTASY XIV", tokenLength: 3);
+            var multiSentenceRaw = "待て、ラウバーン局長！\n冒険者さん、お待たせしました！";
+            var multiSentenceNorm = "待て、ラウバーン局長！冒険者さん、お待たせしました！";
+            var rawWordOffset = multiSentenceRaw.IndexOf("冒険者", StringComparison.Ordinal);
+            var normWordOffset = multiSentenceNorm.IndexOf("冒険者", StringComparison.Ordinal);
+            host.ShowLookup(multiSentenceRaw, rawWordOffset, new Vector2(80, 60), new Vector2(140, 84), "FINAL FANTASY XIV", tokenLength: 3);
 
             WebViewInspectResult? crystal = null;
             for (var i = 0; i < 30; i++)
@@ -324,6 +411,19 @@ internal static class WebViewChecks
             check(crystal?.MineButtonState is "addable" or "ready" or "add",
                 $"WebView2 Anki preflight batch transitions mine button out of checking (state={crystal?.MineButtonState})");
             check(host.MatchedLength == 3, $"WebView2 reports exact matched word length ({host.MatchedLength}) for FFXIV highlight");
+
+            // End-to-end Crystal mine: verify full text box sentence (before + after word) AND all dictionaries arrive at Anki submit.
+            backend.ResetSubmit();
+            host.SendCommand("addNote");
+            for (var i = 0; i < 30 && backend.SubmittedRequest is null; i++)
+                await Task.Delay(100);
+            var liveDicts = (backend.SubmittedRequest?["term"]?["glossaries"] as JsonArray ?? [])
+                .Select(g => g?["dictionary"]?.ToString() ?? string.Empty).ToArray();
+            check(backend.SubmittedRequest?["sentence"]?.ToString() == multiSentenceNorm
+                  && backend.SubmittedRequest?["matchOffset"]?.GetValue<int>() == normWordOffset,
+                $"WebView2 Crystal mine submits full multi-sentence FFXIV text box (sentence='{backend.SubmittedRequest?["sentence"]}', offset={backend.SubmittedRequest?["matchOffset"]})");
+            check(liveDicts.SequenceEqual(["Jitendex", "FFXIV"]),
+                $"WebView2 Crystal mine keeps all lookup dictionaries for MainDefinition + Glossary ([{string.Join(", ", liveDicts)}])");
 
             // End-to-end synthetic mouse input test via CoreWebView2CompositionController.SendMouseInput.
             if (crystal?.NpcButtonRect is { } btnRect)
@@ -464,9 +564,20 @@ internal static class WebViewChecks
         public bool CanAttachMedia => true;
         public bool NpcPicturesAvailable => true;
         public ScreenshotMedia? SubmittedScreenshot { get; private set; }
+        public JsonObject? SubmittedRequest { get; private set; }
+        public string? AttachedSentence { get; private set; }
         public long AttachedNoteId { get; private set; }
         public long RecordedMinedNoteId { get; private set; }
         public Func<IReadOnlyList<JsonObject>, CancellationToken, Task<JsonObject[]>>? OnPreflightBatch { get; set; }
+
+        public void ResetSubmit()
+        {
+            SubmittedRequest = null;
+            SubmittedScreenshot = null;
+            AttachedSentence = null;
+            AttachedNoteId = 0;
+            RecordedMinedNoteId = 0;
+        }
 
         public Task<JsonObject[]> PreflightAnkiBatchAsync(IReadOnlyList<JsonObject> requests, CancellationToken ct)
         {
@@ -483,6 +594,7 @@ internal static class WebViewChecks
 
         public Task<JsonObject> SubmitAnkiAsync(JsonObject request, ScreenshotMedia? screenshot, CancellationToken ct)
         {
+            SubmittedRequest = (JsonObject)request.DeepClone();
             SubmittedScreenshot = screenshot;
             return Task.FromResult(new JsonObject
             {
@@ -497,6 +609,7 @@ internal static class WebViewChecks
         public Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, CancellationToken ct)
         {
             AttachedNoteId = noteId;
+            AttachedSentence = sentence;
             return Task.FromResult<string?>("attached voice + AVIF");
         }
 
