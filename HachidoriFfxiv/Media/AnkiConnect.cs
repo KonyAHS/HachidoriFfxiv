@@ -34,7 +34,10 @@ public sealed class AnkiConnect : IDisposable
         http.DefaultRequestHeaders.ConnectionClose = true;
     }
 
-    public async Task<JsonNode?> InvokeAsync(string action, JsonObject? parameters = null, CancellationToken ct = default)
+    public Task<JsonNode?> InvokeAsync(string action, JsonObject? parameters = null, CancellationToken ct = default) =>
+        InvokeAsync(action, parameters, retryOnTransportError: ReadOnlyActions.Contains(action), ct);
+
+    public async Task<JsonNode?> InvokeAsync(string action, JsonObject? parameters, bool retryOnTransportError, CancellationToken ct = default)
     {
         var body = new JsonObject { ["action"] = action, ["version"] = 6 };
         if (parameters is not null)
@@ -42,7 +45,7 @@ public sealed class AnkiConnect : IDisposable
         if (key?.Invoke() is { Length: > 0 } apiKey)
             body["key"] = apiKey;
         var json = body.ToJsonString();
-        var attempts = ReadOnlyActions.Contains(action) ? 2 : 1;
+        var attempts = retryOnTransportError ? 2 : 1;
         HttpResponseMessage? response = null;
         for (var attempt = 1; attempt <= attempts; attempt++)
         {
@@ -69,6 +72,50 @@ public sealed class AnkiConnect : IDisposable
                 throw new InvalidOperationException($"AnkiConnect {action}: {message}");
             return reply?["result"];
         }
+    }
+
+    /// <summary>
+    /// Runs several AnkiConnect actions in a single HTTP round trip (paying AnkiConnect's poll interval once).
+    /// Each sub-action uses API v6 and returns its own <c>(Result, Error)</c> pair in request order.
+    /// </summary>
+    public async Task<List<(JsonNode? Result, string? Error)>> MultiAsync(
+        IReadOnlyList<(string Action, JsonObject? Params)> actions,
+        bool readOnly = false,
+        CancellationToken ct = default)
+    {
+        if (actions.Count == 0)
+            return [];
+
+        var apiKey = key?.Invoke();
+        var items = new JsonArray();
+        foreach (var (action, parameters) in actions)
+        {
+            var entry = new JsonObject { ["action"] = action, ["version"] = 6 };
+            if (parameters is not null)
+                entry["params"] = parameters.DeepClone();
+            if (!string.IsNullOrEmpty(apiKey))
+                entry["key"] = apiKey;
+            items.Add(entry);
+        }
+
+        var raw = await InvokeAsync("multi", new JsonObject { ["actions"] = items }, retryOnTransportError: readOnly, ct).ConfigureAwait(false);
+        if (raw is not JsonArray array || array.Count != actions.Count)
+            throw new InvalidOperationException("AnkiConnect returned an invalid multi response.");
+
+        var results = new List<(JsonNode? Result, string? Error)>(array.Count);
+        foreach (var item in array)
+        {
+            if (item is JsonObject obj && obj.ContainsKey("result") && obj.ContainsKey("error"))
+            {
+                var err = obj["error"] is JsonValue ev && ev.ToString() is { Length: > 0 } msg ? msg : null;
+                results.Add((obj["result"]?.DeepClone(), err));
+            }
+            else
+            {
+                results.Add((item?.DeepClone(), null));
+            }
+        }
+        return results;
     }
 
     public async Task<string> StoreMediaAsync(string filename, byte[] data, CancellationToken ct = default)

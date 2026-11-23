@@ -43,6 +43,31 @@ public interface IHachidoriWebBackend
     bool NpcPicturesAvailable { get; }
 
     Task<JsonObject> SendRuntimeMessageAsync(string target, string type, JsonObject message, CancellationToken ct);
+    Task<JsonObject[]> PreflightAnkiBatchAsync(IReadOnlyList<JsonObject> requests, CancellationToken ct)
+    {
+        var tasks = requests.Select(async reqObj =>
+        {
+            var single = new JsonObject
+            {
+                ["target"] = "hachidori-anki",
+                ["type"] = "hd_anki_preflight",
+                ["request"] = reqObj.DeepClone(),
+            };
+            try
+            {
+                return await SendRuntimeMessageAsync("hachidori-anki", "hd_anki_preflight", single, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return new JsonObject { ["state"] = "error", ["canAdd"] = false, ["error"] = ex.Message };
+            }
+        }).ToArray();
+        return Task.WhenAll(tasks);
+    }
     Task<ScreenshotMedia?> CaptureScreenshotAsync(CancellationToken ct);
     Task<JsonObject> SubmitAnkiAsync(JsonObject request, ScreenshotMedia? screenshot, CancellationToken ct);
     Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, CancellationToken ct);
@@ -62,8 +87,26 @@ public sealed class HachidoriWebBridge
     private readonly IHachidoriWebBackend backend;
     private readonly ConcurrentDictionary<string, ScreenshotMedia> pendingScreenshots = new(StringComparer.Ordinal);
     private readonly object projectionLock = new();
+    private readonly object preflightGate = new();
+    private CancellationTokenSource? activePreflightCts;
     private string? lastProjectedOptionsJson;
     private int lastProjectedRevision;
+
+    /// <summary>Cancels any in-flight popup preflight batch (e.g. when a new lookup opens or popups close).</summary>
+    public void CancelPendingPreflights()
+    {
+        CancellationTokenSource? old;
+        lock (preflightGate)
+        {
+            old = activePreflightCts;
+            activePreflightCts = null;
+        }
+        if (old is not null)
+        {
+            try { old.Cancel(); } catch { }
+            old.Dispose();
+        }
+    }
 
     public HachidoriWebBridge(Func<WebBridgeOptions> getOptions, IHachidoriWebBackend backend)
     {
@@ -222,38 +265,63 @@ public sealed class HachidoriWebBridge
 
     private async Task<JsonObject> HandleAnkiPreflightBatchAsync(JsonObject message, CancellationToken ct)
     {
-        // Hachidori's sharing-protocol.js forwards single hd_anki_preflight requests (not batch);
-        // fan out batch preflights into individual hd_anki_preflight calls for both live and offline modes.
         var requests = message["requests"] as JsonArray ?? [];
         var opts = getOptions();
-        var tasks = requests.Select(async item =>
-        {
-            if (item is not JsonObject reqObj)
-                return new JsonObject { ["state"] = "error", ["canAdd"] = false, ["error"] = "Invalid preflight request." };
-            var reqCopy = (JsonObject)reqObj.DeepClone();
-            ApplyMediaCapabilities(reqCopy, opts);
-            var single = new JsonObject
-            {
-                ["target"] = "hachidori-anki",
-                ["type"] = "hd_anki_preflight",
-                ["request"] = reqCopy,
-            };
-            try
-            {
-                return await backend.SendRuntimeMessageAsync("hachidori-anki", "hd_anki_preflight", single, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                return new JsonObject { ["state"] = "error", ["canAdd"] = false, ["error"] = ex.Message };
-            }
-        }).ToArray();
 
-        var replies = await Task.WhenAll(tasks).ConfigureAwait(false);
-        return new JsonObject
+        // Cancel any superseded preflight batch so an earlier hover never stalls the active popup.
+        var batchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        CancellationTokenSource? previous;
+        lock (preflightGate)
         {
-            ["ok"] = true,
-            ["replies"] = new JsonArray(replies.Select(r => (JsonNode?)r.DeepClone()).ToArray()),
-        };
+            previous = activePreflightCts;
+            activePreflightCts = batchCts;
+        }
+        if (previous is not null)
+        {
+            try { previous.Cancel(); } catch { }
+            previous.Dispose();
+        }
+
+        try
+        {
+            var replies = new JsonObject[requests.Count];
+            var validIndices = new List<int>(requests.Count);
+            var validRequests = new List<JsonObject>(requests.Count);
+            for (var i = 0; i < requests.Count; i++)
+            {
+                if (requests[i] is not JsonObject reqObj)
+                {
+                    replies[i] = new JsonObject { ["state"] = "error", ["canAdd"] = false, ["error"] = "Invalid preflight request." };
+                    continue;
+                }
+                var reqCopy = (JsonObject)reqObj.DeepClone();
+                ApplyMediaCapabilities(reqCopy, opts);
+                validIndices.Add(i);
+                validRequests.Add(reqCopy);
+            }
+
+            if (validRequests.Count > 0)
+            {
+                var batchReplies = await backend.PreflightAnkiBatchAsync(validRequests, batchCts.Token).ConfigureAwait(false);
+                for (var i = 0; i < validIndices.Count && i < batchReplies.Length; i++)
+                    replies[validIndices[i]] = batchReplies[i];
+            }
+
+            return new JsonObject
+            {
+                ["ok"] = true,
+                ["replies"] = new JsonArray(replies.Select(r => (JsonNode?)(r?.DeepClone() ?? new JsonObject { ["state"] = "error", ["canAdd"] = false })).ToArray()),
+            };
+        }
+        finally
+        {
+            lock (preflightGate)
+            {
+                if (activePreflightCts == batchCts)
+                    activePreflightCts = null;
+            }
+            batchCts.Dispose();
+        }
     }
 
     private async Task<JsonObject> HandleScreenshotAsync(CancellationToken ct)

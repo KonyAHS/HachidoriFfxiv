@@ -45,7 +45,7 @@ PopupTheme.Current = PopupTheme.PluginDefault();
 await NpcImageChecks.Run(Check);
 await PublishChecks.Run(Check);
 await OfflineChecks.Run(Check);
-AnkiChecks.Run(Check);
+await AnkiChecks.RunAsync(Check);
 StatsChecks.Run(Check);
 await WebViewChecks.RunAsync(Check);
 CheckFfxivDictionary(Check);

@@ -171,6 +171,9 @@ public sealed class PitchGroup
 
 public readonly record struct PitchInfo(int Position, string Pattern, int[] Nasal, int[] Devoice);
 
+/// <summary>Anki template availability and config digest, from <c>hd_anki_status</c>.</summary>
+public sealed record AnkiStatus(bool Available, string? ConfigKey, string? Error);
+
 /// <summary>Anki readiness for one result, from <c>hd_anki_preflight</c>.</summary>
 public sealed class AnkiDecision
 {

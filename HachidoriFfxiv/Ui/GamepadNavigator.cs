@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.GamePad;
+using Dalamud.Game.ClientState.Keys;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Rendering;
@@ -29,15 +32,18 @@ public sealed class GamepadNavigator : IDisposable
     private readonly NativeTextHover nativeHover;
     private readonly HachidoriService service;
 
+    private const int VkShift = 0x10;
+    private const int VkControl = 0x11;
+    private const int VkMenu = 0x12;
+
     private GamepadButtons previous;
-    private DateTime? holdStarted;
-    private bool holdFired;
-    private bool waitForHoldRelease;
+    private readonly ControllerTriggerState triggerState = new();
+    private bool toggleKeyWasDown;
     private readonly Dictionary<string, (DateTime Next, bool Repeating)> repeats = new();
     private DateTime? noTextSince;
     private bool seenText;
     private DateTime lastScroll = DateTime.MinValue;
-    private bool popupClosedByBack;
+    private readonly ControllerScanState scanState = new();
     private Vector2 lastPointer = new(-10000);
     private Vector2 virtualPointer = new(-10000);
     private DateTime lastPointerMoved = DateTime.MinValue;
@@ -58,6 +64,12 @@ public sealed class GamepadNavigator : IDisposable
     }
 
     public bool Active { get; private set; }
+
+    /// <summary>Set by ConfigWindow while recording a toggle keybind so the bound press does not also toggle controller mode.</summary>
+    public bool SuppressToggleKey { get; set; }
+
+    /// <summary>Prevents the just-recorded key press from triggering controller mode while still held.</summary>
+    public void NotifyToggleKeyBound() => toggleKeyWasDown = true;
 
     /// <summary>Dalamud ignores input blocking when "plugin gamepad input" is off in its settings.</summary>
     public bool BlockingRefused { get; private set; }
@@ -80,16 +92,20 @@ public sealed class GamepadNavigator : IDisposable
         cursor.Add((null, -1));
         noTextSince = null;
         seenText = false;
-        popupClosedByBack = false;
+        scanState.Reset();
+        nativeHover.ControllerScan = true;
+        popups.ControllerActive = true;
+        if (!config.ControllerAutoScan)
+            popups.CloseAll();
         lastPointer = ImGui.IsMousePosValid() ? ImGui.GetMousePos() : new Vector2(-10000);
         virtualPointer = new Vector2(-10000);
         lastPointerMoved = DateTime.MinValue;
         if (config.ControllerUseTouchpad)
             touchpad.Start();
         wordMode = config.ControllerStartInWordMode;
-        waitForHoldRelease = true;
         // Buttons held while entering must not act until released.
         previous = ReadButtons();
+        triggerState.RequireReleaseIfDown(IsTriggerDown(previous));
         Notice = null;
         // Dalamud also hands the controller to ImGui navigation: no plugin window may hold
         // focus, or A would press its buttons.
@@ -108,7 +124,15 @@ public sealed class GamepadNavigator : IDisposable
         nativeHover.ControllerScan = false;
         popups.ControllerActive = false;
         popups.CloseAll();
+        scanState.Reset();
         repeats.Clear();
+        triggerState.RequireReleaseIfDown(IsTriggerDown(ReadButtons()));
+    }
+
+    private bool IsTriggerDown(GamepadButtons raw)
+    {
+        var trigger = config.ControllerHoldButton;
+        return trigger != GamepadButtons.None && (raw & trigger) == trigger;
     }
 
     private static readonly GamepadButtons[] AllButtons = Enum.GetValues<GamepadButtons>().Where(b => b != GamepadButtons.None).ToArray();
@@ -138,36 +162,26 @@ public sealed class GamepadNavigator : IDisposable
         var raw = ReadButtons();
         var pressed = raw & ~previous;
         previous = raw;
-        var hold = config.ControllerHoldButton;
+        var trigger = config.ControllerHoldButton;
+        var triggerDown = trigger != GamepadButtons.None && (raw & trigger) == trigger;
 
-        if (!Active)
+        if (PollToggleKey())
         {
-            // Long-press to enter: a short press still does whatever FFXIV binds to the button.
-            if (hold != GamepadButtons.None && (raw & hold) == hold)
-            {
-                holdStarted ??= now;
-                if (!holdFired && (now - holdStarted.Value).TotalSeconds >= config.ControllerHoldSeconds)
-                {
-                    holdFired = true;
-                    Enter();
-                }
-            }
-            else
-            {
-                holdStarted = null;
-                holdFired = false;
-            }
-
+            Toggle();
             return;
         }
 
-        if (waitForHoldRelease)
+        var triggerFired = triggerState.Update(triggerDown, config.ControllerTriggerMode, config.ControllerHoldSeconds, now);
+
+        if (!Active)
         {
-            if ((raw & hold) == hold && hold != GamepadButtons.None)
-                pressed &= ~hold;
-            else
-                waitForHoldRelease = false;
+            if (triggerFired)
+                Enter();
+            return;
         }
+
+        if (triggerState.WaitingForRelease && triggerDown)
+            pressed &= ~trigger;
 
         if (unfocus)
         {
@@ -185,16 +199,24 @@ public sealed class GamepadNavigator : IDisposable
         if (config.ControllerUseTouchpad && !touchpad.Active) touchpad.Start();
         else if (!config.ControllerUseTouchpad && touchpad.Active) touchpad.Stop();
 
-        if (Has(pressed, GamepadButtons.Select) || Has(pressed, GamepadButtons.Start) || (hold != GamepadButtons.None && !waitForHoldRelease && (pressed & hold) == hold))
+        if (triggerFired || Has(pressed, GamepadButtons.Select) || Has(pressed, GamepadButtons.Start))
         {
             Exit();
             return;
         }
 
         // A popup closed by the mouse or by time: fall back to a level that still exists.
+        var prevLevel = level;
         level = Math.Min(level, popups.VisibleCount);
         while (cursor.Count <= level)
             cursor.Add((null, -1));
+        if (level < prevLevel)
+        {
+            var (parentBlock, parentIndex) = cursor[level];
+            scanState.RestoreParent(parentBlock, parentIndex, popups.VisibleCount > level);
+        }
+        if (!config.ControllerAutoScan)
+            scanState.SyncVisibility(popups.VisibleCount > level);
 
         var stops = Stops(level, out var contexts);
         if (stops.Count == 0)
@@ -202,7 +224,16 @@ public sealed class GamepadNavigator : IDisposable
             if (level > 0)
             {
                 level--;
+                var (parentBlock, parentIndex) = cursor[level];
+                scanState.RestoreParent(parentBlock, parentIndex, popups.VisibleCount > level);
+                popups.Sustain(level);
                 return;
+            }
+
+            if (!config.ControllerAutoScan && scanState.Active)
+            {
+                scanState.Reset();
+                popups.CloseAll();
             }
 
             if (HasBound(pressed, config.ControllerBackExitButton))
@@ -293,35 +324,73 @@ public sealed class GamepadNavigator : IDisposable
             // Keep the virtual pointer synced to the word after D-pad moves so the next glide starts here.
             virtualPointer = stops[Math.Clamp(current, 0, stops.Count - 1)].Center;
         }
-        if (moved)
-            popupClosedByBack = false;
+        var stop = stops[Math.Clamp(current, 0, stops.Count - 1)];
+        var block = StopBlock(stop, level);
+        if (!config.ControllerAutoScan && scanState.OnStopChanged(block, stop.Index))
+            popups.CloseFrom(level);
+
+        if (!config.ControllerAutoScan && HasBound(pressed, config.ControllerScanButton))
+        {
+            var action = scanState.HandleScanButton(block, stop.Index, popups.VisibleCount > level, ScanButtonSharedWithPopupAction());
+            if (action == ControllerScanPress.Open)
+            {
+                pressed &= ~config.ControllerScanButton;
+            }
+            else if (action == ControllerScanPress.Close)
+            {
+                popups.CloseFrom(level);
+                pressed &= ~config.ControllerScanButton;
+            }
+        }
+
         if (HasBound(pressed, config.ControllerWordModeButton))
         {
             wordMode = !wordMode;
             stops = Stops(level, out contexts);
+            if (stops.Count == 0)
+            {
+                if (level > 0) popups.Sustain(level - 1);
+                DrawHints();
+                return;
+            }
             current = FindCurrent(stops);
+            stop = stops[Math.Clamp(current, 0, stops.Count - 1)];
+            block = StopBlock(stop, level);
+            if (!config.ControllerAutoScan)
+                scanState.AlignAfterModeToggle(block, stop.Index);
         }
 
-        var stop = stops[Math.Clamp(current, 0, stops.Count - 1)];
-        cursor[level] = (StopBlock(stop, level), stop.Index);
+        cursor[level] = (block, stop.Index);
 
         // ------------------------------------------------------ popup actions
-        var deepest = popups.VisibleCount - 1;
         if (HasBound(pressed, config.ControllerDiveButton) && popups.VisibleCount > level && popups.ScanBlocks(level).Count > 0)
         {
             level++;
             while (cursor.Count <= level)
                 cursor.Add((null, -1));
             cursor[level] = (null, -1);
+            scanState.Reset();
+            popups.Sustain(level - 1);
+            DrawHints();
             return;
         }
 
         if (HasBound(pressed, config.ControllerBackExitButton))
         {
-            if (level > 0)
+            if (!config.ControllerAutoScan && popups.VisibleCount > level)
+            {
+                scanState.Reset();
+                popups.CloseFrom(level);
+            }
+            else if (level > 0)
             {
                 popups.CloseFrom(level);
                 level--;
+                var (parentBlock, parentIndex) = cursor[level];
+                scanState.RestoreParent(parentBlock, parentIndex, popups.VisibleCount > level);
+                popups.Sustain(level);
+                DrawHints();
+                return;
             }
             else
             {
@@ -335,6 +404,11 @@ public sealed class GamepadNavigator : IDisposable
             {
                 popups.CloseFrom(level);
                 level--;
+                var (parentBlock, parentIndex) = cursor[level];
+                scanState.RestoreParent(parentBlock, parentIndex, popups.VisibleCount > level);
+                popups.Sustain(level);
+                DrawHints();
+                return;
             }
             else
             {
@@ -343,13 +417,16 @@ public sealed class GamepadNavigator : IDisposable
                 {
                     current = nextWindow;
                     stop = stops[current];
-                    cursor[level] = (StopBlock(stop, level), stop.Index);
+                    block = StopBlock(stop, level);
+                    cursor[level] = (block, stop.Index);
                     virtualPointer = stop.Center;
-                    popupClosedByBack = false;
+                    if (!config.ControllerAutoScan && scanState.OnStopChanged(block, stop.Index))
+                        popups.CloseFrom(level);
                 }
             }
         }
 
+        var deepest = popups.VisibleCount - 1;
         if (deepest >= 0)
         {
             if (HasBound(pressed, config.ControllerMineButton)) popups.MineSelected(deepest);
@@ -365,8 +442,9 @@ public sealed class GamepadNavigator : IDisposable
         }
 
         // ------------------------------------------------- look up at the cursor
-        var block = StopBlock(stop, level);
-        if (block is not null && !popupClosedByBack)
+        if (level > 0)
+            popups.Sustain(level - 1);
+        if (block is not null && (config.ControllerAutoScan || scanState.Active))
         {
             popups.Report(new TextHit(block, stop.Index, stop.Min, stop.Max), level, contexts[stop.Target], forced: true, bypassTokenize: !wordMode);
             popups.Sustain(level);
@@ -400,6 +478,7 @@ public sealed class GamepadNavigator : IDisposable
     private readonly List<RichBlock> stopBlocks = new();
     private readonly List<string> stopAddons = new();
     private readonly List<bool> stopBodies = new();
+    private readonly List<IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)>> stopCells = new();
 
     private RichBlock? StopBlock(CursorStop stop, int forLevel) => stop.Target < stopBlocks.Count ? stopBlocks[stop.Target] : null;
     private string StopAddon(CursorStop stop) => stop.Target < stopAddons.Count ? stopAddons[stop.Target] : string.Empty;
@@ -428,6 +507,7 @@ public sealed class GamepadNavigator : IDisposable
         stopBlocks.Clear();
         stopAddons.Clear();
         stopBodies.Clear();
+        stopCells.Clear();
         contexts = new List<Func<RichBlock, int, ScanContext>?>();
         var blocks = new List<(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext>? Context, bool Body)>();
         if (atLevel == 0)
@@ -448,28 +528,44 @@ public sealed class GamepadNavigator : IDisposable
         var stops = new List<CursorStop>();
         foreach (var (addon, block, cells, context, body) in blocks)
         {
+            var orderedCells = cells.OrderBy(c => c.Index).ToList();
             var target = stopBlocks.Count;
             stopBlocks.Add(block);
             stopAddons.Add(addon);
             stopBodies.Add(body);
+            stopCells.Add(orderedCells);
             contexts.Add(context);
             var text = block.ScanText;
+            IReadOnlyList<WordSpan>? spans = null;
             HashSet<int>? starts = null;
             if (wordMode && config.TokenizedHover)
             {
                 var task = service.SegmentAsync(text);
                 if (task.IsCompletedSuccessfully)
-                    starts = task.Result.Select(s => s.Start).ToHashSet();
+                {
+                    spans = task.Result;
+                    starts = spans.Select(s => s.Start).ToHashSet();
+                }
             }
 
-            foreach (var (index, min, max) in cells.OrderBy(c => c.Index))
+            foreach (var (index, min, max) in orderedCells)
             {
                 if (index >= text.Length || char.IsLowSurrogate(text[index]))
                     continue;
                 var cp = Japanese.CodePointAt(text, index);
                 if (starts is not null ? !starts.Contains(index) : config.ScanOnlyJapanese && !Japanese.IsJapanese(cp))
                     continue;
-                stops.Add(new CursorStop(target, index, min, max));
+                var charEnd = index + (char.IsHighSurrogate(text[index]) && index + 1 < text.Length ? 2 : 1);
+                var endIndex = spans is not null && WordSpan.At(spans, index) is { } span ? span.End : charEnd;
+                var stopMin = min;
+                var stopMax = max;
+                if (endIndex > charEnd)
+                {
+                    var lineRects = CursorMoves.SpanLineRects(orderedCells, index, endIndex);
+                    if (lineRects.Count > 0)
+                        (stopMin, stopMax) = lineRects[0];
+                }
+                stops.Add(new CursorStop(target, index, stopMin, stopMax, endIndex));
             }
         }
 
@@ -587,6 +683,21 @@ public sealed class GamepadNavigator : IDisposable
     private static bool Has(GamepadButtons mask, GamepadButtons button) => (mask & button) == button;
     private static bool HasBound(GamepadButtons mask, GamepadButtons button) => button != GamepadButtons.None && (mask & button) == button;
 
+    private bool ScanButtonSharedWithPopupAction()
+    {
+        var scan = config.ControllerScanButton;
+        if (scan == GamepadButtons.None)
+            return false;
+        return scan == config.ControllerMineButton
+               || scan == config.ControllerAudioButton
+               || scan == config.ControllerPrevEntryButton
+               || scan == config.ControllerNextEntryButton
+               || scan == config.ControllerDiveButton
+               || scan == config.ControllerWordModeButton
+               || scan == config.ControllerWindowButton
+               || scan == config.ControllerBackExitButton;
+    }
+
     internal static string ButtonLabel(GamepadButtons button, bool ps) => button switch
     {
         GamepadButtons.None => "None",
@@ -602,8 +713,122 @@ public sealed class GamepadNavigator : IDisposable
         GamepadButtons.R3 => ps ? "R3" : "RS",
         GamepadButtons.Select => ps ? "Select" : "Back",
         GamepadButtons.Start => ps ? "Options" : "Start",
+        GamepadButtons.DpadDown => "D-pad down",
         _ => button.ToString(),
     };
+
+    internal static string ButtonComboLabel(GamepadButtons mask, bool ps)
+    {
+        if (mask == GamepadButtons.None)
+            return "None";
+        return string.Join(" + ", AllButtons.Where(b => (mask & b) == b).Select(b => ButtonLabel(b, ps)));
+    }
+
+    private bool PollToggleKey()
+    {
+        var vk = config.ControllerToggleKey;
+        if (vk <= 0)
+        {
+            toggleKeyWasDown = false;
+            return false;
+        }
+        if (!IsGameForeground())
+        {
+            toggleKeyWasDown = false;
+            return false;
+        }
+
+        var down = IsOsKeyDown(vk);
+        var pressed = down && !toggleKeyWasDown;
+        toggleKeyWasDown = down;
+
+        if (!pressed || SuppressToggleKey)
+            return false;
+
+        var ctrl = IsOsKeyDown(VkControl);
+        var shift = IsOsKeyDown(VkShift);
+        var alt = IsOsKeyDown(VkMenu);
+        if (ctrl != config.ControllerToggleKeyCtrl
+            || shift != config.ControllerToggleKeyShift
+            || alt != config.ControllerToggleKeyAlt)
+            return false;
+
+        if (!Active
+            && !KeybindFormat.IsNonTypingKey(vk, ctrl, alt)
+            && (ImGui.GetIO().WantTextInput || IsGameTextInputActive()))
+            return false;
+
+        ConsumeGameKey((VirtualKey)vk);
+        return true;
+    }
+
+    internal static bool IsOsKeyDown(int vk)
+    {
+        if (vk <= 0)
+            return false;
+        if ((GetAsyncKeyState(vk) & 0x8000) != 0)
+            return true;
+        if (!PlatformInfo.Current.IsWine)
+            return false;
+        try
+        {
+            var key = (VirtualKey)vk;
+            return Plugin.KeyState.IsVirtualKeyValid(key) && Plugin.KeyState[key];
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsGameForeground()
+    {
+        var fg = GetForegroundWindow();
+        if (fg == 0)
+            return PlatformInfo.Current.IsWine;
+        _ = GetWindowThreadProcessId(fg, out var pid);
+        return pid == (uint)Environment.ProcessId;
+    }
+
+    private static unsafe bool IsGameTextInputActive()
+    {
+        try
+        {
+            var rapture = RaptureAtkModule.Instance();
+            return rapture != null && rapture->IsTextInputActive();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void ConsumeGameKey(VirtualKey vk)
+    {
+        if (vk == VirtualKey.NO_KEY)
+            return;
+        try
+        {
+            if (Plugin.KeyState.IsVirtualKeyValid(vk))
+            {
+                Plugin.KeyState[vk] = false;
+                Plugin.KeyState.SetRawValue(vk, 0);
+            }
+        }
+        catch
+        {
+            // Ignore keys outside FFXIV's SeVirtualKey map (e.g. F13-F24, mouse buttons).
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
 
     /// <summary>True on press, then again after a delay at a steady rate while held.</summary>
     private bool Repeat(string key, bool down, DateTime now)
@@ -639,8 +864,16 @@ public sealed class GamepadNavigator : IDisposable
     {
         var draw = ImGui.GetForegroundDrawList();
         var color = Rendering.Css.CssColor.ToAbgr(Rendering.Css.PopupTheme.Current.Accent with { W = 1 });
-        var y = stop.Max.Y + 2;
-        draw.AddLine(new Vector2(stop.Min.X, y), new Vector2(stop.Max.X, y), color, Math.Max(2f, (stop.Max.Y - stop.Min.Y) / 12f));
+        IReadOnlyList<(Vector2 Min, Vector2 Max)> segments = stop.Target < stopCells.Count
+            ? CursorMoves.SpanLineRects(stopCells[stop.Target], stop.Index, stop.EffectiveEnd)
+            : [(stop.Min, stop.Max)];
+        if (segments.Count == 0)
+            segments = [(stop.Min, stop.Max)];
+        foreach (var (min, max) in segments)
+        {
+            var y = max.Y + 2;
+            draw.AddLine(new Vector2(min.X, y), new Vector2(max.X, y), color, Math.Max(2f, (max.Y - min.Y) / 12f));
+        }
     }
 
     private static void DrawPointer(Vector2 pos)
@@ -662,13 +895,19 @@ public sealed class GamepadNavigator : IDisposable
             "LS cursor",
             "D-Pad " + (wordMode ? "word" : "char"),
         };
+        var popupAtLevel = popups.VisibleCount > level;
+        var waitingForScan = !config.ControllerAutoScan && !popupAtLevel;
+        if (waitingForScan && config.ControllerScanButton != GamepadButtons.None)
+            parts.Add($"{L(config.ControllerScanButton)} look up");
+
         if (popups.VisibleCount > 0)
         {
-            if (config.ControllerMineButton != GamepadButtons.None) parts.Add($"{L(config.ControllerMineButton)} mine");
+            var mineHiddenByScan = waitingForScan && config.ControllerMineButton == config.ControllerScanButton;
+            if (!mineHiddenByScan && config.ControllerMineButton != GamepadButtons.None) parts.Add($"{L(config.ControllerMineButton)} mine");
             if (config.ControllerAudioButton != GamepadButtons.None) parts.Add($"{L(config.ControllerAudioButton)} audio");
             if (config.ControllerPrevEntryButton != GamepadButtons.None || config.ControllerNextEntryButton != GamepadButtons.None)
                 parts.Add($"{L(config.ControllerPrevEntryButton)}/{L(config.ControllerNextEntryButton)} entry");
-            if (popups.VisibleCount > level && config.ControllerDiveButton != GamepadButtons.None)
+            if (popupAtLevel && config.ControllerDiveButton != GamepadButtons.None)
                 parts.Add($"{L(config.ControllerDiveButton)} inside");
         }
 
@@ -677,8 +916,23 @@ public sealed class GamepadNavigator : IDisposable
         if (config.ControllerWordModeButton != GamepadButtons.None)
             parts.Add($"{L(config.ControllerWordModeButton)} {(wordMode ? "chars" : "words")}");
         if (config.ControllerBackExitButton != GamepadButtons.None)
-            parts.Add($"{L(config.ControllerBackExitButton)} {(level > 0 ? "back" : "exit")}");
-        parts.Add($"{(ps ? "Select" : "Back")} exit");
+        {
+            var backLabel = !config.ControllerAutoScan && popupAtLevel
+                ? "close"
+                : level > 0 ? "back" : "exit";
+            parts.Add($"{L(config.ControllerBackExitButton)} {backLabel}");
+        }
+        if (config.ControllerHoldButton != GamepadButtons.None
+            && config.ControllerHoldButton != GamepadButtons.Select
+            && config.ControllerHoldButton != GamepadButtons.Start)
+        {
+            var prefix = config.ControllerTriggerMode == ControllerTriggerMode.Hold ? "Hold " : string.Empty;
+            parts.Add($"{prefix}{ButtonComboLabel(config.ControllerHoldButton, ps)} exit");
+        }
+        else
+        {
+            parts.Add($"{(ps ? "Select" : "Back")} exit");
+        }
         var text = (Notice is null ? string.Empty : Notice + "   ") + string.Join("   ", parts)
                    + (BlockingRefused ? "   WARNING: Dalamud is not blocking game input: enable plugin gamepad input in Dalamud's settings" : string.Empty);
 

@@ -424,8 +424,16 @@ internal static class StatsChecks
             Set("FollowHachidoriTheme", false);
             Set("HachidoriThemeOverride", "crystal");
             Set("CaptureScreenshot", false);
+            Set("NotifyOnAnkiMine", false);
             Set("GifFps", 20);
             Set("ControllerCursorSpeed", 1500f);
+            Set("ControllerAutoScan", false);
+            var gamepadButtonsType = cfgType.GetProperty("ControllerScanButton")!.PropertyType;
+            Set("ControllerScanButton", Enum.Parse(gamepadButtonsType, "R3"));
+            var triggerModeType = cfgType.GetProperty("ControllerTriggerMode")!.PropertyType;
+            Set("ControllerTriggerMode", Enum.Parse(triggerModeType, "Press"));
+            Set("ControllerToggleKey", 0x7C);
+            Set("ControllerToggleKeyCtrl", true);
             Set("ReaderFontSize", 40f);
             Set("CaptureChat", false);
             Set("PublishPort", 9001);
@@ -440,7 +448,7 @@ internal static class StatsChecks
                 "ResetThemeDefaults restores Theme settings without affecting Mining settings");
 
             Call("ResetMiningDefaults");
-            check(Get<bool>("CaptureScreenshot") && Get<int>("GifFps") == 12 && Get<float>("ControllerCursorSpeed") == 1500f,
+            check(Get<bool>("CaptureScreenshot") && Get<bool>("NotifyOnAnkiMine") && Get<int>("GifFps") == 12 && Get<float>("ControllerCursorSpeed") == 1500f,
                 "ResetMiningDefaults restores Mining settings without affecting Controller settings");
 
             Call("ResetControllerDefaults");
@@ -448,7 +456,11 @@ internal static class StatsChecks
             Call("ResetCaptureDefaults");
             Call("ResetPublishDefaults");
             Call("ResetConnectionDefaults");
-            check(Get<float>("ControllerCursorSpeed") == 900f && Get<float>("ReaderFontSize") == 26f
+            check(Get<float>("ControllerCursorSpeed") == 900f && Get<bool>("ControllerAutoScan")
+                  && Get<object>("ControllerScanButton").ToString() == "South"
+                  && Get<object>("ControllerTriggerMode").ToString() == "Hold"
+                  && Get<int>("ControllerToggleKey") == 0 && !Get<bool>("ControllerToggleKeyCtrl")
+                  && Get<float>("ReaderFontSize") == 26f
                   && Get<bool>("CaptureChat") && Get<int>("PublishPort") == 6677 && Get<int>("RelayPort") == 8771,
                 "all remaining per-tab ResetDefaults restore exact Configuration defaults");
         }

@@ -88,7 +88,8 @@ Read dialogue and UI windows with a gamepad. While active, the plugin captures c
 ### Entering & requirements
 
 - **Recommended:** Bind `/hachidori pad` to a cross-hotbar macro so FFXIV doesn't react to the activation press.
-- **Hold trigger:** Hold **Back / Select** (customizable under `/hachidori config` → **Controller**).
+- **Controller trigger:** Hold or press **Back / Select** (customizable button/combo and **Hold** vs **Press** style under `/hachidori config` → **Controller**). Using the same trigger again exits controller mode.
+- **Toggle keybind:** Optional single-press keyboard / extra-button bind (supports `F13`–`F24`, mouse 4/5, and modifier chords — ideal for controller back paddles or Steam Deck grip buttons).
 - **Dalamud setting:** Enable **"Enable plugin gamepad input"** in Dalamud settings so controller mode can block game input (the hint bar warns if off).
 
 ### Default controls
@@ -101,16 +102,16 @@ All action bindings and PlayStation/Xbox labels are customizable under **Control
 | **Touchpad** *(optional)* | Direct virtual cursor steering (DualSense / DualShock 4) |
 | **D-pad** | Step word by word (◀▶) and line by line (▲▼) |
 | **Right Stick** | Scroll popup |
-| **A / ✕** | Add entry to Anki |
+| **A / ✕** | Look up word *(when auto-scan is off)*, or add entry to Anki |
 | **X / □** | Play pronunciation audio |
 | **Y / △** | Toggle word / character mode |
 | **LT / L2** · **RT / R2** | Previous / next dictionary entry |
 | **RB / R1** | Dive into popup for nested lookups |
 | **LB / L1** | Cycle open UI windows (or back out of a nested popup) |
-| **B / ○** | Back out of nested popup, or leave mode |
+| **B / ○** | Close popup *(when auto-scan is off)*, back out of nested popup, or leave mode |
 | **Back / Start** | Leave mode |
 
-Exits automatically when dialogue closes (configurable).
+Turn off **Scan words automatically under the cursor** under **Controller** if you prefer moving the cursor freely and pressing a button (**A / ✕** by default, remappable) to open the popup. Exits automatically when dialogue closes (configurable).
 
 ---
 

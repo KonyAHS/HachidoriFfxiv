@@ -158,7 +158,31 @@ internal static class WebViewChecks
               && batchReply["type"]?.ToString() == "hd_anki_preflight_batch_result"
               && batchReply["replies"] is JsonArray batchReplies && batchReplies.Count == 2
               && batchReplies[0]?["state"]?.ToString() == "addable",
-            "bridge fans out hd_anki_preflight_batch into individual hd_anki_preflight calls");
+            "bridge delegates hd_anki_preflight_batch and returns replies in order");
+
+        // Stale preflight batch cancellation when a new lookup opens or popups close.
+        var slowStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var slowCancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        backend.OnPreflightBatch = async (_, token) =>
+        {
+            slowStarted.TrySetResult();
+            try { await Task.Delay(TimeSpan.FromSeconds(10), token); }
+            catch (OperationCanceledException) { slowCancelled.TrySetResult(true); throw; }
+            return [];
+        };
+        var cancelledBatchTask = bridge.HandleRpcAsync(new JsonObject
+        {
+            ["target"] = "hachidori-anki",
+            ["type"] = "hd_anki_preflight_batch",
+            ["requestId"] = "batch-stale",
+            ["requests"] = new JsonArray(new JsonObject { ["term"] = new JsonObject { ["expression"] = "焦り" } }),
+        });
+        await slowStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        bridge.CancelPendingPreflights();
+        var cancelledReply = await cancelledBatchTask.WaitAsync(TimeSpan.FromSeconds(2));
+        backend.OnPreflightBatch = null;
+        check(await slowCancelled.Task.WaitAsync(TimeSpan.FromSeconds(2)) && cancelledReply["ok"]?.GetValue<bool>() == false,
+            "bridge cancels superseded preflight batches immediately when a new lookup starts or popups close");
 
         // Screenshot capture -> Anki submit -> post-mine media attachment + stats recording.
         var shotReply = await bridge.HandleRpcAsync(new JsonObject
@@ -442,6 +466,17 @@ internal static class WebViewChecks
         public ScreenshotMedia? SubmittedScreenshot { get; private set; }
         public long AttachedNoteId { get; private set; }
         public long RecordedMinedNoteId { get; private set; }
+        public Func<IReadOnlyList<JsonObject>, CancellationToken, Task<JsonObject[]>>? OnPreflightBatch { get; set; }
+
+        public Task<JsonObject[]> PreflightAnkiBatchAsync(IReadOnlyList<JsonObject> requests, CancellationToken ct)
+        {
+            if (OnPreflightBatch is not null)
+                return OnPreflightBatch(requests, ct);
+            return Task.FromResult(requests.Select(_ => new JsonObject
+            {
+                ["ok"] = true, ["state"] = "addable", ["canAdd"] = true, ["screenshot"] = true, ["noteIds"] = new JsonArray(),
+            }).ToArray());
+        }
 
         public Task<ScreenshotMedia?> CaptureScreenshotAsync(CancellationToken ct) =>
             Task.FromResult<ScreenshotMedia?>(new ScreenshotMedia("tok-1", "ffxiv-shot.jpg", "AQID"));

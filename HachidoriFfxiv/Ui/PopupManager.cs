@@ -26,7 +26,7 @@ public sealed class PopupManager : IDisposable
     private readonly List<PopupLayer> layers = new();
     private PendingHit? frameHit;
     private DateTime ankiStatusAt = DateTime.MinValue;
-    private Task<HachidoriService.AnkiStatus>? ankiStatus;
+    private Task<AnkiStatus>? ankiStatus;
     private readonly System.Collections.Concurrent.ConcurrentQueue<(string Expression, string Reading)> pendingNpcCaptures = new();
     private RichBlock? webSourceBlock;
     private int webSourceIndex = -1;
@@ -77,6 +77,8 @@ public sealed class PopupManager : IDisposable
     public void CloseAll()
     {
         layers.Clear();
+        frameHit = null;
+        sustainDepth = -1;
         ClearWebSource();
         WebView?.CloseAll();
     }
@@ -189,6 +191,9 @@ public sealed class PopupManager : IDisposable
     /// <summary>Closes the deepest popup (controller "back").</summary>
     public void CloseFrom(int depth)
     {
+        if (frameHit is { } pending && pending.Depth >= depth)
+            frameHit = null;
+        sustainDepth = Math.Min(sustainDepth, depth - 1);
         if (UsingWebView)
         {
             if (depth <= 0) CloseAll();
@@ -206,7 +211,8 @@ public sealed class PopupManager : IDisposable
         if (hit is not { } h)
             return;
         // While the controller drives, a resting mouse must not fight its cursor.
-        if (ControllerActive && !forced && !MouseRecentlyMoved)
+        // When controller auto-scan is off, only explicit controller scans open popups.
+        if (ControllerActive && !forced && (!MouseRecentlyMoved || !config.ControllerAutoScan))
             return;
         int? tokenEnd = null;
         if (config.TokenizedHover && !bypassTokenize)
@@ -790,13 +796,11 @@ public sealed class PopupManager : IDisposable
 
         // Every visible result needs a working mining button, including later results.
         foreach (var entry in state.Entries)
-        {
             entry.OnAnkiClicked += (e, force) => _ = MineAsync(state, e, force);
-            _ = CheckAnkiAsync(state, entry);
-        }
+        _ = CheckAnkiBatchAsync(state);
     }
 
-    private Task<HachidoriService.AnkiStatus> AnkiStatus()
+    private Task<AnkiStatus> AnkiStatus()
     {
         if (ankiStatus is null || (DateTime.UtcNow - ankiStatusAt).TotalSeconds > 30 || ankiStatus.IsFaulted)
         {
@@ -805,6 +809,49 @@ public sealed class PopupManager : IDisposable
         }
 
         return ankiStatus;
+    }
+
+    private async Task CheckAnkiBatchAsync(LookupState state)
+    {
+        var entries = state.Entries;
+        if (entries.Count == 0)
+            return;
+        foreach (var entry in entries)
+            entry.Anki = AnkiState.Checking;
+
+        try
+        {
+            var status = await AnkiStatus().ConfigureAwait(false);
+            if (!status.Available)
+            {
+                var err = status.Error ?? "Anki mining is unavailable in Hachidori.";
+                foreach (var entry in entries)
+                {
+                    entry.Anki = AnkiState.Error;
+                    entry.AnkiMessage = err;
+                }
+                return;
+            }
+
+            var requests = new List<System.Text.Json.Nodes.JsonObject>(entries.Count);
+            foreach (var entry in entries)
+            {
+                entry.MiningRequest = service.BuildMiningRequest(state.Reply!, entry.Result, state.Context, status.ConfigKey);
+                requests.Add(entry.MiningRequest);
+            }
+
+            var decisions = await service.AnkiPreflightManyAsync(requests).ConfigureAwait(false);
+            for (var i = 0; i < entries.Count && i < decisions.Length; i++)
+                ApplyAnkiDecision(entries[i], decisions[i]);
+        }
+        catch (Exception ex)
+        {
+            foreach (var entry in entries)
+            {
+                entry.Anki = AnkiState.Error;
+                entry.AnkiMessage = ex.Message;
+            }
+        }
     }
 
     private async Task CheckAnkiAsync(LookupState state, EntryView entry)
@@ -822,22 +869,27 @@ public sealed class PopupManager : IDisposable
 
             entry.MiningRequest = service.BuildMiningRequest(state.Reply!, entry.Result, state.Context, status.ConfigKey);
             var decision = await service.AnkiPreflightAsync(entry.MiningRequest).ConfigureAwait(false);
-            entry.Decision = decision;
-            entry.Anki = decision.State switch
-            {
-                "duplicate" when !decision.CanAdd => AnkiState.Duplicate,
-                "duplicate" => AnkiState.Duplicate,
-                "invalid" or "error" => AnkiState.Error,
-                _ => decision.CanAdd ? AnkiState.Ready : AnkiState.Error,
-            };
-            if (entry.Anki == AnkiState.Error)
-                entry.AnkiMessage = decision.Error ?? "Anki rejected this note.";
+            ApplyAnkiDecision(entry, decision);
         }
         catch (Exception ex)
         {
             entry.Anki = AnkiState.Error;
             entry.AnkiMessage = ex.Message;
         }
+    }
+
+    private static void ApplyAnkiDecision(EntryView entry, AnkiDecision decision)
+    {
+        entry.Decision = decision;
+        entry.Anki = decision.State switch
+        {
+            "duplicate" when !decision.CanAdd => AnkiState.Duplicate,
+            "duplicate" => AnkiState.Duplicate,
+            "invalid" or "error" => AnkiState.Error,
+            _ => decision.CanAdd ? AnkiState.Ready : AnkiState.Error,
+        };
+        if (entry.Anki == AnkiState.Error)
+            entry.AnkiMessage = decision.Error ?? "Anki rejected this note.";
     }
 
     private async Task MineAsync(LookupState state, EntryView entry, bool force)
@@ -906,6 +958,8 @@ public sealed class PopupManager : IDisposable
                 }
                 entry.Anki = AnkiState.Added;
                 RecordMinedStats(noteId, entry.Result, state.Context, screenshot is not null, attachedText);
+                var expr = entry.Result.Term.Expression.Length > 0 ? entry.Result.Term.Expression : entry.Result.Matched;
+                Plugin.NotifyAnkiCardCreated(config, expr, entry.Result.Term.Reading, updated: result.State == "updated");
             }
             else if (result.State == "duplicate")
             {

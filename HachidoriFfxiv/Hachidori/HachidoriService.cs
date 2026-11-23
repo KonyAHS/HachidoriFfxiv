@@ -44,8 +44,8 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
             Offline = new OfflineMode(config, Link, offlineRoot, libraryDirectory);
             Offline.Changed += ClearCache;
             local = new LocalBackend(Offline, http, () => Options);
-            offlineAnki = new Anki.OfflineAnkiMiner(() => Snapshot, Offline.Loaded, http);
         }
+        offlineAnki = new Anki.OfflineAnkiMiner(() => Snapshot, () => Offline is { Ready: true } o ? o.Loaded() : null, http);
     }
 
     public HachidoriLink Link { get; }
@@ -104,6 +104,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         cache.Clear();
         segmentCache.Clear();
         audioCache.Clear();
+        offlineAnki?.InvalidateCache();
         while (cacheOrder.TryDequeue(out _))
         {
         }
@@ -238,8 +239,6 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     // -------------------------------------------------------------------- Anki
 
-    public sealed record AnkiStatus(bool Available, string? ConfigKey, string? Error);
-
     public async Task<AnkiStatus> AnkiStatusAsync()
     {
         // Offline, the plugin renders the note from the saved Template and writes it through AnkiConnect.
@@ -303,13 +302,59 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     private static string? NullIfBlank(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
-    public async Task<AnkiDecision> AnkiPreflightAsync(JsonObject request)
+    public bool IsLocalRelayHost
     {
+        get
+        {
+            var host = (config.RelayHost ?? string.Empty).Trim();
+            return host.Length == 0
+                || host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                || host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                || host.Equals("::1", StringComparison.OrdinalIgnoreCase)
+                || host.Equals("[::1]", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    public string TemplateDuplicateBehavior(string? templateId = null) =>
+        offlineAnki?.DuplicateBehaviorFor(NullIfBlank(templateId ?? config.AnkiTemplateId)) ?? string.Empty;
+
+    public async Task<AnkiDecision> AnkiPreflightAsync(JsonObject request, CancellationToken ct = default) =>
+        (await AnkiPreflightManyAsync([request], ct).ConfigureAwait(false))[0];
+
+    public async Task<AnkiDecision[]> AnkiPreflightManyAsync(IReadOnlyList<JsonObject> requests, CancellationToken ct = default)
+    {
+        if (requests.Count == 0)
+            return [];
+
         if (UsingOffline && offlineAnki is not null)
-            return await offlineAnki.PreflightAsync(request).ConfigureAwait(false);
-        var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_preflight", new JsonObject { ["request"] = request.DeepClone() })
-            .ConfigureAwait(false);
-        return ParseDecision(reply);
+            return await offlineAnki.PreflightManyAsync(requests, ct).ConfigureAwait(false);
+
+        if (IsLocalRelayHost && offlineAnki is not null)
+        {
+            var fast = await offlineAnki.TryLivePreflightManyAsync(requests, ct).ConfigureAwait(false);
+            if (fast is not null)
+                return fast;
+        }
+
+        // Fallback: live host (remote relay, overwrite mode, cross-model "all" scope, profiles, etc.).
+        var tasks = requests.Select(async req =>
+        {
+            try
+            {
+                var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_preflight", new JsonObject { ["request"] = req.DeepClone() }, ct)
+                    .ConfigureAwait(false);
+                return ParseDecision(reply);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return new AnkiDecision { State = "error", CanAdd = false, Error = ex.Message };
+            }
+        }).ToArray();
+        return await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     public async Task<AnkiDecision> AnkiSubmitAsync(JsonObject request, Media.ScreenshotMedia? screenshot = null)

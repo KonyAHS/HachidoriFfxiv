@@ -126,16 +126,23 @@ public sealed class Configuration : IPluginConfiguration
     public bool PublishChat { get; set; } = false;
     public bool PublishSpeaker { get; set; } = false;
 
-    // Controller reading mode (/hachidori pad, or hold a button).
+    // Controller reading mode (/hachidori pad, controller trigger, or keybind).
     public bool ControllerEnabled { get; set; } = true;
     public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerHoldButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.Select;
+    public Ui.ControllerTriggerMode ControllerTriggerMode { get; set; } = Ui.ControllerTriggerMode.Hold;
     public float ControllerHoldSeconds { get; set; } = 0.6f;
+    public int ControllerToggleKey { get; set; } = 0;
+    public bool ControllerToggleKeyCtrl { get; set; } = false;
+    public bool ControllerToggleKeyShift { get; set; } = false;
+    public bool ControllerToggleKeyAlt { get; set; } = false;
     public bool ControllerStartInWordMode { get; set; } = true;
+    public bool ControllerAutoScan { get; set; } = true;
     public bool ControllerExitWhenDialogueCloses { get; set; } = true;
     public bool ControllerShowHints { get; set; } = true;
     public bool ControllerPlayStationLabels { get; set; } = false;
     public bool ControllerUseTouchpad { get; set; } = false;
     public float ControllerCursorSpeed { get; set; } = 900f;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerScanButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.South;
     public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerMineButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.South;
     public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerAudioButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.West;
     public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerWordModeButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.North;
@@ -150,6 +157,7 @@ public sealed class Configuration : IPluginConfiguration
     public bool QuickGuideDismissed { get; set; } = false;
 
     // Card media from the game (replaces GSM): screenshot, voice line or TTS, GIF.
+    public bool NotifyOnAnkiMine { get; set; } = true;
     public bool CaptureScreenshot { get; set; } = true;
     public int ScreenshotMaxWidth { get; set; } = 1600;
     public float ScreenshotQuality { get; set; } = 0.85f;
@@ -289,6 +297,7 @@ public sealed class Configuration : IPluginConfiguration
     public void ResetMiningDefaults()
     {
         var d = new Configuration();
+        NotifyOnAnkiMine = d.NotifyOnAnkiMine;
         CaptureScreenshot = d.CaptureScreenshot;
         ScreenshotMaxWidth = d.ScreenshotMaxWidth;
         ScreenshotQuality = d.ScreenshotQuality;
@@ -337,13 +346,20 @@ public sealed class Configuration : IPluginConfiguration
         var d = new Configuration();
         ControllerEnabled = d.ControllerEnabled;
         ControllerHoldButton = d.ControllerHoldButton;
+        ControllerTriggerMode = d.ControllerTriggerMode;
         ControllerHoldSeconds = d.ControllerHoldSeconds;
+        ControllerToggleKey = d.ControllerToggleKey;
+        ControllerToggleKeyCtrl = d.ControllerToggleKeyCtrl;
+        ControllerToggleKeyShift = d.ControllerToggleKeyShift;
+        ControllerToggleKeyAlt = d.ControllerToggleKeyAlt;
         ControllerStartInWordMode = d.ControllerStartInWordMode;
+        ControllerAutoScan = d.ControllerAutoScan;
         ControllerExitWhenDialogueCloses = d.ControllerExitWhenDialogueCloses;
         ControllerShowHints = d.ControllerShowHints;
         ControllerPlayStationLabels = d.ControllerPlayStationLabels;
         ControllerUseTouchpad = d.ControllerUseTouchpad;
         ControllerCursorSpeed = d.ControllerCursorSpeed;
+        ControllerScanButton = d.ControllerScanButton;
         ControllerMineButton = d.ControllerMineButton;
         ControllerAudioButton = d.ControllerAudioButton;
         ControllerWordModeButton = d.ControllerWordModeButton;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -84,12 +85,15 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
 
     public void RecordMinedCard(long noteId, JsonObject miningRequest, string sentence, bool hasScreenshot)
     {
+        var parsed = LookupResult.Parse((JsonObject)miningRequest.DeepClone());
+        var expr = parsed.Term.Expression.Length > 0 ? parsed.Term.Expression : parsed.Matched;
+        Plugin.NotifyAnkiCardCreated(config, expr, parsed.Term.Reading);
         if (getStats() is not { } stats) return;
         var media = getMedia();
         var hasAudio = media is not null && (config.RecordVoiceLines || media.Tts.Enabled);
         var hasAnimation = media is not null && config.CaptureGif;
         var hasTranslation = media is not null && config.TranslationEnabled;
-        stats.RecordMinedCard(noteId, LookupResult.Parse((JsonObject)miningRequest.DeepClone()), sentence, string.Empty,
+        stats.RecordMinedCard(noteId, parsed, sentence, string.Empty,
             hasScreenshot, hasAudio, hasAnimation, hasTranslation);
     }
 
@@ -106,6 +110,24 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
         return raw as JsonObject ?? new JsonObject { ["ok"] = true };
     }
 
+    public async Task<JsonObject[]> PreflightAnkiBatchAsync(IReadOnlyList<JsonObject> requests, CancellationToken ct)
+    {
+        if (requests.Count == 0)
+            return [];
+
+        var prepared = new List<JsonObject>(requests.Count);
+        foreach (var req in requests)
+        {
+            var copy = (JsonObject)req.DeepClone();
+            if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId) && string.IsNullOrEmpty(copy["templateId"]?.ToString()))
+                copy["templateId"] = config.AnkiTemplateId;
+            prepared.Add(copy);
+        }
+
+        var decisions = await service.AnkiPreflightManyAsync(prepared, ct).ConfigureAwait(false);
+        return decisions.Select(DecisionToJson).ToArray();
+    }
+
     public Task<JsonObject> SendRuntimeMessageAsync(string target, string type, JsonObject message, CancellationToken ct) =>
         service.UsingOffline
             ? HandleOfflineAsync(target, type, message, ct)
@@ -118,12 +140,40 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
         payload.Remove("type");
         payload.Remove("requestId");
 
-        if (target == "hachidori-anki" && !string.IsNullOrWhiteSpace(config.AnkiTemplateId))
+        if (target == "hachidori-anki")
         {
-            if (type == "hd_anki_status" && string.IsNullOrEmpty(payload["templateId"]?.ToString()))
-                payload["templateId"] = config.AnkiTemplateId;
-            if (payload["request"] is JsonObject req && string.IsNullOrEmpty(req["templateId"]?.ToString()))
-                req["templateId"] = config.AnkiTemplateId;
+            if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId))
+            {
+                if (type == "hd_anki_status" && string.IsNullOrEmpty(payload["templateId"]?.ToString()))
+                    payload["templateId"] = config.AnkiTemplateId;
+                if (payload["request"] is JsonObject req && string.IsNullOrEmpty(req["templateId"]?.ToString()))
+                    req["templateId"] = config.AnkiTemplateId;
+            }
+
+            // Hachidori's hd_anki_view only returns a cached duplicate when duplicateBehavior == "prevent".
+            // Short-circuiting other modes avoids N sequential WebSocket round trips on every popup open.
+            if (type == "hd_anki_view")
+            {
+                var tid = payload["request"]?["templateId"]?.ToString();
+                var behavior = service.TemplateDuplicateBehavior(tid);
+                if (behavior.Length > 0 && !string.Equals(behavior, "prevent", StringComparison.Ordinal))
+                {
+                    return new JsonObject
+                    {
+                        ["ok"] = true,
+                        ["state"] = "unknown",
+                        ["canAdd"] = false,
+                        ["noteIds"] = new JsonArray(),
+                        ["cached"] = false,
+                    };
+                }
+            }
+
+            if (type == "hd_anki_preflight" && payload["request"] is JsonObject singleReq)
+            {
+                var decision = await service.AnkiPreflightAsync(singleReq, ct).ConfigureAwait(false);
+                return DecisionToJson(decision);
+            }
         }
 
         var raw = await service.Link.RequestAsync(target, type, payload, ct).ConfigureAwait(false);

@@ -1,4 +1,5 @@
 using Dalamud.Game.Command;
+using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -30,6 +31,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IGamepadState Gamepad { get; private set; } = null!;
     [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
+    [PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
 
     private readonly WindowSystem windows = new("HachidoriFfxiv");
     private readonly Configuration config;
@@ -111,7 +113,8 @@ public sealed class Plugin : IDalamudPlugin
             openReader: () => { reader.Pinned = true; config.ReaderEnabled = true; reader.IsOpen = true; config.Save(); },
             openPictures: popups.NpcImages.Open,
             webView: webView,
-            triggerFreezeFrame: freezeFrame.Toggle);
+            triggerFreezeFrame: freezeFrame.Toggle,
+            gamepad: gamepad);
         windows.AddWindow(reader);
         windows.AddWindow(search);
         windows.AddWindow(statsWindow);
@@ -163,6 +166,34 @@ public sealed class Plugin : IDalamudPlugin
         if (!config.TokenizedHover) return;
         foreach (var line in lines)
             _ = service.SegmentAsync(line);
+    }
+
+    internal static void NotifyAnkiCardCreated(Configuration config, string expression, string reading, bool updated = false)
+    {
+        if (!config.NotifyOnAnkiMine || NotificationManager is null)
+            return;
+        var word = string.IsNullOrWhiteSpace(expression)
+            ? "Card saved"
+            : !string.IsNullOrWhiteSpace(reading) && !string.Equals(reading, expression, System.StringComparison.Ordinal)
+                ? $"{expression} ({reading})"
+                : expression;
+        var title = updated ? "Anki card updated" : "Anki card created";
+        try
+        {
+            NotificationManager.AddNotification(new Notification
+            {
+                Title = title,
+                Content = word,
+                MinimizedText = $"{title}: {word}",
+                Type = NotificationType.Success,
+                InitialDuration = System.TimeSpan.FromSeconds(3),
+                RespectUiHidden = false,
+            });
+        }
+        catch (System.Exception ex)
+        {
+            DiagnosticLog.Write("anki", $"Notification skipped: {ex.Message}");
+        }
     }
 
     private void Draw()

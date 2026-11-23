@@ -102,6 +102,7 @@ public sealed class ConfigWindow : Window
     private readonly Action? openPictures;
     private readonly WebViewPopupController? webView;
     private readonly Action? triggerFreezeFrame;
+    private readonly GamepadNavigator? gamepad;
     private readonly List<SettingEntry> catalog = new();
 
     private string searchQuery = string.Empty;
@@ -119,6 +120,8 @@ public sealed class ConfigWindow : Window
     private bool customPublishPort;
     private bool ankiConnectedHint;
     private bool firstDraw = true;
+    private bool recordingControllerKey;
+    private readonly bool[] recorderPrevKeys = new bool[256];
 
     public ConfigWindow(
         Configuration config,
@@ -134,7 +137,8 @@ public sealed class ConfigWindow : Window
         Action? openReader = null,
         Action? openPictures = null,
         WebViewPopupController? webView = null,
-        Action? triggerFreezeFrame = null)
+        Action? triggerFreezeFrame = null,
+        GamepadNavigator? gamepad = null)
         : base("Hachidori Settings##hachidori-ffxiv-config")
     {
         this.config = config;
@@ -151,6 +155,7 @@ public sealed class ConfigWindow : Window
         this.openPictures = openPictures;
         this.webView = webView;
         this.triggerFreezeFrame = triggerFreezeFrame;
+        this.gamepad = gamepad;
 
         Size = new Vector2(660, 620);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -166,6 +171,13 @@ public sealed class ConfigWindow : Window
     private const string ReaderTab = "Reader & Text";
 
     private bool Advanced => config.AdvancedSettings;
+
+    public override void OnClose()
+    {
+        recordingControllerKey = false;
+        if (gamepad is not null)
+            gamepad.SuppressToggleKey = false;
+    }
 
     public override void Draw()
     {
@@ -768,6 +780,7 @@ public sealed class ConfigWindow : Window
     private void DrawMiningTab()
     {
         ImGui.TextDisabled("What gets added to cards you mine with + in a popup.");
+        DrawAnkiNotifyToggleControl();
 
         if (Section("mining-visuals", "Screenshots & Animation", defaultOpen: true))
         {
@@ -1068,11 +1081,23 @@ public sealed class ConfigWindow : Window
 
             DrawControllerHoldButtonControl();
             if (config.ControllerHoldButton != GamepadButtons.None)
-                DrawControllerHoldSecondsControl();
+            {
+                DrawControllerTriggerModeControl();
+                if (config.ControllerTriggerMode == ControllerTriggerMode.Hold)
+                    DrawControllerHoldSecondsControl();
+            }
+            DrawControllerToggleKeyControl();
         }
 
         if (Section("ctrl-behavior", "Behavior & Display", defaultOpen: true))
         {
+            Checkbox("Scan words automatically under the cursor", () => config.ControllerAutoScan, v => config.ControllerAutoScan = v);
+            HelpMarker("When off, move the cursor freely without popping up definitions, then press the Look up button to open a popup.");
+            if (!config.ControllerAutoScan)
+            {
+                using var indent = ImRaii.PushIndent();
+                DrawControllerScanButtonControl();
+            }
             Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v);
             Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
             Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
@@ -1085,6 +1110,7 @@ public sealed class ConfigWindow : Window
 
         if (Advanced && Section("ctrl-binds", "Button Bindings", defaultOpen: false))
         {
+            using var bindsId = ImRaii.PushId("ctrl-binds");
             var bindLabels = BindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
             void BindCombo(string label, Func<GamepadButtons> get, Action<GamepadButtons> set)
             {
@@ -1096,6 +1122,7 @@ public sealed class ConfigWindow : Window
                 }
             }
 
+            BindCombo("Look up word (when auto-scan is off)", () => config.ControllerScanButton, v => config.ControllerScanButton = v);
             BindCombo("Mine to Anki", () => config.ControllerMineButton, v => config.ControllerMineButton = v);
             BindCombo("Play audio", () => config.ControllerAudioButton, v => config.ControllerAudioButton = v);
             BindCombo("Word / char mode", () => config.ControllerWordModeButton, v => config.ControllerWordModeButton = v);
@@ -1108,6 +1135,7 @@ public sealed class ConfigWindow : Window
             if (ImGui.SmallButton("Reset keybinds only"))
             {
                 config.ControllerCursorSpeed = Defaults.ControllerCursorSpeed;
+                config.ControllerScanButton = Defaults.ControllerScanButton;
                 config.ControllerMineButton = Defaults.ControllerMineButton;
                 config.ControllerAudioButton = Defaults.ControllerAudioButton;
                 config.ControllerWordModeButton = Defaults.ControllerWordModeButton;
@@ -1123,20 +1151,32 @@ public sealed class ConfigWindow : Window
         if (Section("ctrl-ref", "Controls Reference", defaultOpen: false))
         {
             string L(GamepadButtons b) => GamepadNavigator.ButtonLabel(b, ps);
-            foreach (var (keys, action) in new[]
+            var rows = new List<(string Keys, string Action)>
             {
                 ("Left stick", "move virtual cursor over any UI or dialogue text"),
                 ("D-pad", "previous / next word and line"),
                 ("Right stick", "scroll the popup"),
-                (L(config.ControllerMineButton), "add the selected entry to Anki"),
-                (L(config.ControllerAudioButton), "play its pronunciation"),
-                ($"{L(config.ControllerPrevEntryButton)} / {L(config.ControllerNextEntryButton)}", "previous / next dictionary entry"),
-                (L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"),
-                (L(config.ControllerWindowButton), "cycle between open UI windows (or back out of a nested popup)"),
-                (L(config.ControllerWordModeButton), "switch between words and characters"),
-                (L(config.ControllerBackExitButton), "back out of a nested popup, or leave the mode"),
-                (ps ? "Select / Options" : "Back / Start", "leave the mode"),
-            })
+            };
+            if (!config.ControllerAutoScan)
+                rows.Add((L(config.ControllerScanButton), "look up the word under the cursor"));
+            rows.Add((L(config.ControllerMineButton), "add the selected entry to Anki"));
+            rows.Add((L(config.ControllerAudioButton), "play its pronunciation"));
+            rows.Add(($"{L(config.ControllerPrevEntryButton)} / {L(config.ControllerNextEntryButton)}", "previous / next dictionary entry"));
+            rows.Add((L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"));
+            rows.Add((L(config.ControllerWindowButton), "cycle between open UI windows (or back out of a nested popup)"));
+            rows.Add((L(config.ControllerWordModeButton), "switch between words and characters"));
+            rows.Add((L(config.ControllerBackExitButton), config.ControllerAutoScan
+                ? "back out of a nested popup, or leave the mode"
+                : "close the popup, back out of a nested popup, or leave the mode"));
+            if (config.ControllerHoldButton != GamepadButtons.None)
+            {
+                var trigLabel = GamepadNavigator.ButtonComboLabel(config.ControllerHoldButton, ps);
+                rows.Add((config.ControllerTriggerMode == ControllerTriggerMode.Hold ? $"Hold {trigLabel}" : trigLabel, "enter or leave the mode"));
+            }
+            if (config.ControllerToggleKey > 0)
+                rows.Add((KeybindFormat.Format(config.ControllerToggleKey, config.ControllerToggleKeyCtrl, config.ControllerToggleKeyShift, config.ControllerToggleKeyAlt), "enter or leave the mode"));
+            rows.Add((ps ? "Select / Options" : "Back / Start", "leave the mode"));
+            foreach (var (keys, action) in rows)
                 ImGui.BulletText($"{keys}: {action}");
         }
     }
@@ -1761,6 +1801,12 @@ public sealed class ConfigWindow : Window
         }
     }
 
+    private void DrawAnkiNotifyToggleControl()
+    {
+        Toggle("Show notification when a card is created", config.NotifyOnAnkiMine, v => config.NotifyOnAnkiMine = v);
+        HelpMarker("Shows a small Dalamud toast notification whenever a card is added to Anki.");
+    }
+
     private void DrawScreenshotToggleControl()
     {
         Toggle("Screenshot", config.CaptureScreenshot, v => config.CaptureScreenshot = v);
@@ -1990,19 +2036,123 @@ public sealed class ConfigWindow : Window
         };
         var index = Math.Max(0, Array.IndexOf(HoldChoices, config.ControllerHoldButton));
         var labels = HoldChoices.Select(Name).ToArray();
-        if (ImGui.Combo("Hold button to enter", ref index, labels, labels.Length))
+        if (ImGui.Combo("Controller trigger", ref index, labels, labels.Length))
         {
             config.ControllerHoldButton = HoldChoices[index];
             config.Save();
         }
-        HelpMarker("Holding the button enters the mode. FFXIV still sees that press, so pick a button whose game action you don't mind, or use the macro.");
+        HelpMarker("Button or combo that enters and exits controller mode. FFXIV still sees that press when entering, so pick a button whose game action you don't mind, or use the macro or a keybind.");
+    }
+
+    private void DrawControllerTriggerModeControl()
+    {
+        var modes = new[] { "Hold to toggle", "Press to toggle" };
+        var mode = (int)config.ControllerTriggerMode;
+        if (ImGui.Combo("Trigger style", ref mode, modes, modes.Length))
+        {
+            config.ControllerTriggerMode = (ControllerTriggerMode)mode;
+            config.Save();
+        }
+        HelpMarker("Hold avoids conflicting with normal game actions; Press toggles immediately (useful for unused or extra controller buttons). Using the same trigger again exits controller mode.");
     }
 
     private void DrawControllerHoldSecondsControl() =>
         NumberFloat("Hold for (s)", () => config.ControllerHoldSeconds, v => config.ControllerHoldSeconds = v, 0.2f, 1.5f, Defaults.ControllerHoldSeconds, "%.1f", "s", deferSave: config.Save);
 
+    private void DrawControllerToggleKeyControl()
+    {
+        if (recordingControllerKey)
+            PollControllerKeyRecorder();
+
+        var scale = ImGuiHelpers.GlobalScale;
+        var label = recordingControllerKey
+            ? "Press any key… (Esc cancels)"
+            : config.ControllerToggleKey > 0
+                ? KeybindFormat.Format(config.ControllerToggleKey, config.ControllerToggleKeyCtrl, config.ControllerToggleKeyShift, config.ControllerToggleKeyAlt)
+                : "None (click to bind)";
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted("Toggle keybind");
+        ImGui.SameLine(0, 8 * scale);
+        using (var col = recordingControllerKey ? ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.68f, 0.45f, 0.14f, 0.95f)) : null)
+        {
+            if (ImGui.Button($"{label}##ctrl-toggle-key", new Vector2(210 * scale, 0)))
+            {
+                recordingControllerKey = !recordingControllerKey;
+                if (gamepad is not null)
+                    gamepad.SuppressToggleKey = recordingControllerKey;
+                if (recordingControllerKey)
+                    SnapshotRecorderKeys();
+            }
+        }
+        if (config.ControllerToggleKey > 0 && !recordingControllerKey)
+        {
+            ImGui.SameLine(0, 6 * scale);
+            if (ImGui.SmallButton("Clear##ctrl-toggle-key-clear"))
+            {
+                config.ControllerToggleKey = 0;
+                config.ControllerToggleKeyCtrl = false;
+                config.ControllerToggleKeyShift = false;
+                config.ControllerToggleKeyAlt = false;
+                config.Save();
+            }
+        }
+        HelpMarker("Optional single-press keyboard or extra-button keybind to toggle controller mode on/off. Great for controller back paddles or Steam Deck grip buttons mapped to a key like F13–F24 or Mouse 4/5.");
+    }
+
+    private void SnapshotRecorderKeys()
+    {
+        for (var vk = 0x04; vk < 0xFF; vk++)
+            recorderPrevKeys[vk] = GamepadNavigator.IsOsKeyDown(vk);
+    }
+
+    private void PollControllerKeyRecorder()
+    {
+        for (var vk = 0x04; vk < 0xFF; vk++)
+        {
+            var down = GamepadNavigator.IsOsKeyDown(vk);
+            var newlyPressed = down && !recorderPrevKeys[vk];
+            recorderPrevKeys[vk] = down;
+            if (!newlyPressed)
+                continue;
+            // Skip modifier-only keys; they are captured as chord flags with the primary key.
+            if (vk is 0x10 or 0x11 or 0x12 or 0x5B or 0x5C or >= 0xA0 and <= 0xA5)
+                continue;
+
+            recordingControllerKey = false;
+            if (gamepad is not null)
+                gamepad.SuppressToggleKey = false;
+
+            if (vk == 0x1B) // Escape cancels
+                return;
+
+            config.ControllerToggleKey = vk;
+            config.ControllerToggleKeyCtrl = GamepadNavigator.IsOsKeyDown(0x11);
+            config.ControllerToggleKeyShift = GamepadNavigator.IsOsKeyDown(0x10);
+            config.ControllerToggleKeyAlt = GamepadNavigator.IsOsKeyDown(0x12);
+            config.Save();
+            gamepad?.NotifyToggleKeyBound();
+            return;
+        }
+    }
+
     private void DrawControllerCursorSpeedControl() =>
         NumberFloat("Left stick cursor speed", () => config.ControllerCursorSpeed, v => config.ControllerCursorSpeed = v, 300f, 2000f, Defaults.ControllerCursorSpeed, "%.0f", "px/s", deferSave: config.Save);
+
+    private void DrawControllerScanButtonControl()
+    {
+        var ps = config.ControllerPlayStationLabels;
+        var labels = BindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
+        var idx = Math.Max(0, Array.IndexOf(BindChoices, config.ControllerScanButton));
+        if (ImGui.Combo("Look up button", ref idx, labels, labels.Length))
+        {
+            config.ControllerScanButton = BindChoices[idx];
+            config.Save();
+        }
+        HelpMarker("Button to open the popup for the word under the cursor when auto-scan is off. Can share a button with Mine (opens the popup first, then mines once open).");
+        if (!config.ControllerAutoScan && config.ControllerScanButton == GamepadButtons.None)
+            ImGui.TextColored(AccentAmber, "Pick a button so you can open popups.");
+    }
 
     private void DrawReaderAnchorControl()
     {
@@ -2142,6 +2292,7 @@ public sealed class ConfigWindow : Window
         Add("Popup", "Appearance", "Custom Hachidori extension folder", "webview bundle unpacked extension path", true, DrawWebViewBundlePathControl);
 
         // Mining
+        Add("Mining", "Notifications", "Show notification when a card is created", "anki notification toast popup card created mined", false, DrawAnkiNotifyToggleControl);
         Add("Mining", "Screenshots & Animation", "Screenshot", "picture image capture anki", false, DrawScreenshotToggleControl);
         Add("Mining", "Screenshots & Animation", "Screenshot max width", "resolution size px", true, DrawScreenshotMaxWidthControl);
         Add("Mining", "Screenshots & Animation", "Screenshot JPEG quality", "compression image", true, DrawScreenshotQualityControl);
@@ -2184,8 +2335,13 @@ public sealed class ConfigWindow : Window
         // Controller
         Add("Controller", "Activation", "Controller reading mode", "gamepad pad xbox playstation dualsense", false,
             () => Toggle("Controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v));
-        Add("Controller", "Activation", "Hold button to enter", "select start l3 r3 trigger", false, DrawControllerHoldButtonControl);
+        Add("Controller", "Activation", "Controller trigger", "select start l3 r3 trigger hold press toggle", false, DrawControllerHoldButtonControl);
+        Add("Controller", "Activation", "Trigger style (hold / press)", "hold press instant toggle extra button paddle", false, DrawControllerTriggerModeControl);
         Add("Controller", "Activation", "Hold for (s)", "duration seconds hold", false, DrawControllerHoldSecondsControl);
+        Add("Controller", "Activation", "Toggle keybind", "keyboard hotkey keybind press f13 paddle extra button controller", false, DrawControllerToggleKeyControl);
+        Add("Controller", "Behavior & Display", "Scan words automatically under the cursor", "auto scan manual button press popup lookup immediately", false,
+            () => Checkbox("Scan words automatically under the cursor", () => config.ControllerAutoScan, v => config.ControllerAutoScan = v));
+        Add("Controller", "Behavior & Display", "Look up button", "manual scan button press lookup popup controller", false, DrawControllerScanButtonControl);
         Add("Controller", "Behavior & Display", "Start in word mode", "word character snap", false,
             () => Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v));
         Add("Controller", "Behavior & Display", "Leave mode when dialogue closes", "auto exit talk", false,

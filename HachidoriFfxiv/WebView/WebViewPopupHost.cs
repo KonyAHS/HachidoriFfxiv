@@ -320,6 +320,7 @@ public sealed class WebViewPopupHost : IDisposable
     public void ShowLookup(string sentence, int charIndex, Vector2 anchorMin, Vector2 anchorMax, string documentTitle, int tokenLength = 1)
     {
         if (!IsReady) return;
+        bridge.CancelPendingPreflights();
         // Wake the overlay HWND immediately so Chromium's document.visibilityState is visible while laying out the popup.
         Interlocked.Exchange(ref lookupPendingUntilUtcTicks, DateTime.UtcNow.AddMilliseconds(750).Ticks);
         if (!headless)
@@ -355,6 +356,7 @@ public sealed class WebViewPopupHost : IDisposable
 
     public void CloseAll()
     {
+        bridge.CancelPendingPreflights();
         Interlocked.Exchange(ref lookupPendingUntilUtcTicks, 0);
         if (!IsReady) return;
         PostJson(new JsonObject { ["kind"] = "closeAll" });
