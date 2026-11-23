@@ -88,9 +88,14 @@ public static class AnimationEncoder
     {
         var width = frames[0].Width & ~1;
         var height = frames[0].Height & ~1;
-        var output = Path.Combine(Path.GetTempPath(), $"hachidori-ffxiv-{Guid.NewGuid():N}.{container}");
+        var tempDir = Path.GetTempPath();
+        var fileName = $"hachidori-ffxiv-{Guid.NewGuid():N}.{container}";
+        var output = Path.Combine(tempDir, fileName);
         var start = new ProcessStartInfo(ffmpeg)
         {
+            // Run in tempDir with a bare output filename so native Linux/macOS FFmpeg binaries invoked
+            // under Wine/Proton write directly to the translated temp folder without Windows drive-letter issues.
+            WorkingDirectory = tempDir,
             RedirectStandardInput = true,
             RedirectStandardError = true,
             RedirectStandardOutput = true,
@@ -102,7 +107,7 @@ public static class AnimationEncoder
             "-hide_banner", "-loglevel", "error", "-y",
             "-f", "rawvideo", "-pix_fmt", "rgba", "-s", $"{width}x{height}", "-framerate", fps.ToString(), "-i", "-",
             .. codec,
-            "-pix_fmt", "yuv420p", "-loop", "0", "-f", container, output,
+            "-pix_fmt", "yuv420p", "-loop", "0", "-f", container, fileName,
         ];
         foreach (var arg in arguments)
             start.ArgumentList.Add(arg);
@@ -174,6 +179,21 @@ public static class Ffmpeg
         return webpOnly;
     }
 
+    /// <summary>The first existing FFmpeg binary (even without AV1/WebP encoders), e.g. for audio fallback.</summary>
+    public static string? FindAny(string configured = "")
+    {
+        foreach (var candidate in Candidates(configured))
+        {
+            try
+            {
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+            catch { /* ignore invalid paths */ }
+        }
+        return null;
+    }
+
     private static IEnumerable<string> Candidates(string configured)
     {
         if (configured.Trim().Length > 0)
@@ -183,18 +203,44 @@ public static class Ffmpeg
         }
 
         foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            yield return Path.Combine(dir.Trim('"'), "ffmpeg.exe");
+        {
+            var clean = dir.Trim('"');
+            if (clean.Length == 0) continue;
+            yield return Path.Combine(clean, "ffmpeg.exe");
+            if (PlatformInfo.Current.IsWine)
+                yield return Path.Combine(clean, "ffmpeg");
+        }
+
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        yield return Path.Combine(appData, "GameSentenceMiner", "ffmpeg", "ffmpeg.exe");
-        var winget = Path.Combine(local, "Microsoft", "WinGet", "Packages");
-        if (Directory.Exists(winget))
+        if (appData.Length > 0)
+            yield return Path.Combine(appData, "GameSentenceMiner", "ffmpeg", "ffmpeg.exe");
+        if (local.Length > 0)
         {
-            foreach (var package in Directory.EnumerateDirectories(winget, "*FFmpeg*"))
+            var winget = Path.Combine(local, "Microsoft", "WinGet", "Packages");
+            if (Directory.Exists(winget))
             {
-                foreach (var exe in Directory.EnumerateFiles(package, "ffmpeg.exe", SearchOption.AllDirectories))
-                    yield return exe;
+                IEnumerable<string> packages;
+                try { packages = Directory.EnumerateDirectories(winget, "*FFmpeg*"); }
+                catch { packages = []; }
+                foreach (var package in packages)
+                {
+                    IEnumerable<string> exes;
+                    try { exes = Directory.EnumerateFiles(package, "ffmpeg.exe", SearchOption.AllDirectories); }
+                    catch { exes = []; }
+                    foreach (var exe in exes)
+                        yield return exe;
+                }
             }
+        }
+
+        if (PlatformInfo.Current.IsWine)
+        {
+            // Host Linux / SteamOS / Flatpak / macOS FFmpeg via Wine's Z:\ root mount.
+            yield return @"Z:\usr\bin\ffmpeg";
+            yield return @"Z:\usr\local\bin\ffmpeg";
+            yield return @"Z:\opt\homebrew\bin\ffmpeg";
+            yield return @"Z:\app\bin\ffmpeg";
         }
     }
 

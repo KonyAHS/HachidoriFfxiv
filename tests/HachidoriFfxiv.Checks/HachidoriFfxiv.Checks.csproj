@@ -15,6 +15,7 @@
     <Compile Include="../../HachidoriFfxiv/Hachidori/WordSpans.cs" Link="WordSpans.cs" />
     <Compile Include="../../HachidoriFfxiv/Hachidori/NpcImageDictionary.cs" Link="NpcImageDictionary.cs" />
     <Compile Include="../../HachidoriFfxiv/Hachidori/NpcPictureLibrary.cs" Link="NpcPictureLibrary.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/FfxivDictionary.cs" Link="FfxivDictionary.cs" />
     <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs" Link="Offline/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Anki/*.cs" Exclude="../../HachidoriFfxiv/Anki/OfflineAnkiMiner.cs" Link="Anki/%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../HachidoriFfxiv/Anki/Data/*.json" LogicalName="HachidoriFfxiv.Anki.%(Filename).json" />
@@ -24,7 +25,9 @@
     <Compile Include="../../HachidoriFfxiv/Publishing/PublishGate.cs" Link="PublishGate.cs" />
     <Compile Include="../../HachidoriFfxiv/Publishing/TextWebSocketServer.cs" Link="TextWebSocketServer.cs" />
     <Compile Include="../../HachidoriFfxiv/DiagnosticLog.cs" Link="DiagnosticLog.cs" />
+    <Compile Include="../../HachidoriFfxiv/PlatformInfo.cs" Link="PlatformInfo.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/PronunciationDecoder.cs" Link="PronunciationDecoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Audio/WinMmWaveOut.cs" Link="WinMmWaveOut.cs" />
     <Compile Include="../../HachidoriFfxiv/Rendering/*.cs" Link="Rendering/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Rendering/Css/*.cs" Exclude="../../HachidoriFfxiv/Rendering/Css/PopupThemeProvider.cs" Link="Rendering/Css/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Ui/ThemePainter.cs" Link="ThemePainter.cs" />
@@ -38,6 +41,12 @@
     <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="Media/ScreenshotMedia.cs" />
     <Compile Include="../../HachidoriFfxiv/Stats/*.cs" Link="Stats/%(Filename)%(Extension)" />
+    <Compile Include="../../HachidoriFfxiv/WebView/HachidoriBundleManager.cs" Link="WebView/HachidoriBundleManager.cs" />
+    <Compile Include="../../HachidoriFfxiv/WebView/HachidoriWebBridge.cs" Link="WebView/HachidoriWebBridge.cs" />
+    <Compile Include="../../HachidoriFfxiv/WebView/WebViewPopupHost.cs" Link="WebView/WebViewPopupHost.cs" />
+    <EmbeddedResource Include="../../HachidoriFfxiv/WebView/Assets/host.html" LogicalName="HachidoriFfxiv.WebView.Assets.host.html" />
+    <EmbeddedResource Include="../../HachidoriFfxiv/WebView/Assets/ffxiv-bridge.js" LogicalName="HachidoriFfxiv.WebView.Assets.ffxiv-bridge.js" />
+    <EmbeddedResource Include="../../HachidoriFfxiv/WebView/Assets/overlay-mode.js" LogicalName="HachidoriFfxiv.WebView.Assets.overlay-mode.js" />
     <Compile Include="../../HachidoriFfxiv/Ui/PopupWindowScope.cs" Link="PopupWindowScope.cs" />
     <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)/Dalamud.Bindings.ImGui.dll" />
     <Reference Include="HexaGen.Runtime" HintPath="$(DalamudLibPath)/HexaGen.Runtime.dll" />
@@ -45,7 +54,13 @@
     <None Include="Fixtures/*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="$(DalamudLibPath)/cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Concentus.Oggfile" Version="1.0.7" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
+  <Target Name="RemoveUnusedWebView2UiRefs" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf' or '%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
+    </ItemGroup>
+  </Target>
 </Project>

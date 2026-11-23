@@ -25,11 +25,20 @@ public sealed unsafe class NativeTextHover : IDisposable
 {
     private sealed record Part(RichBlock Block, NativeTextLayout Layout);
     private readonly record struct TextStyle(ushort Width, ushort Height, byte FontSize, byte AlignmentFontType,
-        byte LineSpacing, byte CharSpacing, TextFlags Flags, bool ChatBottomAligned);
+        byte LineSpacing, byte CharSpacing, TextFlags Flags, bool ChatBottomAligned, int ChatClipTop, int ChatClipHeight);
     private sealed record Cached(TextStyle Style, byte[] Raw, Part[] Parts);
     private sealed record Region(string Addon, Part Text, Vector2 Min, Vector2 Max, Vector2 ClipMin, Vector2 ClipMax, Vector2 Scale);
+    private sealed class ChatScrollState
+    {
+        public bool WasBottom = true;
+        public uint LastTotalLines;
+        public uint LastFirstVisible;
+        public DateTime NewMessageGraceUntilUtc;
+    }
+
     private readonly Configuration config;
     private readonly Dictionary<nint, Cached> cache = new();
+    private readonly Dictionary<nint, ChatScrollState> chatScroll = new();
     private Region[] regions = [];
     // Reused every frame; Update runs each game tick.
     private readonly List<Region> frameRegions = new();
@@ -40,8 +49,26 @@ public sealed unsafe class NativeTextHover : IDisposable
     private Vector2 lastMouse = new(-10000);
     private DateTime lastError;
     private DateTime lastChatProbe;
+    private Action<FrozenRegion[]>? pendingFreezeCallback;
+
     /// <summary>A scannable native text block with its glyph cells on screen, for controller navigation.</summary>
     public sealed record TextTarget(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext> Context);
+
+    /// <summary>An immutable snapshot of a visible native text block captured for Freeze Frame inspection.</summary>
+    public sealed record FrozenRegion(
+        string Addon,
+        bool IsTooltip,
+        int DrawOrder,
+        RichBlock Block,
+        NativeTextLayout Layout,
+        Vector2 Min,
+        Vector2 Max,
+        Vector2 ClipMin,
+        Vector2 ClipMax,
+        Vector2 Scale);
+
+    /// <summary>Raised when visible Japanese chat lines change, so the plugin can pre-warm word segmentation.</summary>
+    public event Action<IReadOnlyList<string>>? ChatLinesChanged;
 
     /// <summary>Set while controller mode is on: read all visible dialogue text, not only the text under the mouse.</summary>
     public bool ControllerScan { get; set; }
@@ -58,8 +85,48 @@ public sealed unsafe class NativeTextHover : IDisposable
         Plugin.Framework.Update += Update;
     }
 
+    /// <summary>Queues a full-screen snapshot of all visible native Japanese text (including tooltips) on the next Framework.Update.</summary>
+    public void RequestFreezeSnapshot(Action<FrozenRegion[]> onCaptured) =>
+        pendingFreezeCallback = onCaptured;
+
+    /// <summary>
+    /// Synchronously snapshots every visible native Japanese text block (including tooltips).
+    /// Must only be called on the main game thread (e.g. inside Framework.Update).
+    /// </summary>
+    public FrozenRegion[] CaptureFreezeSnapshotNow()
+    {
+        try
+        {
+            return CaptureAllVisibleSnapshot();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("freeze-frame", $"Snapshot capture failed: {ex.Message}");
+            return [];
+        }
+    }
+
+    internal static bool IsTooltipAddon(string name) =>
+        name is "ItemDetail" or "ActionDetail" or "Tooltip"
+        || name.EndsWith("Detail", StringComparison.Ordinal)
+        || name.EndsWith("Tooltip", StringComparison.Ordinal);
+
     private void Update(IFramework framework)
     {
+        if (pendingFreezeCallback is { } freezeCb)
+        {
+            pendingFreezeCallback = null;
+            try
+            {
+                freezeCb(CaptureAllVisibleSnapshot());
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Write("freeze-frame", $"Snapshot capture failed: {ex.Message}");
+                freezeCb([]);
+            }
+        }
+
         if (!config.NativeTextHover)
         {
             SubtitleVisible = false;
@@ -82,7 +149,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             if (subtitleVisible != SubtitleVisible)
                 DiagnosticLog.Write("capture", $"Floating subtitle visible={subtitleVisible}");
             SubtitleVisible = subtitleVisible;
-            if (subtitleVisible) ReadAddon((AtkUnitBase*)subtitle.Address, "TalkSubtitle");
+            if (subtitleVisible) ReadAddon((AtkUnitBase*)subtitle.Address, "TalkSubtitle", next, visited, seen, ignoreMouse: ControllerScan);
             var stage = AtkStage.Instance();
             var hovered = stage == null || stage->AtkCollisionManager == null ? null : stage->AtkCollisionManager->IntersectingAddon;
             // Collision selection limits us to the topmost native addon when available.
@@ -99,7 +166,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                 {
                     if (!Allowed(name)) continue;
                     var addon = Plugin.GameGui.GetAddonByName(name);
-                    if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name);
+                    if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name, next, visited, seen, ignoreMouse: true);
                 }
                 if (next.Count == 0 && stage != null && stage->RaptureAtkUnitManager != null)
                 {
@@ -112,9 +179,9 @@ public sealed unsafe class NativeTextHover : IDisposable
                         if (unit == null || !unit->IsVisible) continue;
                         var name = unit->NameString;
                         if (string.IsNullOrEmpty(name) || IsChat(name) || name == "TalkSubtitle" || !Allowed(name)) continue;
-                        ReadAddon(unit, name);
+                        ReadAddon(unit, name, next, visited, seen, ignoreMouse: true);
                     }
-                    ReadChat(null);
+                    ReadChat(null, next, visited, seen, ignoreMouse: true);
                 }
             }
             else if (hovered != null && hovered->IsVisible)
@@ -123,8 +190,8 @@ public sealed unsafe class NativeTextHover : IDisposable
                 LastHoveredAddon = name;
                 // The ChatLog window and its text panels are separate addons, and the
                 // collision hit can be the window, which has no chat text of its own.
-                if (IsChat(name)) ReadChat(hovered);
-                else if (Allowed(name) && name != "TalkSubtitle") ReadAddon(hovered, name);
+                if (IsChat(name)) ReadChat(hovered, next, visited, seen, ignoreMouse: false);
+                else if (Allowed(name) && name != "TalkSubtitle") ReadAddon(hovered, name, next, visited, seen, ignoreMouse: false);
             }
             else
             {
@@ -133,9 +200,9 @@ public sealed unsafe class NativeTextHover : IDisposable
                 {
                     if (!Allowed(name)) continue;
                     var addon = Plugin.GameGui.GetAddonByName(name);
-                    if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name);
+                    if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name, next, visited, seen, ignoreMouse: false);
                 }
-                ReadChat(null);
+                ReadChat(null, next, visited, seen, ignoreMouse: false);
             }
             regions = next.Count == 0 ? [] : next.ToArray();
             if (cache.Count > 0)
@@ -159,132 +226,263 @@ public sealed unsafe class NativeTextHover : IDisposable
                 Plugin.Log.Warning(ex, "Native text hover skipped a frame");
             }
         }
+    }
 
-        void ReadAddon(AtkUnitBase* addon, string name) => ReadNodes(&addon->UldManager, name, 0);
+    private FrozenRegion[] CaptureAllVisibleSnapshot()
+    {
+        var snapshot = new List<FrozenRegion>();
+        var visited = new HashSet<nint>();
+        var seen = new HashSet<nint>();
+        var tempRegions = new List<Region>();
 
-        void ReadChat(AtkUnitBase* hovered)
+        void CollectUnit(AtkUnitBase* unit, string name, int drawOrder)
         {
-            if (!Allowed("ChatLog")) return;
-            var addon = Plugin.GameGui.GetAddonByName("ChatLog");
-            var chatLog = (AddonChatLog*)addon.Address;
-            var selectedTab = addon.IsNull || !addon.IsVisible ? -1 : chatLog->TabIndex;
-            var hoverInMain = chatLog != null && (hovered == &chatLog->AtkUnitBase
-                || (hovered != null && hovered->HostId == chatLog->Id));
-            AddonChatLogPanel* target = null;
-            var targetName = string.Empty;
-            for (var i = 0; i < ChatPanels.Length; i++)
+            var start = tempRegions.Count;
+            ReadAddon(unit, name, tempRegions, visited, seen, ignoreMouse: true);
+            var isTooltip = IsTooltipAddon(name);
+            for (var i = start; i < tempRegions.Count; i++)
             {
-                var panelAddon = Plugin.GameGui.GetAddonByName(ChatPanels[i]);
-                if (panelAddon.IsNull || !panelAddon.IsVisible) continue;
-                var panel = (AddonChatLogPanel*)panelAddon.Address;
-                var attached = chatLog != null && panel->HostId == chatLog->Id;
-                // Inactive tabs retain their text and can still report visible.
-                if (attached)
-                {
-                    if (i != selectedTab || (hovered != null && !hoverInMain)) continue;
-                }
-                else if (hovered != null && hovered != &panel->AtkUnitBase) continue;
-
-                // When there is no collision hit, use the frontmost panel under the
-                // mouse. Choose the panel before looking for readable text in it.
-                if (hovered == null)
-                {
-                    var textNode = panel->ChatText;
-                    if (textNode == null || !Visible((AtkResNode*)textNode)) continue;
-                    Bounds bounds;
-                    textNode->GetBounds(&bounds);
-                    if (!ControllerScan && !NativeTextLayout.Contains(new(bounds.Pos1.X, bounds.Pos1.Y), new(bounds.Pos2.X, bounds.Pos2.Y), lastMouse)) continue;
-                    if (target != null && target->DrawOrderIndex >= panel->DrawOrderIndex) continue;
-                }
-                target = panel;
-                targetName = ChatPanels[i];
-            }
-
-            var before = next.Count;
-            var text = target == null ? null : target->ChatText;
-            if (text != null && visited.Add((nint)text) && Visible((AtkResNode*)text))
-                ReadText(text, targetName, target->LogViewer.IsScrolledBottom);
-            if (hovered != null && next.Count == before && (DateTime.UtcNow - lastChatProbe).TotalSeconds > 5)
-            {
-                lastChatProbe = DateTime.UtcNow;
-                DiagnosticLog.Write("chat-hover", $"No chat text under mouse: hovered='{LastHoveredAddon}', tab={selectedTab}, panel='{targetName}'");
+                var r = tempRegions[i];
+                snapshot.Add(new FrozenRegion(r.Addon, isTooltip, drawOrder, r.Text.Block, r.Text.Layout,
+                    r.Min, r.Max, r.ClipMin, r.ClipMax, r.Scale));
             }
         }
 
-        void ReadNodes(AtkUldManager* manager, string name, int depth)
+        var subtitle = Plugin.GameGui.GetAddonByName("TalkSubtitle");
+        if (!subtitle.IsNull && subtitle.IsVisible)
+            CollectUnit((AtkUnitBase*)subtitle.Address, "TalkSubtitle", 1000);
+
+        var stage = AtkStage.Instance();
+        if (stage != null && stage->RaptureAtkUnitManager != null)
         {
-            if (depth > 8 || manager->NodeList == null || manager->NodeListCount > 4096) return;
-            for (var i = 0; i < manager->NodeListCount && visited.Count < 4096; i++)
+            ref var all = ref stage->RaptureAtkUnitManager->AllLoadedUnitsList;
+            for (var i = (int)all.Count - 1; i >= 0; i--)
             {
-                var node = manager->NodeList[i];
-                if (node == null || !visited.Add((nint)node) || !Visible(node)) continue;
-                if (node->Type == NodeType.Text) ReadText((AtkTextNode*)node, name);
-                else if ((int)node->Type >= 1000)
-                {
-                    var component = ((AtkComponentNode*)node)->Component;
-                    if (component != null) ReadNodes(&component->UldManager, name, depth + 1);
-                }
+                var unit = all.Entries[i].Value;
+                if (unit == null || !unit->IsVisible) continue;
+                var name = unit->NameString;
+                if (string.IsNullOrEmpty(name) || IsChat(name) || name == "TalkSubtitle") continue;
+                CollectUnit(unit, name, unit->DrawOrderIndex);
             }
         }
 
-        void ReadText(AtkTextNode* node, string name, bool chatBottomAligned = false)
+        var chatStart = tempRegions.Count;
+        ReadChat(null, tempRegions, visited, seen, ignoreMouse: true, forceAllow: true);
+        for (var i = chatStart; i < tempRegions.Count; i++)
         {
-            if (node->Width == 0 || node->Height == 0 || node->FontSize == 0) return;
-            Bounds bounds;
-            node->GetBounds(&bounds);
-            var min = new Vector2(bounds.Pos1.X, bounds.Pos1.Y);
-            var max = new Vector2(bounds.Pos2.X, bounds.Pos2.Y);
-            if (max.X <= min.X || max.Y <= min.Y || (!ControllerScan && !NativeTextLayout.Contains(min, max, lastMouse))) return;
-            var clipMin = min;
-            var clipMax = max;
-            for (var parent = node->ParentNode; parent != null; parent = parent->ParentNode)
-            {
-                if ((parent->NodeFlags & NodeFlags.Clip) == 0) continue;
-                Bounds clip;
-                parent->GetBounds(&clip);
-                clipMin = Vector2.Max(clipMin, new(clip.Pos1.X, clip.Pos1.Y));
-                clipMax = Vector2.Min(clipMax, new(clip.Pos2.X, clip.Pos2.Y));
-            }
-            if (clipMax.X <= clipMin.X || clipMax.Y <= clipMin.Y || (!ControllerScan && !NativeTextLayout.Contains(clipMin, clipMax, lastMouse))) return;
-            var raw = node->NodeText.AsSpan();
-            var chat = IsChat(name);
-            if (raw.Length == 0 || raw.Length > (chat ? 65536 : 16384)) return;
-            var style = new TextStyle(node->Width, node->Height, node->FontSize, node->AlignmentFontType,
-                node->LineSpacing, node->CharSpacing, node->TextFlags, chatBottomAligned);
-            var key = (nint)node;
-            seen.Add(key);
-            if (!cache.TryGetValue(key, out var cached) || cached.Style != style || !raw.SequenceEqual(cached.Raw))
-            {
-                // Use the game's own font measurement, never an approximate ImGui font.
-                var glyphHeight = Measure(node, "国"u8).Y;
-                if (glyphHeight <= 0) return;
-                var advance = Measure(node, chat ? "国\r国"u8 : "国\n国"u8).Y - glyphHeight;
-                if (advance <= 0) advance = Math.Max(node->FontSize, node->LineSpacing);
-                Part[] parts = [];
-                if (chat)
-                {
-                    parts = NativeChatLayout.Build(raw, style.Width, style.Height, (int)node->AlignmentType,
-                        glyphHeight, advance, style.ChatBottomAligned, prefix => Measure(node, prefix).X)
-                        .Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray();
-                }
-                else
-                {
-                    var text = SeString.Parse(raw).TextValue;
-                    if (text.Length is > 0 and <= 2048 && text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value)))
-                    {
-                        var layout = NativeTextLayout.Build(text, style.Width, style.Height, (int)node->AlignmentType,
-                            glyphHeight, advance, (style.Flags & TextFlags.WordWrap) != 0,
-                            prefix => Measure(node, Encoding.UTF8.GetBytes(prefix)));
-                        parts = [new Part(new RichBlock().Add(text), layout)];
-                    }
-                }
-                cached = new Cached(style, raw.ToArray(), parts);
-                cache[key] = cached;
-            }
-            var scale = new Vector2((max.X - min.X) / node->Width, (max.Y - min.Y) / node->Height);
-            foreach (var part in cached.Parts)
-                next.Add(new Region(name, part, min, max, clipMin, clipMax, scale));
+            var r = tempRegions[i];
+            snapshot.Add(new FrozenRegion(r.Addon, false, 0, r.Text.Block, r.Text.Layout,
+                r.Min, r.Max, r.ClipMin, r.ClipMax, r.Scale));
         }
+
+        // Prioritize tooltips on top, then higher draw order, then smallest area so overlapping text resolves cleanly.
+        snapshot.Sort((a, b) =>
+        {
+            var tip = b.IsTooltip.CompareTo(a.IsTooltip);
+            if (tip != 0) return tip;
+            var order = b.DrawOrder.CompareTo(a.DrawOrder);
+            if (order != 0) return order;
+            var areaA = (a.Max.X - a.Min.X) * (a.Max.Y - a.Min.Y);
+            var areaB = (b.Max.X - b.Min.X) * (b.Max.Y - b.Min.Y);
+            return areaA.CompareTo(areaB);
+        });
+        return snapshot.ToArray();
+    }
+
+    private bool ResolveChatBottomAligned(AddonChatLogPanel* panel)
+    {
+        var key = (nint)panel;
+        if (!chatScroll.TryGetValue(key, out var state))
+        {
+            state = new ChatScrollState();
+            chatScroll[key] = state;
+        }
+
+        var lv = panel->LogViewer;
+        var now = DateTime.UtcNow;
+
+        if (lv.IsScrolledBottom)
+        {
+            state.WasBottom = true;
+            state.LastTotalLines = lv.TotalLineCount;
+            state.LastFirstVisible = lv.FirstLineVisible;
+            state.NewMessageGraceUntilUtc = DateTime.MinValue;
+            return true;
+        }
+
+        if (lv.DisplayableLineCount > 0 && lv.TotalLineCount <= lv.DisplayableLineCount)
+        {
+            state.WasBottom = true;
+            state.LastTotalLines = lv.TotalLineCount;
+            state.LastFirstVisible = lv.FirstLineVisible;
+            return true;
+        }
+
+        // Right after a new message arrives while at the live bottom of chat, LogViewer can briefly
+        // report IsScrolledBottom=false before its scroll tick catches up. Hold bottom alignment
+        // across that short transition unless the user actually scrolled upward into history.
+        if (state.WasBottom && lv.FirstLineVisible >= state.LastFirstVisible)
+        {
+            if (lv.TotalLineCount > state.LastTotalLines)
+            {
+                state.LastTotalLines = lv.TotalLineCount;
+                state.LastFirstVisible = lv.FirstLineVisible;
+                state.NewMessageGraceUntilUtc = now.AddMilliseconds(500);
+                return true;
+            }
+            if (now < state.NewMessageGraceUntilUtc)
+            {
+                state.LastFirstVisible = lv.FirstLineVisible;
+                return true;
+            }
+        }
+
+        state.WasBottom = false;
+        state.LastTotalLines = lv.TotalLineCount;
+        state.LastFirstVisible = lv.FirstLineVisible;
+        state.NewMessageGraceUntilUtc = DateTime.MinValue;
+        return false;
+    }
+
+    private void ReadAddon(AtkUnitBase* addon, string name, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse) =>
+        ReadNodes(&addon->UldManager, name, 0, next, visited, seen, ignoreMouse);
+
+    private void ReadChat(AtkUnitBase* hovered, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse, bool forceAllow = false)
+    {
+        if (!forceAllow && !Allowed("ChatLog")) return;
+        var addon = Plugin.GameGui.GetAddonByName("ChatLog");
+        var chatLog = (AddonChatLog*)addon.Address;
+        var selectedTab = addon.IsNull || !addon.IsVisible ? -1 : chatLog->TabIndex;
+        var hoverInMain = chatLog != null && (hovered == &chatLog->AtkUnitBase
+            || (hovered != null && hovered->HostId == chatLog->Id));
+        AddonChatLogPanel* target = null;
+        var targetName = string.Empty;
+        for (var i = 0; i < ChatPanels.Length; i++)
+        {
+            var panelAddon = Plugin.GameGui.GetAddonByName(ChatPanels[i]);
+            if (panelAddon.IsNull || !panelAddon.IsVisible) continue;
+            var panel = (AddonChatLogPanel*)panelAddon.Address;
+            var attached = chatLog != null && panel->HostId == chatLog->Id;
+            // Inactive tabs retain their text and can still report visible.
+            if (attached)
+            {
+                if (i != selectedTab || (hovered != null && !hoverInMain)) continue;
+            }
+            else if (hovered != null && hovered != &panel->AtkUnitBase) continue;
+
+            // When there is no collision hit, use the frontmost panel under the
+            // mouse. Choose the panel before looking for readable text in it.
+            if (hovered == null)
+            {
+                var textNode = panel->ChatText;
+                if (textNode == null || !Visible((AtkResNode*)textNode)) continue;
+                Bounds bounds;
+                textNode->GetBounds(&bounds);
+                if (!ignoreMouse && !NativeTextLayout.Contains(new(bounds.Pos1.X, bounds.Pos1.Y), new(bounds.Pos2.X, bounds.Pos2.Y), lastMouse)) continue;
+                if (target != null && target->DrawOrderIndex >= panel->DrawOrderIndex) continue;
+            }
+            target = panel;
+            targetName = ChatPanels[i];
+        }
+
+        var before = next.Count;
+        var text = target == null ? null : target->ChatText;
+        if (text != null && visited.Add((nint)text) && Visible((AtkResNode*)text))
+            ReadText(text, targetName, next, seen, ignoreMouse, ResolveChatBottomAligned(target));
+        if (!ignoreMouse && hovered != null && next.Count == before && (DateTime.UtcNow - lastChatProbe).TotalSeconds > 5)
+        {
+            lastChatProbe = DateTime.UtcNow;
+            DiagnosticLog.Write("chat-hover", $"No chat text under mouse: hovered='{LastHoveredAddon}', tab={selectedTab}, panel='{targetName}'");
+        }
+    }
+
+    private void ReadNodes(AtkUldManager* manager, string name, int depth, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse)
+    {
+        if (depth > 8 || manager->NodeList == null || manager->NodeListCount > 4096) return;
+        for (var i = 0; i < manager->NodeListCount && visited.Count < 4096; i++)
+        {
+            var node = manager->NodeList[i];
+            if (node == null || !visited.Add((nint)node) || !Visible(node)) continue;
+            if (node->Type == NodeType.Text) ReadText((AtkTextNode*)node, name, next, seen, ignoreMouse);
+            else if ((int)node->Type >= 1000)
+            {
+                var component = ((AtkComponentNode*)node)->Component;
+                if (component != null) ReadNodes(&component->UldManager, name, depth + 1, next, visited, seen, ignoreMouse);
+            }
+        }
+    }
+
+    private void ReadText(AtkTextNode* node, string name, List<Region> next, HashSet<nint> seen, bool ignoreMouse, bool chatBottomAligned = false)
+    {
+        if (node->Width == 0 || node->Height == 0 || node->FontSize == 0) return;
+        Bounds bounds;
+        node->GetBounds(&bounds);
+        var min = new Vector2(bounds.Pos1.X, bounds.Pos1.Y);
+        var max = new Vector2(bounds.Pos2.X, bounds.Pos2.Y);
+        if (max.X <= min.X || max.Y <= min.Y || (!ignoreMouse && !NativeTextLayout.Contains(min, max, lastMouse))) return;
+        var clipMin = min;
+        var clipMax = max;
+        for (var parent = node->ParentNode; parent != null; parent = parent->ParentNode)
+        {
+            if ((parent->NodeFlags & NodeFlags.Clip) == 0) continue;
+            Bounds clip;
+            parent->GetBounds(&clip);
+            clipMin = Vector2.Max(clipMin, new(clip.Pos1.X, clip.Pos1.Y));
+            clipMax = Vector2.Min(clipMax, new(clip.Pos2.X, clip.Pos2.Y));
+        }
+        if (clipMax.X <= clipMin.X || clipMax.Y <= clipMin.Y || (!ignoreMouse && !NativeTextLayout.Contains(clipMin, clipMax, lastMouse))) return;
+        var raw = node->NodeText.AsSpan();
+        var chat = IsChat(name);
+        if (raw.Length == 0 || raw.Length > (chat ? 65536 : 16384)) return;
+        var scale = new Vector2((max.X - min.X) / node->Width, (max.Y - min.Y) / node->Height);
+        var visTop = chat && scale.Y > 0.001f ? Math.Max(0f, (clipMin.Y - min.Y) / scale.Y) : 0f;
+        var visHeight = chat && scale.Y > 0.001f ? Math.Max(0f, (clipMax.Y - clipMin.Y) / scale.Y) : node->Height;
+        var style = new TextStyle(node->Width, node->Height, node->FontSize, node->AlignmentFontType,
+            node->LineSpacing, node->CharSpacing, node->TextFlags, chatBottomAligned,
+            chat ? (int)MathF.Round(visTop) : 0,
+            chat ? (int)MathF.Round(visHeight) : 0);
+        var key = (nint)node;
+        seen.Add(key);
+        if (!cache.TryGetValue(key, out var cached) || cached.Style != style || !raw.SequenceEqual(cached.Raw))
+        {
+            // Use the game's own font measurement, never an approximate ImGui font.
+            var glyphHeight = Measure(node, "国"u8).Y;
+            if (glyphHeight <= 0) return;
+            var advance = Measure(node, chat ? "国\r国"u8 : "国\n国"u8).Y - glyphHeight;
+            if (advance <= 0) advance = Math.Max(node->FontSize, node->LineSpacing);
+            Part[] parts = [];
+            if (chat)
+            {
+                parts = NativeChatLayout.Build(raw, style.Width, style.Height, (int)node->AlignmentType,
+                    glyphHeight, advance, style.ChatBottomAligned, prefix => Measure(node, prefix).X,
+                    visTop, visHeight)
+                    .Select(p => new Part(new RichBlock().Add(p.Text), p.Layout)).ToArray();
+            }
+            else
+            {
+                var text = SeString.Parse(raw).TextValue;
+                if (text.Length is > 0 and <= 2048 && text.EnumerateRunes().Any(r => Japanese.IsJapanese(r.Value)))
+                {
+                    var layout = NativeTextLayout.Build(text, style.Width, style.Height, (int)node->AlignmentType,
+                        glyphHeight, advance, (style.Flags & TextFlags.WordWrap) != 0,
+                        prefix => Measure(node, Encoding.UTF8.GetBytes(prefix)));
+                    parts = [new Part(new RichBlock().Add(text), layout)];
+                }
+            }
+            cached = new Cached(style, raw.ToArray(), parts);
+            cache[key] = cached;
+
+            if (chat && !ignoreMouse && parts.Length > 0 && ChatLinesChanged is not null)
+            {
+                var take = Math.Min(3, parts.Length);
+                var recent = new string[take];
+                for (var i = 0; i < take; i++)
+                    recent[i] = parts[parts.Length - take + i].Block.ScanText;
+                ChatLinesChanged.Invoke(recent);
+            }
+        }
+        foreach (var part in cached.Parts)
+            next.Add(new Region(name, part, min, max, clipMin, clipMax, scale));
     }
 
     private static readonly string[] ChatPanels = ["ChatLogPanel_0", "ChatLogPanel_1", "ChatLogPanel_2", "ChatLogPanel_3"];
@@ -401,5 +599,6 @@ public sealed unsafe class NativeTextHover : IDisposable
         Plugin.Framework.Update -= Update;
         regions = [];
         cache.Clear();
+        chatScroll.Clear();
     }
 }

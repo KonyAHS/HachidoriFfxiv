@@ -27,6 +27,15 @@ public sealed class PopupManager : IDisposable
     private PendingHit? frameHit;
     private DateTime ankiStatusAt = DateTime.MinValue;
     private Task<HachidoriService.AnkiStatus>? ankiStatus;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(string Expression, string Reading)> pendingNpcCaptures = new();
+    private RichBlock? webSourceBlock;
+    private int webSourceIndex = -1;
+    private string? webLastSentence;
+    private int webLastOffset = -1;
+    private string? webLastTitle;
+    private float webLastAnchorY = float.NaN;
+    private DateTime webSustainedAt = DateTime.MinValue;
+    private bool wasWebViewActive;
 
     public PopupManager(Configuration config, HachidoriService service, Audio.AudioPlayer audio, Fonts fonts)
     {
@@ -42,7 +51,12 @@ public sealed class PopupManager : IDisposable
         service.Link.ConnectionChanged += () => ankiStatusAt = DateTime.MinValue;
     }
 
-    public bool AnyOpen => layers.Any(l => l.Visible);
+    /// <summary>Optional Hachidori Web (WebView2) popup host; falls back to ImGui popups when inactive.</summary>
+    public WebView.WebViewPopupController? WebView { get; set; }
+
+    private bool UsingWebView => WebView is { Active: true };
+
+    public bool AnyOpen => UsingWebView ? WebView!.AnyOpen : layers.Any(l => l.Visible);
     public DictionaryImages Images { get; }
     public NpcImageCapture NpcImages { get; }
     public PopupThemeProvider Themes { get; }
@@ -52,12 +66,34 @@ public sealed class PopupManager : IDisposable
 
     /// <summary>Immersion statistics tracker; set by the plugin.</summary>
     public Stats.StatsTracker? Stats { get; set; }
-    public bool ContainsMouse(Vector2 mouse) => layers.Any(l => l.Visible && l.Contains(mouse));
+    public bool ContainsMouse(Vector2 mouse) => UsingWebView ? WebView!.ContainsScreenPoint(mouse) : layers.Any(l => l.Visible && l.Contains(mouse));
 
-    public void CloseAll() => layers.Clear();
+    public void QueueNpcCapture(string expression, string reading)
+    {
+        if (!string.IsNullOrWhiteSpace(expression))
+            pendingNpcCaptures.Enqueue((expression, reading));
+    }
+
+    public void CloseAll()
+    {
+        layers.Clear();
+        ClearWebSource();
+        WebView?.CloseAll();
+    }
+
+    private void ClearWebSource()
+    {
+        webSourceBlock = null;
+        webSourceIndex = -1;
+        webLastSentence = null;
+        webLastOffset = -1;
+        webLastTitle = null;
+        webLastAnchorY = float.NaN;
+    }
     public void Dispose()
     {
         CloseAll();
+        WebView?.Dispose();
         Images.Dispose();
         NpcImages.Dispose();
     }
@@ -79,7 +115,7 @@ public sealed class PopupManager : IDisposable
     public void Sustain(int depth) => sustainDepth = Math.Max(sustainDepth, depth);
 
     /// <summary>The number of visible popups.</summary>
-    public int VisibleCount => layers.TakeWhile(l => l.Visible).Count();
+    public int VisibleCount => UsingWebView ? WebView!.VisibleCount : layers.TakeWhile(l => l.Visible).Count();
 
     /// <summary>The popup's screen rectangle.</summary>
     public (Vector2 Min, Vector2 Max)? LayerRect(int depth) =>
@@ -100,6 +136,11 @@ public sealed class PopupManager : IDisposable
     /// <summary>Moves the controller's entry selection in popup <paramref name="depth"/> and scrolls to it.</summary>
     public void SelectEntry(int depth, int delta)
     {
+        if (UsingWebView)
+        {
+            WebView!.SendCommand(delta >= 0 ? "nextEntry" : "previousEntry");
+            return;
+        }
         if (depth >= layers.Count || layers[depth].Showing is not { Entries.Count: > 0 } shown)
             return;
         var layer = layers[depth];
@@ -112,10 +153,23 @@ public sealed class PopupManager : IDisposable
             ? shown.Entries[Math.Clamp(layers[depth].SelectedEntry, 0, shown.Entries.Count - 1)]
             : null;
 
-    public void MineSelected(int depth) => SelectedEntry(depth)?.RequestAnki();
+    public void MineSelected(int depth)
+    {
+        if (UsingWebView)
+        {
+            WebView!.SendCommand("addNote");
+            return;
+        }
+        SelectedEntry(depth)?.RequestAnki();
+    }
 
     public void PlaySelected(int depth)
     {
+        if (UsingWebView)
+        {
+            WebView!.SendCommand("playAudio");
+            return;
+        }
         if (SelectedEntry(depth) is { } entry)
             audio.PlayTerm(service, entry.Result.Term.Expression, entry.Result.Term.Reading);
     }
@@ -123,6 +177,11 @@ public sealed class PopupManager : IDisposable
     /// <summary>Scrolls popup <paramref name="depth"/> by <paramref name="pixels"/> on its next draw.</summary>
     public void Scroll(int depth, float pixels)
     {
+        if (UsingWebView)
+        {
+            WebView!.ScrollPopup(depth, pixels);
+            return;
+        }
         if (depth < layers.Count)
             layers[depth].PendingScroll += pixels;
     }
@@ -130,6 +189,12 @@ public sealed class PopupManager : IDisposable
     /// <summary>Closes the deepest popup (controller "back").</summary>
     public void CloseFrom(int depth)
     {
+        if (UsingWebView)
+        {
+            if (depth <= 0) CloseAll();
+            else WebView!.CloseTop();
+            return;
+        }
         if (depth < layers.Count)
             layers.RemoveRange(depth, layers.Count - depth);
     }
@@ -147,7 +212,14 @@ public sealed class PopupManager : IDisposable
         if (config.TokenizedHover && !bypassTokenize)
         {
             var task = service.SegmentAsync(h.Block.ScanText);
-            if (!task.IsCompleted) return;
+            if (!task.IsCompleted)
+            {
+                // When a new chat line slides under the cursor while its segmentation is in flight,
+                // drop the stale highlight immediately so it never appears offset on the wrong row.
+                if (UsingWebView && !keepPrevious && h.Block != webSourceBlock)
+                    webSourceBlock = null;
+                return;
+            }
             if (task.IsCompletedSuccessfully && WordSpan.At(task.Result, h.CharIndex) is { } span)
             {
                 h = h with { CharIndex = span.Start };
@@ -167,6 +239,17 @@ public sealed class PopupManager : IDisposable
     {
         var block = new RichBlock().Add(text);
         var mouse = ImGui.GetMousePos();
+        if (UsingWebView)
+        {
+            webSourceBlock = block;
+            webSourceIndex = 0;
+            webLastSentence = text;
+            webLastOffset = 0;
+            webLastTitle = config.DocumentTitle;
+            webSustainedAt = DateTime.UtcNow;
+            WebView!.ShowLookup(text, 0, mouse, mouse + new Vector2(16, 20), config.DocumentTitle, text.Length);
+            return;
+        }
         layers.Clear();
         StartLayer(new PendingHit(new TextHit(block, 0, mouse, mouse + new Vector2(1, 16)), 0, new ScanContext(text, 0, config.DocumentTitle), kanji), text);
     }
@@ -174,6 +257,14 @@ public sealed class PopupManager : IDisposable
     /// <summary>The highlighted range for a block, when it is the source of an open popup.</summary>
     public (int Start, int End)? HighlightFor(RichBlock block, int depth)
     {
+        if (UsingWebView)
+        {
+            if (depth != 0 || block != webSourceBlock || webSourceIndex < 0 || !WebView!.AnyOpen)
+                return null;
+            var matched = Math.Max(1, WebView.MatchedLength);
+            var span = SourceLengthForMatch(block.ScanText, webSourceIndex, matched);
+            return (webSourceIndex, webSourceIndex + Math.Max(1, span));
+        }
         if (depth >= layers.Count)
             return null;
         var layer = layers[depth];
@@ -197,12 +288,32 @@ public sealed class PopupManager : IDisposable
     /// <summary>Called once per frame after all scannable windows were drawn.</summary>
     public void Draw()
     {
+        while (pendingNpcCaptures.TryDequeue(out var captureReq))
+            NpcImages.Start(new TermInfo { Expression = captureReq.Expression, Reading = captureReq.Reading });
+
+        var mouse = ImGui.GetMousePos();
+        WebView?.Draw(mouse);
+
+        var usingWeb = UsingWebView;
+        if (usingWeb != wasWebViewActive)
+        {
+            wasWebViewActive = usingWeb;
+            layers.Clear();
+            ClearWebSource();
+            if (!usingWeb) WebView?.CloseAll();
+        }
+
+        if (usingWeb)
+        {
+            DrawWebView(mouse);
+            return;
+        }
+
         Themes.Update();
         var theme = PopupTheme.Current;
         theme.Scale = ImGuiHelpers.GlobalScale * config.PopupFontSize / MathF.Max(8f, theme.BaseFontPx);
 
         var now = DateTime.UtcNow;
-        var mouse = ImGui.GetMousePos();
         if (Vector2.DistanceSquared(mouse, lastMouse) > 4)
         {
             lastMouse = mouse;
@@ -299,6 +410,114 @@ public sealed class PopupManager : IDisposable
                 if (layers[i].Visible)
                     DrawLayer(layers[i], i);
             }
+        }
+    }
+
+    private void DrawWebView(Vector2 mouse)
+    {
+        var wv = WebView!;
+        var now = DateTime.UtcNow;
+        if (Vector2.DistanceSquared(mouse, lastMouse) > 4)
+        {
+            lastMouse = mouse;
+            mouseMovedAt = now;
+        }
+
+        var hit = frameHit;
+        frameHit = null;
+
+        if (hit is not null && hit.Depth == 0)
+        {
+            var text = hit.Hit.Block.ScanText;
+            var index = hit.Hit.CharIndex;
+            var matchSpan = SourceLengthForMatch(text, Math.Max(0, webSourceIndex), Math.Max(1, wv.MatchedLength));
+            var sameBlock = webSourceBlock is not null && hit.Hit.Block == webSourceBlock && index == webSourceIndex;
+            var sameContent = webLastSentence is not null
+                              && hit.Context.MatchOffset == webLastOffset
+                              && string.Equals(hit.Context.Sentence, webLastSentence, StringComparison.Ordinal)
+                              && string.Equals(hit.Context.DocumentTitle, webLastTitle, StringComparison.Ordinal);
+            // Match by content as well as block reference, and regardless of wv.AnyOpen:
+            // prevents re-firing ShowLookup every frame while an async lookup is in flight,
+            // when an NPC name/CWLS word has no match, or when NativeTextHover rebuilds a moving nameplate's RichBlock.
+            var sameSpot = sameBlock || sameContent;
+            var insideMatch = wv.AnyOpen && hit.Hit.Block == webSourceBlock
+                              && index >= webSourceIndex && index < webSourceIndex + Math.Max(1, matchSpan);
+            var scanning = hit.Forced || ModifierHeld();
+            if (sameSpot)
+            {
+                webSourceBlock = hit.Hit.Block;
+                webSourceIndex = index;
+                webSustainedAt = now;
+                // If the hovered line shifted vertically by a full row (e.g. a new chat message arrived
+                // and pushed this line upward), re-anchor the popup once to the new row position.
+                if (wv.AnyOpen && !wv.ContainsScreenPoint(mouse) && !float.IsNaN(webLastAnchorY)
+                    && MathF.Abs(hit.Hit.Min.Y - webLastAnchorY) > 10f)
+                {
+                    webLastAnchorY = hit.Hit.Min.Y;
+                    var tokenLen = hit.TokenEnd is { } end && end > index ? end - index : 1;
+                    wv.ShowLookup(hit.Context.Sentence, hit.Context.MatchOffset,
+                        hit.Hit.Min, hit.Hit.Max, hit.Context.DocumentTitle, tokenLen);
+                }
+            }
+            else if (insideMatch && !scanning)
+            {
+                webSustainedAt = now;
+            }
+            else if (scanning && index < text.Length)
+            {
+                var cp = Japanese.CodePointAt(text, index);
+                if (!config.ScanOnlyJapanese || Japanese.IsJapanese(cp))
+                {
+                    webSourceBlock = hit.Hit.Block;
+                    webSourceIndex = index;
+                    webLastSentence = hit.Context.Sentence;
+                    webLastOffset = hit.Context.MatchOffset;
+                    webLastTitle = hit.Context.DocumentTitle;
+                    webLastAnchorY = hit.Hit.Min.Y;
+                    webSustainedAt = now;
+                    var tokenLen = hit.TokenEnd is { } end && end > index ? end - index : 1;
+                    wv.ShowLookup(hit.Context.Sentence, hit.Context.MatchOffset,
+                        hit.Hit.Min, hit.Hit.Max, hit.Context.DocumentTitle, tokenLen);
+                }
+                else if (insideMatch)
+                {
+                    webSustainedAt = now;
+                }
+            }
+            else if (insideMatch)
+            {
+                webSustainedAt = now;
+            }
+        }
+
+        if (wv.AnyOpen && (wv.ContainsScreenPoint(mouse) || wv.IsPointerCaptured))
+            webSustainedAt = now;
+
+        if (sustainDepth >= 0)
+        {
+            webSustainedAt = now;
+            sustainDepth = -1;
+        }
+
+        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) && wv.AnyOpen && !wv.ContainsScreenPoint(mouse) && !wv.IsPointerCaptured)
+        {
+            var onSource = hit is not null && hit.Depth == 0;
+            if (!onSource)
+            {
+                ClearWebSource();
+                wv.CloseAll();
+            }
+        }
+
+        if (wv.AnyOpen && config.AutoHideRootPopup && (now - webSustainedAt).TotalSeconds > config.HideDelaySeconds)
+        {
+            ClearWebSource();
+            wv.CloseAll();
+        }
+        else if (!wv.AnyOpen && webLastSentence is not null && (now - webSustainedAt).TotalSeconds > Math.Max(0.35, config.HideDelaySeconds))
+        {
+            // Pointer left a word that missed/closed; allow looking it up again if hovered later.
+            ClearWebSource();
         }
     }
 

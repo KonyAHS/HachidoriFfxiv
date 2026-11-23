@@ -217,11 +217,11 @@ public sealed class Translator : IDisposable
     /// <summary>Codex, read-only and ephemeral, in an empty folder; the prompt goes in on stdin.</summary>
     private Task<string> CodexAsync(string model, string prompt, CancellationToken ct)
     {
-        var answer = Path.Combine(Path.GetTempPath(), $"hachidori-ffxiv-{Guid.NewGuid():N}.txt");
-        var args = new List<string> { "exec", "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "--color", "never", "-o", answer };
+        const string answerFileName = "answer.txt";
+        var args = new List<string> { "exec", "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "--color", "never", "-o", answerFileName };
         if (model.Trim().Length > 0) { args.Add("-m"); args.Add(model.Trim()); }
         args.Add("-");
-        return RunCliAsync(Cli("codex", config.CodexPath), args, prompt, answer, ct);
+        return RunCliAsync(Cli("codex", config.CodexPath), args, prompt, answerFileName, ct);
     }
 
     /// <summary>Claude Code in print mode with no tools and no saved session; the prompt goes in on stdin.</summary>
@@ -236,9 +236,10 @@ public sealed class Translator : IDisposable
     {
         if (configured.Trim().Length > 0)
             return configured.Trim().Trim('"');
+        var exts = PlatformInfo.Current.IsWine ? new[] { ".exe", ".cmd", "" } : new[] { ".exe", ".cmd" };
         foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
-            foreach (var ext in new[] { ".exe", ".cmd" })
+            foreach (var ext in exts)
             {
                 var path = Path.Combine(dir.Trim('"'), name + ext);
                 if (File.Exists(path))
@@ -248,11 +249,24 @@ public sealed class Translator : IDisposable
 
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        foreach (var path in new[]
-                 {
-                     Path.Combine(home, ".local", "bin", name + ".exe"),
-                     Path.Combine(local, "Programs", "OpenAI", "Codex", "bin", name + ".exe"),
-                 })
+        var fallbacks = new List<string>
+        {
+            Path.Combine(home, ".local", "bin", name + ".exe"),
+            Path.Combine(local, "Programs", "OpenAI", "Codex", "bin", name + ".exe"),
+        };
+        if (PlatformInfo.Current.IsWine)
+        {
+            fallbacks.Add($@"Z:\usr\local\bin\{name}");
+            fallbacks.Add($@"Z:\opt\homebrew\bin\{name}");
+            fallbacks.Add($@"Z:\usr\bin\{name}");
+            var linuxUser = Environment.GetEnvironmentVariable("USER") ?? Environment.GetEnvironmentVariable("LOGNAME");
+            if (!string.IsNullOrWhiteSpace(linuxUser))
+            {
+                fallbacks.Add($@"Z:\home\{linuxUser}\.local\bin\{name}");
+                fallbacks.Add($@"Z:\Users\{linuxUser}\.local\bin\{name}");
+            }
+        }
+        foreach (var path in fallbacks)
         {
             if (File.Exists(path))
                 return path;
@@ -261,9 +275,10 @@ public sealed class Translator : IDisposable
         throw new FileNotFoundException($"{name} was not found. Install it or set its path in Settings → Mining.");
     }
 
-    private static async Task<string> RunCliAsync(string exe, List<string> args, string prompt, string? answerFile, CancellationToken ct)
+    private static async Task<string> RunCliAsync(string exe, List<string> args, string prompt, string? answerFileName, CancellationToken ct)
     {
         var workDir = Directory.CreateTempSubdirectory("hachidori-ffxiv-ai-").FullName;
+        var answerPath = answerFileName is null ? null : Path.Combine(workDir, answerFileName);
         var start = new ProcessStartInfo(exe)
         {
             RedirectStandardInput = true,
@@ -295,7 +310,7 @@ public sealed class Translator : IDisposable
                 throw new InvalidOperationException($"{Path.GetFileNameWithoutExtension(exe)} exited with {process.ExitCode}: {last.Trim()}");
             }
 
-            var text = answerFile is not null && File.Exists(answerFile) ? await File.ReadAllTextAsync(answerFile, ct).ConfigureAwait(false) : stdout;
+            var text = answerPath is not null && File.Exists(answerPath) ? await File.ReadAllTextAsync(answerPath, ct).ConfigureAwait(false) : stdout;
             return text.Trim().Length > 0 ? text : throw new InvalidOperationException($"{Path.GetFileNameWithoutExtension(exe)} returned no text.");
         }
         finally
@@ -303,11 +318,6 @@ public sealed class Translator : IDisposable
             if (!process.HasExited)
             {
                 try { process.Kill(true); } catch { /* already gone */ }
-            }
-
-            if (answerFile is not null)
-            {
-                try { File.Delete(answerFile); } catch { /* best effort */ }
             }
 
             try { Directory.Delete(workDir, true); } catch { /* best effort */ }
@@ -319,9 +329,7 @@ public sealed class Translator : IDisposable
     /// <summary>Copies the AI settings of GSM's active profile. Returns a summary, or throws.</summary>
     public string ImportFromGsm()
     {
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameSentenceMiner", "config.json");
-        if (!File.Exists(path))
-            throw new FileNotFoundException("GSM's config.json was not found.");
+        var path = FindGsmConfigPath() ?? throw new FileNotFoundException("GSM's config.json was not found.");
         var root = JsonNode.Parse(File.ReadAllText(path));
         var profile = root?["current_profile"]?.ToString() ?? "Default";
         var profileNode = root?["configs"]?[profile] ?? root?["configs"]?["Default"];
@@ -371,6 +379,35 @@ public sealed class Translator : IDisposable
         var native = profileNode?["general"]?["native_language"]?.ToString();
         if (native is { Length: > 0 }) config.TranslationLanguage = LanguageName(native);
         return $"Imported GSM's AI settings ({S("provider")}, field “{config.TranslationField}”).";
+    }
+
+    private static string? FindGsmConfigPath()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData))
+        {
+            var winPath = Path.Combine(appData, "GameSentenceMiner", "config.json");
+            if (File.Exists(winPath))
+                return winPath;
+        }
+
+        if (PlatformInfo.Current.IsWine)
+        {
+            var hostUser = Environment.GetEnvironmentVariable("USER") ?? Environment.GetEnvironmentVariable("LOGNAME");
+            var candidates = new List<string>();
+            if (!string.IsNullOrWhiteSpace(hostUser))
+            {
+                candidates.Add($@"Z:\home\{hostUser}\.config\GameSentenceMiner\config.json");
+                candidates.Add($@"Z:\Users\{hostUser}\Library\Application Support\GameSentenceMiner\config.json");
+            }
+            foreach (var c in candidates)
+            {
+                if (File.Exists(c))
+                    return c;
+            }
+        }
+
+        return null;
     }
 
     private static string LanguageName(string code) => code.ToLowerInvariant() switch

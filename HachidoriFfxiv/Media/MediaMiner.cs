@@ -268,7 +268,7 @@ public sealed class MediaMiner : IDisposable
 
     private async Task<(byte[] Data, string Ext, string? Note)> EncodeAsync(IReadOnlyList<GifFrame> frames)
     {
-        var ffmpeg = config.AnimationFormat == AnimationFormat.Avif ? FfmpegPath : null;
+        var ffmpeg = config.AnimationFormat != AnimationFormat.Gif ? FfmpegPath : null;
         return await AnimationEncoder.EncodeAsync(frames, Math.Clamp(config.GifFps, 2, 24), config.AnimationFormat, ffmpeg,
             Math.Clamp(config.AvifCrf, 10, 55), Math.Clamp(config.WebpQuality, 30, 100)).ConfigureAwait(false);
     }

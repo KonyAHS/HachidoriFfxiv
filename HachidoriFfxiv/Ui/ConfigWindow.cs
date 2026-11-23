@@ -16,6 +16,7 @@ using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Media;
 using HachidoriFfxiv.Publishing;
 using HachidoriFfxiv.Rendering.Css;
+using HachidoriFfxiv.WebView;
 
 namespace HachidoriFfxiv.Ui;
 
@@ -101,6 +102,8 @@ public sealed class ConfigWindow : Window
     private readonly Action<string?>? openSearchSample;
     private readonly Action? openReader;
     private readonly Action? openPictures;
+    private readonly WebViewPopupController? webView;
+    private readonly Action? triggerFreezeFrame;
     private readonly List<SettingEntry> catalog = new();
 
     private string searchQuery = string.Empty;
@@ -110,6 +113,9 @@ public sealed class ConfigWindow : Window
     private DateTime resetNoticeUntil = DateTime.MinValue;
     private string? mediaTest;
     private string? exportedLog;
+    private string? dictionaryNotice;
+    private bool dictionaryNoticeIsError;
+    private DateTime dictionaryNoticeUntil = DateTime.MinValue;
     private bool confirmRemoveOffline;
     private bool ankiConnectedHint;
     private bool firstDraw = true;
@@ -126,7 +132,9 @@ public sealed class ConfigWindow : Window
         Action? openStats = null,
         Action<string?>? openSearchSample = null,
         Action? openReader = null,
-        Action? openPictures = null)
+        Action? openPictures = null,
+        WebViewPopupController? webView = null,
+        Action? triggerFreezeFrame = null)
         : base("Hachidori Settings##hachidori-ffxiv-config")
     {
         this.config = config;
@@ -141,6 +149,8 @@ public sealed class ConfigWindow : Window
         this.openSearchSample = openSearchSample;
         this.openReader = openReader;
         this.openPictures = openPictures;
+        this.webView = webView;
+        this.triggerFreezeFrame = triggerFreezeFrame;
 
         Size = new Vector2(660, 620);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -191,7 +201,7 @@ public sealed class ConfigWindow : Window
 
         DrawTab("Quick Guide", null, DrawQuickGuideTab, scale);
         DrawTab("Popup", () => { config.ResetPopupDefaults(); Changed(true); }, DrawPopupTab, scale);
-        DrawTab("Theme", () => { config.ResetThemeDefaults(); config.Save(); }, DrawThemeTab, scale);
+        DrawTab("Theme", () => { config.ResetThemeDefaults(); config.Save(); webView?.NotifySettingsChanged(); }, DrawThemeTab, scale);
         DrawTab("Mining", () => { config.ResetMiningDefaults(); config.Save(); }, DrawMiningTab, scale);
         DrawTab("Controller", () => { config.ResetControllerDefaults(); config.Save(); }, DrawControllerTab, scale);
         DrawTab("Reader", () => { config.ResetReaderDefaults(); Changed(true); }, DrawReaderTab, scale);
@@ -429,6 +439,8 @@ public sealed class ConfigWindow : Window
         ImGui.TextWrapped("Hover native Japanese dialogue, battle talk, and chat for Yomitan-style dictionary popups, pitch accent, audio, and one-click Anki card mining with game media.");
         ImGui.Spacing();
 
+        DrawPlatformCompatibilityGuide(scale);
+
         // Step 1: Connect dictionary backend
         if (Section("guide-step1", dictReady ? "Step 1: Connect Dictionaries  [Ready]" : "Step 1: Connect Dictionaries  [Action Needed]", defaultOpen: true, accent: dictReady ? AccentGreen : AccentAmber))
         {
@@ -462,6 +474,23 @@ public sealed class ConfigWindow : Window
                         _ = offline.SetUpAsync();
                 }
             }
+        }
+
+        // Optional: Custom FFXIV dictionary
+        var installedFfxivDict = FindInstalledFfxivDictionary();
+        var dictHeader = installedFfxivDict is { Enabled: true }
+            ? "Optional: Custom FFXIV Dictionary  [Installed]"
+            : installedFfxivDict is not null
+                ? "Optional: Custom FFXIV Dictionary  [Disabled]"
+                : "Optional: Custom FFXIV Dictionary";
+        var dictAccent = installedFfxivDict is { Enabled: true }
+            ? AccentGreen
+            : installedFfxivDict is not null
+                ? AccentAmber
+                : AccentCyan;
+        if (Section("guide-ffxiv-dict", dictHeader, defaultOpen: installedFfxivDict is null, accent: dictAccent))
+        {
+            DrawFfxivDictionaryBody(scale, installedFfxivDict, "guide");
         }
 
         // Step 2: Scanning & testing
@@ -553,6 +582,62 @@ public sealed class ConfigWindow : Window
         }
     }
 
+    private void DrawPlatformCompatibilityGuide(float scale)
+    {
+        var platform = PlatformInfo.Current;
+        var missingWebViewOnWindows = platform.SupportsWebView2Overlay && webView is { RuntimeAvailable: false };
+        var showOpen = platform.HasCompatibilityFallbacks || missingWebViewOnWindows;
+        var badge = platform.HasCompatibilityFallbacks
+            ? $"{platform.DisplayName} · Compatibility Mode"
+            : missingWebViewOnWindows
+                ? $"{platform.DisplayName} · ImGui Fallback"
+                : $"{platform.DisplayName} · Full Support";
+        var accent = platform.HasCompatibilityFallbacks || missingWebViewOnWindows ? AccentAmber : AccentCyan;
+
+        if (!Section("guide-platform", $"OS & Platform Compatibility  [{badge}]", defaultOpen: showOpen, accent: accent))
+            return;
+
+        if (platform.IsWine)
+        {
+            ImGui.TextColored(AccentAmber, $"Detected {platform.DisplayName}. Automatic fallbacks are enabled where Windows-only APIs are unavailable:");
+            ImGui.BulletText("Popups: using the built-in ImGui renderer with bundled Hachidori themes (Hachidori Web / WebView2 is Windows-only).");
+            if (platform.HostOs == HostOsKind.MacOs)
+                ImGui.BulletText("Voice recording: macOS CoreAudio has no built-in loopback; enable TTS in Mining for spoken cards or route audio through a virtual loopback device.");
+            else
+                ImGui.BulletText("Voice recording: using standard system-output loopback fallback (may include other desktop apps; lower BGM/other audio for cleaner clips).");
+            ImGui.BulletText("Pronunciation & animations: Ogg/Opus/WAV and GIF work built-in; install FFmpeg on the host for MP3/AAC fallback and AVIF/WebP animations.");
+            ImGui.BulletText("Anki & Chrome: run native Linux/macOS Anki (with Hachidori Relay) and Chrome normally — 127.0.0.1 is shared with the game.");
+
+            if (platform.IsSteamDeck)
+            {
+                ImGui.Spacing();
+                ImGui.TextColored(AccentCyan, "Steam Deck tips:");
+                ImGui.BulletText("Best workflow: open Chrome + Anki once in Desktop Mode, link Hachidori, and enable Offline Mode so lookups work in Gaming Mode with Chrome closed.");
+                ImGui.BulletText("Put /hachidori pad and /hachidori freeze on cross-hotbar macros (press B / Circle to exit Freeze Frame).");
+                ImGui.BulletText("Enable \"plugin gamepad input\" in Dalamud settings; the left stick and Steam Deck trackpads (as mouse) both move the virtual cursor.");
+            }
+
+            ImGui.Spacing();
+            ImGui.TextDisabled("Disclaimer: Linux, Steam Deck, and macOS support runs via Wine/Proton/XIV on Mac compatibility fallbacks and is best-effort compared to native Windows.");
+        }
+        else if (!platform.SupportsProcessAudioLoopback)
+        {
+            ImGui.TextColored(AccentAmber, $"Detected {platform.DisplayName} (pre-2004). Voice recording automatically falls back to system-output audio loopback instead of FFXIV-only loopback.");
+            if (missingWebViewOnWindows)
+                ImGui.BulletText("Microsoft Edge WebView2 Runtime is not installed — popups are using the built-in ImGui fallback.");
+        }
+        else if (missingWebViewOnWindows)
+        {
+            ImGui.TextColored(AccentAmber, "Microsoft Edge WebView2 Runtime was not detected — popups are using the built-in ImGui renderer.");
+            ImGui.TextWrapped("Install Microsoft Edge WebView2 Runtime for exact upstream Hachidori Web themes, or keep using the built-in ImGui themes.");
+        }
+        else
+        {
+            ImGui.TextWrapped($"Detected {platform.DisplayName} with full native support (WebView2 popups, per-process FFXIV audio recording, GPU screenshots/Freeze Frame, and Offline Mode).");
+            ImGui.TextDisabled("Playing on Linux, Steam Deck (XIVLauncher.Core), or macOS (XIV on Mac)? The plugin automatically detects Wine/Proton and enables built-in fallbacks (ImGui themes, system audio loopback / TTS, FFmpeg/GIF). Non-Windows platforms are supported on a best-effort basis.");
+        }
+    }
+
     // -------------------------------------------------------------- Popup tab
 
     private void DrawPopupTab()
@@ -562,6 +647,7 @@ public sealed class ConfigWindow : Window
             Checkbox("Hover native game text", () => config.NativeTextHover, v => config.NativeTextHover = v);
             Checkbox("Include native chat text", () => config.NativeChatHover, v => config.NativeChatHover = v);
             DrawScanModifierControl();
+            DrawFreezeHotkeyControl();
 
             if (Advanced)
             {
@@ -632,6 +718,64 @@ public sealed class ConfigWindow : Window
 
     private void DrawThemeTab()
     {
+        var scale = ImGuiHelpers.GlobalScale;
+
+        if (Section("theme-renderer", "Popup Renderer (Hachidori Web)", defaultOpen: true))
+        {
+            DrawUseWebViewControl();
+
+            if (webView is { PlatformSupported: false })
+            {
+                ImGui.TextColored(AccentCyan, $"Running on {PlatformInfo.Current.DisplayName} — Hachidori Web (WebView2) is Windows-only; automatically using the built-in ImGui renderer with bundled Hachidori themes.");
+            }
+            else if (!config.UseWebViewPopup)
+            {
+                ImGui.TextDisabled("Using the legacy ImGui popup renderer.");
+            }
+            else if (!config.FollowHachidoriTheme)
+            {
+                ImGui.TextDisabled("Enable \"Use Hachidori's popup theme\" below to render with Hachidori Web.");
+            }
+            else if (webView is { Active: true })
+            {
+                var src = string.IsNullOrWhiteSpace(webView.Bundles.ActiveSource) ? "cache" : webView.Bundles.ActiveSource;
+                ImGui.TextColored(AccentGreen, $"Active: Hachidori Web v{webView.LoadedVersion} ({src}) — exact upstream themes & CSS.");
+            }
+            else if (webView is { RuntimeAvailable: false })
+            {
+                ImGui.TextColored(AccentAmber, "Microsoft Edge WebView2 Runtime is not installed — using built-in ImGui fallback.");
+            }
+            else if (webView?.Bundles.Syncing == true)
+            {
+                ImGui.TextColored(AccentCyan, "Syncing Hachidori Web bundle…");
+            }
+            else if (webView?.Bundles.Ready == true)
+            {
+                ImGui.TextColored(AccentAmber, $"{webView.StatusText} — using built-in ImGui fallback until ready.");
+            }
+            else
+            {
+                ImGui.TextColored(AccentAmber, "Waiting for Hachidori Web bundle — using built-in ImGui fallback until ready.");
+            }
+
+            if (webView?.LastError is { Length: > 0 } wvError && config.UseWebViewPopup && webView.PlatformSupported)
+                ImGui.TextColored(AccentRed, $"WebView status: {wvError}");
+
+            if (webView is { PlatformSupported: true })
+            {
+                using (ImRaii.Disabled(webView.Bundles.Syncing))
+                {
+                    if (ImGui.Button("Sync Hachidori Web now"))
+                        _ = webView.SyncBundleNowAsync(force: true);
+                }
+                if (webView.Bundles.SyncedAt is { } syncedAt)
+                {
+                    ImGui.SameLine(0, 10 * scale);
+                    ImGui.TextDisabled($"Last synced: {Ago(new DateTimeOffset(DateTime.SpecifyKind(syncedAt, DateTimeKind.Utc)))}");
+                }
+            }
+        }
+
         if (Section("theme-sync", "Hachidori Theme Sync", defaultOpen: true))
         {
             DrawFollowThemeControl();
@@ -661,13 +805,39 @@ public sealed class ConfigWindow : Window
                 DrawApplyCustomCssControl();
                 DrawExtraCssControl();
             }
+
+            if (Section("theme-bundle", "Hachidori Web Bundle [Advanced]", defaultOpen: false, accent: AccentAmber))
+            {
+                DrawAutoSyncWebViewControl();
+                DrawWebViewBundlePathControl();
+                if (webView?.Bundles.ActivePath is { Length: > 0 } activePath)
+                    ImGui.TextDisabled($"Active bundle: {activePath}");
+                if (webView?.Bundles.LastGoodVersion is { Length: > 0 } lastGood)
+                    ImGui.TextDisabled($"Last verified version: v{lastGood}");
+            }
         }
 
-        var current = PopupTheme.Current;
-        if (themes.Error is { } error)
-            ImGui.TextColored(AccentRed, $"Theme error: {error}");
+        if (webView is { Active: true })
+        {
+            var effectiveTheme = string.IsNullOrWhiteSpace(config.HachidoriThemeOverride)
+                ? service.OptionString("popupTheme", "default")
+                : config.HachidoriThemeOverride;
+            var effectiveVariant = string.IsNullOrWhiteSpace(config.HachidoriVariantOverride)
+                ? service.OptionString("popupThemeVariant", "auto")
+                : config.HachidoriVariantOverride;
+            var variantNote = !string.IsNullOrWhiteSpace(effectiveVariant) && effectiveVariant != "auto"
+                ? $" / {effectiveVariant}"
+                : string.Empty;
+            ImGui.TextDisabled($"Active look (WebView2): {effectiveTheme}{variantNote}. Changes apply live.");
+        }
         else
-            ImGui.TextDisabled($"Active look: {current.Renderer}{(current.Renderer == "default" ? $" / {current.Palette}" : string.Empty)}{(current.Variant.Length > 0 && current.Renderer == "crystal" ? $" / {current.Variant}" : string.Empty)}, {(current.Dark ? "dark" : "light")}. Changes apply to the next popup.");
+        {
+            var current = PopupTheme.Current;
+            if (themes.Error is { } error)
+                ImGui.TextColored(AccentRed, $"Theme error: {error}");
+            else
+                ImGui.TextDisabled($"Active look (ImGui fallback): {current.Renderer}{(current.Renderer == "default" ? $" / {current.Palette}" : string.Empty)}{(current.Variant.Length > 0 && current.Renderer == "crystal" ? $" / {current.Variant}" : string.Empty)}, {(current.Dark ? "dark" : "light")}. Changes apply to the next popup.");
+        }
     }
 
     // -------------------------------------------------------------- Mining tab
@@ -730,7 +900,12 @@ public sealed class ConfigWindow : Window
                 if (recorder.Error is { } audioError)
                     ImGui.TextColored(AccentAmber, audioError);
                 else if (recorder.Running)
-                    ImGui.TextDisabled("Recording game audio.");
+                {
+                    if (recorder.Mode == GameAudioCaptureMode.SystemLoopback)
+                        ImGui.TextColored(AccentAmber, "Recording system output audio (compatibility fallback — other apps' audio may be included; lower BGM/other apps for cleaner clips).");
+                    else
+                        ImGui.TextDisabled("Recording FFXIV game audio only (Windows process loopback).");
+                }
             }
 
             if (Advanced && config.RecordVoiceLines)
@@ -968,6 +1143,7 @@ public sealed class ConfigWindow : Window
             Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
             Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
             Checkbox("Use DualSense/DS4 touchpad for virtual cursor", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v);
+            HelpMarker("Reads Sony DualSense / DualShock 4 touchpads via Windows HID (primarily Windows). On Steam Deck, the built-in trackpads already glide the virtual cursor automatically when mapped to mouse in Steam Input.");
             if (Advanced)
                 DrawControllerCursorSpeedControl();
         }
@@ -1208,6 +1384,22 @@ public sealed class ConfigWindow : Window
             }
         }
 
+        var installedFfxivDict = FindInstalledFfxivDictionary();
+        var dictConnTitle = installedFfxivDict is { Enabled: true }
+            ? "Custom FFXIV Dictionary  [Installed]"
+            : installedFfxivDict is not null
+                ? "Custom FFXIV Dictionary  [Disabled]"
+                : "Custom FFXIV Dictionary";
+        var dictConnAccent = installedFfxivDict is { Enabled: true }
+            ? AccentGreen
+            : installedFfxivDict is not null
+                ? AccentAmber
+                : AccentCyan;
+        if (Section("conn-ffxiv-dict", dictConnTitle, defaultOpen: installedFfxivDict is null, accent: dictConnAccent))
+        {
+            DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, installedFfxivDict, "conn");
+        }
+
         if (service.Offline is { } offline && Section("conn-offline", config.OfflineMode ? "Offline Mode  [Enabled]" : "Offline Mode", defaultOpen: true, accent: config.OfflineMode ? AccentGreen : null))
         {
             DrawOfflineModeBody(offline);
@@ -1227,6 +1419,84 @@ public sealed class ConfigWindow : Window
                     ImGui.SetClipboardText(exportedLog);
             }
         }
+    }
+
+    private InstalledFfxivDictionary? FindInstalledFfxivDictionary()
+    {
+        var live = FfxivDictionary.FindInstalled(service.Dictionaries);
+        if (live is not null)
+            return live;
+        if (service.Offline is { } offline)
+            return FfxivDictionary.FindInstalledOffline(offline.Store.Manifest.Dictionaries);
+        return null;
+    }
+
+    private void DrawFfxivDictionaryBody(float scale, InstalledFfxivDictionary? installed, string scopeId)
+    {
+        if (installed is { Enabled: true })
+        {
+            var rev = string.IsNullOrWhiteSpace(installed.Revision) ? string.Empty : $" (rev {installed.Revision})";
+            ImGui.TextColored(AccentGreen, $"Installed: {installed.Title}{rev}");
+            ImGui.TextDisabled("To update, remove the older entry in Hachidori → Settings → Dictionaries, then import the latest ZIP.");
+        }
+        else if (installed is not null)
+        {
+            var rev = string.IsNullOrWhiteSpace(installed.Revision) ? string.Empty : $" (rev {installed.Revision})";
+            ImGui.TextColored(AccentAmber, $"Installed but disabled: {installed.Title}{rev}");
+            ImGui.TextDisabled("Enable it in Hachidori → Settings → Dictionaries to see FFXIV definitions.");
+        }
+        else
+        {
+            ImGui.TextWrapped("37,729 FFXIV Japanese→English entries: NPCs & 190 character/location portraits, enemies, locations, actions, status effects, and JP Party Finder lingo. Import the downloaded ZIP in Hachidori → Settings → Dictionaries.");
+            ImGui.TextDisabled("Note: contains character names and portraits from all expansions (spoilers).");
+        }
+
+        ImGui.Spacing();
+        var downloadLabel = installed is not null
+            ? $"Download latest ({FfxivDictionary.ArchiveFileName})##ffxiv-dict-dl-{scopeId}"
+            : $"Download FFXIV Dictionary (.zip)##ffxiv-dict-dl-{scopeId}";
+        if (ImGui.Button(downloadLabel))
+            OpenDictionaryLink(FfxivDictionary.DownloadUrl, "Opened download in your browser — import the ZIP in Hachidori → Settings → Dictionaries.");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(FfxivDictionary.DownloadUrl);
+
+        ImGui.SameLine(0, 6 * scale);
+        if (ImGui.Button($"Guide & source##ffxiv-dict-guide-{scopeId}"))
+            OpenDictionaryLink(FfxivDictionary.GuideUrl, "Opened FFXIV dictionary guide and source code in your browser.");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(FfxivDictionary.GuideUrl);
+
+        ImGui.SameLine(0, 6 * scale);
+        if (ImGui.Button($"Copy link##ffxiv-dict-copy-{scopeId}"))
+        {
+            ImGui.SetClipboardText(FfxivDictionary.DownloadUrl);
+            SetDictionaryNotice("Copied download link to clipboard.", isError: false);
+        }
+
+        if (dictionaryNotice is not null && DateTime.UtcNow < dictionaryNoticeUntil)
+            ImGui.TextColored(dictionaryNoticeIsError ? AccentAmber : AccentCyan, dictionaryNotice);
+        else if (dictionaryNotice is not null)
+            dictionaryNotice = null;
+    }
+
+    private void OpenDictionaryLink(string url, string successMessage)
+    {
+        if (FfxivDictionary.TryOpenUrl(url, out var error))
+        {
+            SetDictionaryNotice(successMessage, isError: false);
+        }
+        else
+        {
+            ImGui.SetClipboardText(url);
+            SetDictionaryNotice($"Could not open browser ({error ?? "unknown error"}). Copied link to clipboard instead.", isError: true);
+        }
+    }
+
+    private void SetDictionaryNotice(string message, bool isError)
+    {
+        dictionaryNotice = message;
+        dictionaryNoticeIsError = isError;
+        dictionaryNoticeUntil = DateTime.UtcNow.AddSeconds(6);
     }
 
     private void DrawOfflineModeBody(Offline.OfflineMode offline)
@@ -1314,6 +1584,26 @@ public sealed class ConfigWindow : Window
         HelpMarker("None scans on hover, like JL's default. Alt over a headword kanji (or clicking it) opens kanji info.");
     }
 
+    private static readonly FreezeHotkey[] FreezeHotkeys = Enum.GetValues<FreezeHotkey>();
+    private static readonly string[] FreezeHotkeyLabels = FreezeHotkeys.Select(FreezeFrameOverlay.HotkeyLabel).ToArray();
+
+    private void DrawFreezeHotkeyControl()
+    {
+        var idx = Math.Max(0, Array.IndexOf(FreezeHotkeys, config.FreezeFrameHotkey));
+        if (ImGui.Combo("Freeze frame (tooltips)", ref idx, FreezeHotkeyLabels, FreezeHotkeyLabels.Length))
+        {
+            config.FreezeFrameHotkey = FreezeHotkeys[idx];
+            config.Save();
+        }
+        HelpMarker("Freezes the screen and captures visible tooltips (ItemDetail, ActionDetail, Tooltip, etc.) so you can move your mouse onto them to look up and mine words. Also available via /hachidori freeze.");
+        if (triggerFreezeFrame is not null)
+        {
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Freeze now"))
+                triggerFreezeFrame();
+        }
+    }
+
     private void DrawScanLengthControl() =>
         NumberInt("Scan length", () => config.ScanLength, v => { config.ScanLength = v; Changed(true); }, 4, 32, Defaults.ScanLength, "Maximum characters sent per lookup scan.");
 
@@ -1342,6 +1632,44 @@ public sealed class ConfigWindow : Window
     private void DrawAudioVolumeControl() =>
         NumberFloat("Volume", () => config.AudioVolume, v => { config.AudioVolume = v; Changed(true); }, 0f, 1f, Defaults.AudioVolume, "%.2f");
 
+    private void DrawUseWebViewControl()
+    {
+        var enabled = config.UseWebViewPopup;
+        if (ImGui.Checkbox("Render popups with Hachidori Web (WebView2)", ref enabled))
+        {
+            config.UseWebViewPopup = enabled;
+            config.Save();
+            webView?.NotifySettingsChanged();
+        }
+        HelpMarker("Runs Hachidori's real unmodified popup frontend in a transparent overlay so all upstream themes, fonts, layouts, custom CSS, and future Hachidori updates appear identically in FFXIV. Automatically falls back to the built-in ImGui popup if WebView2 is unavailable.");
+    }
+
+    private void DrawAutoSyncWebViewControl()
+    {
+        var autoSync = config.AutoSyncWebViewBundle;
+        if (ImGui.Checkbox("Auto-sync Hachidori Web when Hachidori updates", ref autoSync))
+        {
+            config.AutoSyncWebViewBundle = autoSync;
+            config.Save();
+            webView?.NotifySettingsChanged();
+        }
+        HelpMarker("Automatically matches your connected Hachidori version from your local browser extension or official bee-san/hachidori GitHub Releases, with automatic rollback if an update fails to load.");
+    }
+
+    private void DrawWebViewBundlePathControl()
+    {
+        var customPath = config.WebViewBundlePath;
+        if (ImGui.InputTextWithHint("Custom Hachidori extension folder", "blank: auto-detect Chrome/Edge or download", ref customPath, 512))
+            config.WebViewBundlePath = customPath.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+        {
+            config.Save();
+            if (webView is not null)
+                _ = webView.SyncBundleNowAsync(force: true);
+        }
+        HelpMarker("Optional path to an unpacked Hachidori extension folder (containing manifest.json) for testing local themes or unreleased Hachidori builds.");
+    }
+
     private void DrawFollowThemeControl()
     {
         var follow = config.FollowHachidoriTheme;
@@ -1349,33 +1677,112 @@ public sealed class ConfigWindow : Window
         {
             config.FollowHachidoriTheme = follow;
             config.Save();
+            webView?.NotifySettingsChanged();
         }
-        HelpMarker("Draws popups with the theme chosen in Hachidori (Settings → Design): Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme or Crystal, including your custom popup CSS.");
+        HelpMarker("Draws popups with the theme chosen in Hachidori (Settings → Design): Default and its colour palettes, Nazeka, Plain, JL, Bee's Theme, Crystal, and any new upstream themes, including your custom popup CSS.");
     }
 
     private void DrawThemeOverrideControl()
     {
-        var choices = new[] { string.Empty }.Concat(PopupThemeProvider.Renderers.Where(r => r != "default")).Concat(themes.Palettes).ToArray();
-        var labels = choices.Select(c => c.Length == 0 ? "Same as Hachidori" : PopupThemeProvider.Renderers.Contains(c) ? $"{c} (theme)" : $"{c} (Default palette)").ToArray();
-        var index = Math.Max(0, Array.IndexOf(choices, config.HachidoriThemeOverride));
-        if (ImGui.Combo("Theme", ref index, labels, labels.Length))
+        var choices = new List<string> { string.Empty };
+        var labels = new List<string> { "Same as Hachidori" };
+
+        var bundleThemes = webView?.Bundles.Themes;
+        var bundlePalettes = webView?.Bundles.DefaultPalettes;
+        if (bundleThemes is { Count: > 0 })
+        {
+            foreach (var t in bundleThemes)
+            {
+                if (string.Equals(t.Slug, "default", StringComparison.OrdinalIgnoreCase)) continue;
+                choices.Add(t.Slug);
+                labels.Add(string.IsNullOrWhiteSpace(t.Name) ? $"{t.Slug} (theme)" : $"{t.Name} ({t.Slug})");
+            }
+            var palettes = bundlePalettes is { Count: > 0 } ? bundlePalettes : themes.Palettes;
+            foreach (var p in palettes)
+            {
+                if (choices.Contains(p, StringComparer.OrdinalIgnoreCase)) continue;
+                choices.Add(p);
+                labels.Add($"{p} (Default palette)");
+            }
+        }
+        else
+        {
+            foreach (var r in PopupThemeProvider.Renderers.Where(r => r != "default"))
+            {
+                choices.Add(r);
+                labels.Add($"{r} (theme)");
+            }
+            foreach (var p in themes.Palettes)
+            {
+                choices.Add(p);
+                labels.Add($"{p} (Default palette)");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.HachidoriThemeOverride)
+            && !choices.Contains(config.HachidoriThemeOverride, StringComparer.Ordinal))
+        {
+            choices.Add(config.HachidoriThemeOverride);
+            labels.Add($"{config.HachidoriThemeOverride} (custom)");
+        }
+
+        var index = Math.Max(0, choices.IndexOf(config.HachidoriThemeOverride));
+        var labelArray = labels.ToArray();
+        if (ImGui.Combo("Theme", ref index, labelArray, labelArray.Length))
         {
             config.HachidoriThemeOverride = choices[index];
             config.Save();
+            webView?.NotifySettingsChanged();
         }
     }
 
     private void DrawVariantOverrideControl()
     {
-        var variants = new[] { string.Empty }.Concat(PopupThemeProvider.Variants).ToArray();
-        var variantLabels = variants.Select(v => v.Length == 0 ? "Same as Hachidori" : v == "auto" ? "Automatic (Grey in game)" : v).ToArray();
-        var variantIndex = Math.Max(0, Array.IndexOf(variants, config.HachidoriVariantOverride));
-        if (ImGui.Combo("Colours", ref variantIndex, variantLabels, variantLabels.Length))
+        var effectiveSlug = string.IsNullOrWhiteSpace(config.HachidoriThemeOverride)
+            ? service.OptionString("popupTheme", "default")
+            : config.HachidoriThemeOverride;
+        var matchedTheme = webView?.Bundles.Themes.FirstOrDefault(t =>
+            string.Equals(t.Slug, effectiveSlug, StringComparison.OrdinalIgnoreCase));
+
+        var variants = new List<string> { string.Empty };
+        var variantLabels = new List<string> { "Same as Hachidori" };
+
+        if (matchedTheme is { Variants.Count: > 0 })
+        {
+            variants.Add("auto");
+            variantLabels.Add("Automatic");
+            foreach (var (id, name) in matchedTheme.Variants)
+            {
+                if (string.Equals(id, "auto", StringComparison.OrdinalIgnoreCase)) continue;
+                variants.Add(id);
+                variantLabels.Add(string.IsNullOrWhiteSpace(name) ? id : name);
+            }
+        }
+        else
+        {
+            foreach (var v in PopupThemeProvider.Variants)
+            {
+                variants.Add(v);
+                variantLabels.Add(v == "auto" ? "Automatic (Grey in game)" : v);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.HachidoriVariantOverride)
+            && !variants.Contains(config.HachidoriVariantOverride, StringComparer.Ordinal))
+        {
+            variants.Add(config.HachidoriVariantOverride);
+            variantLabels.Add(config.HachidoriVariantOverride);
+        }
+
+        var variantIndex = Math.Max(0, variants.IndexOf(config.HachidoriVariantOverride));
+        var labelArray = variantLabels.ToArray();
+        if (ImGui.Combo("Colours", ref variantIndex, labelArray, labelArray.Length))
         {
             config.HachidoriVariantOverride = variants[variantIndex];
             config.Save();
+            webView?.NotifySettingsChanged();
         }
-        HelpMarker("Crystal's colour schemes: Grey, Beige and Retro blue.");
+        HelpMarker("Theme colour schemes (e.g. Crystal's Grey, Beige, and Retro blue). Automatically populated from the active Hachidori Web theme.");
     }
 
     private void DrawFollowOpacityControl()
@@ -1385,6 +1792,7 @@ public sealed class ConfigWindow : Window
         {
             config.FollowHachidoriOpacity = opacity;
             config.Save();
+            webView?.NotifySettingsChanged();
         }
     }
 
@@ -1395,6 +1803,7 @@ public sealed class ConfigWindow : Window
         {
             config.ApplyHachidoriCustomCss = custom;
             config.Save();
+            webView?.NotifySettingsChanged();
         }
         HelpMarker("Hachidori's Custom popup CSS and the CSS of enabled user scripts.");
     }
@@ -1402,12 +1811,15 @@ public sealed class ConfigWindow : Window
     private void DrawExtraCssControl()
     {
         ImGui.TextUnformatted("Extra CSS for the game popup");
-        HelpMarker("Applied after Hachidori's CSS. Supported: colours, backgrounds and linear gradients, borders and border-radius, padding, box-shadow, font sizes of the headword and reading, and custom properties (var()).");
+        HelpMarker("Applied after Hachidori's CSS. Full CSS is supported when rendering with Hachidori Web (WebView2).");
         var extra = config.ExtraPopupCss;
         if (ImGui.InputTextMultiline("##extra-css", ref extra, 16384, new Vector2(-1, 120 * ImGuiHelpers.GlobalScale)))
             config.ExtraPopupCss = extra;
         if (ImGui.IsItemDeactivatedAfterEdit())
+        {
             config.Save();
+            webView?.NotifySettingsChanged();
+        }
     }
 
     private void DrawScreenshotToggleControl()
@@ -1701,6 +2113,7 @@ public sealed class ConfigWindow : Window
         Add("Popup", "Hover & Scanning", "Include native chat text", "native chat hover logbox", false,
             () => Checkbox("Include native chat text", () => config.NativeChatHover, v => config.NativeChatHover = v));
         Add("Popup", "Hover & Scanning", "Scan key", "modifier shift ctrl alt trigger hotkey", false, DrawScanModifierControl);
+        Add("Popup", "Hover & Scanning", "Freeze frame (tooltips)", "freeze frame tooltip item action skill snapshot hotkey", false, DrawFreezeHotkeyControl);
         Add("Popup", "Hover & Scanning", "Hover whole words (tokenizer)", "tokenized hover word segment", true,
             () => Checkbox("Hover whole words (Hachidori tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v));
         Add("Popup", "Hover & Scanning", "Other native windows (experimental)", "experimental addons ui windows", true,
@@ -1745,12 +2158,15 @@ public sealed class ConfigWindow : Window
         Add("Popup", "Pronunciation Audio", "Volume", "audio loudness sound", false, DrawAudioVolumeControl);
 
         // Theme
+        Add("Theme", "Popup Renderer (Hachidori Web)", "Render popups with Hachidori Web (WebView2)", "webview2 browser parity upstream themes renderer", false, DrawUseWebViewControl);
         Add("Theme", "Hachidori Theme Sync", "Use Hachidori's popup theme", "crystal nazeka jl bee default appearance style", false, DrawFollowThemeControl);
         Add("Theme", "Hachidori Theme Sync", "Theme override", "palette renderer dark light crystal", false, DrawThemeOverrideControl);
         Add("Theme", "Hachidori Theme Sync", "Colours / variant", "grey beige retro blue crystal scheme", false, DrawVariantOverrideControl);
         Add("Theme", "Opacity & Custom CSS", "Use Hachidori's popup opacity", "alpha transparency theme", true, DrawFollowOpacityControl);
         Add("Theme", "Opacity & Custom CSS", "Apply Hachidori's custom popup CSS", "custom stylesheet userscript", true, DrawApplyCustomCssControl);
         Add("Theme", "Opacity & Custom CSS", "Extra CSS for the game popup", "custom css colors border style", true, DrawExtraCssControl);
+        Add("Theme", "Hachidori Web Bundle", "Auto-sync Hachidori Web when Hachidori updates", "webview bundle update github chrome sync", true, DrawAutoSyncWebViewControl);
+        Add("Theme", "Hachidori Web Bundle", "Custom Hachidori extension folder", "webview bundle unpacked extension path", true, DrawWebViewBundlePathControl);
 
         // Mining
         Add("Mining", "Screenshots & Animation", "Screenshot", "picture image capture anki", false, DrawScreenshotToggleControl);
@@ -1844,6 +2260,8 @@ public sealed class ConfigWindow : Window
         Add("Connection", "Hachidori Relay & Host", "Yomitan API port (audio)", "19633 audio pronunciation port", true, DrawApiPortControl);
         Add("Connection", "Hachidori Relay & Host", "Anki Template ID", "template deck model", true, DrawAnkiTemplateIdControl);
         Add("Connection", "Hachidori Relay & Host", "{document-title}", "anki document title ffxiv", true, DrawDocumentTitleControl);
+        Add("Connection", "Custom FFXIV Dictionary", "Download custom FFXIV dictionary", "ffxiv dictionary download zip portraits lingo yomitan hachidori custom glossary", false, () =>
+            DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, FindInstalledFfxivDictionary(), "search"));
         Add("Connection", "Offline Mode", "Offline mode", "local dictionaries sync hdw_native", false, () =>
         {
             if (service.Offline is { } offline)
@@ -1987,6 +2405,7 @@ public sealed class ConfigWindow : Window
         config.Save();
         fonts.Refresh();
         service.ClearCache();
+        webView?.NotifySettingsChanged();
     }
 
     private void Checkbox(string label, Func<bool> get, Action<bool> set)

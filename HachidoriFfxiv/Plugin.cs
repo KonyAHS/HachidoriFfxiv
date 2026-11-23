@@ -9,6 +9,7 @@ using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Publishing;
 using HachidoriFfxiv.Stats;
 using HachidoriFfxiv.Ui;
+using HachidoriFfxiv.WebView;
 
 namespace HachidoriFfxiv;
 
@@ -27,6 +28,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
     [PluginService] internal static IGamepadState Gamepad { get; private set; } = null!;
+    [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
 
     private readonly WindowSystem windows = new("HachidoriFfxiv");
     private readonly Configuration config;
@@ -37,10 +39,12 @@ public sealed class Plugin : IDalamudPlugin
     private readonly NativeTextHover nativeHover;
     private readonly TextPublisher publisher;
     private readonly PopupManager popups;
+    private readonly WebViewPopupController webView;
     private readonly Media.MediaMiner media;
     private readonly StatsTracker stats;
     private readonly AnkiCardFeed ankiFeed;
     private readonly GamepadNavigator gamepad;
+    private readonly FreezeFrameOverlay freezeFrame;
     private readonly ReaderWindow reader;
     private readonly SearchWindow search;
     private readonly StatsWindow statsWindow;
@@ -48,7 +52,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin()
     {
-        DiagnosticLog.Write("plugin", "Starting plugin.");
+        DiagnosticLog.Write("plugin", $"Starting plugin on {PlatformInfo.Current.DisplayName} (wine={PlatformInfo.Current.IsWine}, steamDeck={PlatformInfo.Current.IsSteamDeck}, gamescope={PlatformInfo.Current.IsGamescope}, dcomp={PlatformInfo.Current.IsDirectCompositionAvailable}).");
         // Floating subtitles are shown in cutscenes, when Dalamud normally hides
         // plugin drawing. Keep dictionary popups usable there; retain user/Gpose hiding.
         PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
@@ -74,24 +78,39 @@ public sealed class Plugin : IDalamudPlugin
         ankiFeed = new AnkiCardFeed(media.Anki);
         popups.Media = media;
         popups.Stats = stats;
+        webView = new WebViewPopupController(
+            config,
+            service,
+            PluginInterface.GetPluginConfigDirectory(),
+            () => media,
+            () => stats,
+            () => popups.NpcImages.Available,
+            (expression, reading) => popups.QueueNpcCapture(expression, reading),
+            _ => { if (configWindow is not null) configWindow.IsOpen = true; });
+        popups.WebView = webView;
+        nativeHover.ChatLinesChanged += OnChatLinesChanged;
         gamepad = new GamepadNavigator(config, popups, nativeHover, service);
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
+        freezeFrame = new FreezeFrameOverlay(config, nativeHover, service, popups, text => search.SetText(text));
         statsWindow = new StatsWindow(config, stats, ankiFeed, popups, fonts);
         configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs,
             openStats: statsWindow.Toggle,
             openSearchSample: sample => { if (sample is not null) search.SetText(sample); else search.Toggle(); },
             openReader: () => { reader.Pinned = true; config.ReaderEnabled = true; reader.IsOpen = true; config.Save(); },
-            openPictures: popups.NpcImages.Open);
+            openPictures: popups.NpcImages.Open,
+            webView: webView,
+            triggerFreezeFrame: freezeFrame.Toggle);
         windows.AddWindow(reader);
         windows.AddWindow(search);
         windows.AddWindow(statsWindow);
         windows.AddWindow(configWindow);
         windows.AddWindow(popups.NpcImages);
+        windows.AddWindow(freezeFrame);
 
         CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori config · /hachidori logs",
+            HelpMessage = "Hachidori for FFXIV: /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori config · /hachidori logs",
         });
         CommandManager.AddHandler(LegacyCommand, new CommandInfo(OnCommand)
         {
@@ -129,16 +148,28 @@ public sealed class Plugin : IDalamudPlugin
     private void OnLineCapturedForStats(GameLine line) =>
         stats.RecordLine(line.Source.ToString(), line.Speaker, line.Text, line.Time);
 
+    private void OnChatLinesChanged(System.Collections.Generic.IReadOnlyList<string> lines)
+    {
+        if (!config.TokenizedHover) return;
+        foreach (var line in lines)
+            _ = service.SegmentAsync(line);
+    }
+
     private void Draw()
     {
         using var sizedFonts = fonts.LockFrame();
         media.Draw();
         popups.NpcImages.PollOperations();
-        nativeHover.Draw(popups);
-        gamepad.Draw();
+        freezeFrame.BeforeWindowsDraw();
+        if (!freezeFrame.Active)
+        {
+            nativeHover.Draw(popups);
+            gamepad.Draw();
+        }
         reader.IsOpen = config.ReaderEnabled;
         windows.Draw();
-        // After every scannable window, so this frame's hover decides the popups.
+        freezeFrame.AfterWindowsDraw();
+        // After every scannable window (including freezeFrame), so this frame's hover decides the popups.
         popups.Draw();
     }
 
@@ -170,6 +201,11 @@ public sealed class Plugin : IDalamudPlugin
             case "controller":
                 gamepad.Toggle();
                 return;
+            case "freeze":
+            case "tooltip":
+            case "tooltips":
+                freezeFrame.Toggle();
+                return;
             case "reconnect":
                 service.Link.Reconnect();
                 return;
@@ -193,6 +229,8 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(LegacyCommand);
         windows.RemoveAllWindows();
         capture.LineCaptured -= OnLineCapturedForStats;
+        nativeHover.ChatLinesChanged -= OnChatLinesChanged;
+        freezeFrame.Dispose();
         stats.Dispose();
         publisher.Dispose();
         capture.Dispose();
@@ -208,8 +246,18 @@ public sealed class Plugin : IDalamudPlugin
 
     private string ExportLogs()
     {
+        var platform = PlatformInfo.Current;
         var context = new System.Text.Json.Nodes.JsonObject
         {
+            ["platform"] = platform.DisplayName,
+            ["isWine"] = platform.IsWine,
+            ["wineVersion"] = platform.WineVersion,
+            ["hostOs"] = platform.HostOs.ToString(),
+            ["isSteamDeck"] = platform.IsSteamDeck,
+            ["isGamescope"] = platform.IsGamescope,
+            ["supportsWebView2Overlay"] = platform.SupportsWebView2Overlay,
+            ["supportsProcessAudioLoopback"] = platform.SupportsProcessAudioLoopback,
+            ["audioRecorderMode"] = media.Recorder?.Mode.ToString() ?? "Off",
             ["connected"] = service.Link.Connected,
             ["hostVersion"] = service.Link.HostVersion,
             ["dictionaryCount"] = service.Link.DictionaryCount,
@@ -219,6 +267,12 @@ public sealed class Plugin : IDalamudPlugin
             ["offlineDictionaries"] = service.Offline?.Store.Manifest.Dictionaries.Count,
             ["offlineSyncedAt"] = service.Offline?.Store.Manifest.SyncedAt?.ToString("O"),
             ["offlineWarnings"] = service.Offline is { } offline ? offline.Warnings().Count : 0,
+            ["webViewEnabled"] = config.UseWebViewPopup,
+            ["webViewActive"] = webView.Active,
+            ["webViewRuntime"] = webView.RuntimeAvailable,
+            ["webViewVersion"] = webView.LoadedVersion,
+            ["webViewBundleSource"] = webView.Bundles.ActiveSource,
+            ["webViewError"] = webView.LastError,
             ["linkError"] = service.Link.Error is null ? null : "See relay events below",
             ["relayPort"] = config.RelayPort,
             ["audioApiPort"] = config.ApiPort,

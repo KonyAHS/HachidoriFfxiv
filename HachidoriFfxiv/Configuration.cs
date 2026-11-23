@@ -20,6 +20,17 @@ public enum ReaderAnchor
     BelowTalk,
 }
 
+public enum FreezeHotkey
+{
+    CtrlShiftF,
+    AltF,
+    CtrlSpace,
+    Pause,
+    F9,
+    ShiftMiddleClick,
+    None,
+}
+
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
@@ -48,6 +59,7 @@ public sealed class Configuration : IPluginConfiguration
     public bool NativeOtherTextHover { get; set; } = false;
     public bool NativeHoverDebug { get; set; } = false;
     public bool TokenizedHover { get; set; } = true;
+    public FreezeHotkey FreezeFrameHotkey { get; set; } = FreezeHotkey.CtrlShiftF;
 
     // Popup appearance
     public float PopupWidth { get; set; } = 480f;
@@ -64,6 +76,9 @@ public sealed class Configuration : IPluginConfiguration
     public bool HonourDefinitionBlur { get; set; } = true;
     // Hachidori popup themes: the popup follows the theme, colours and custom CSS chosen in Hachidori.
     public bool FollowHachidoriTheme { get; set; } = true;
+    public bool UseWebViewPopup { get; set; } = true;
+    public bool AutoSyncWebViewBundle { get; set; } = true;
+    public string WebViewBundlePath { get; set; } = string.Empty;
     public bool FollowHachidoriOpacity { get; set; } = true;
     public bool ApplyHachidoriCustomCss { get; set; } = true;
     public string HachidoriThemeOverride { get; set; } = string.Empty;
@@ -211,6 +226,7 @@ public sealed class Configuration : IPluginConfiguration
         NativeOtherTextHover = d.NativeOtherTextHover;
         NativeHoverDebug = d.NativeHoverDebug;
         TokenizedHover = d.TokenizedHover;
+        FreezeFrameHotkey = d.FreezeFrameHotkey;
         PopupWidth = d.PopupWidth;
         PopupMaxHeight = d.PopupMaxHeight;
         PopupFontSize = d.PopupFontSize;
@@ -231,6 +247,9 @@ public sealed class Configuration : IPluginConfiguration
     {
         var d = new Configuration();
         FollowHachidoriTheme = d.FollowHachidoriTheme;
+        UseWebViewPopup = d.UseWebViewPopup;
+        AutoSyncWebViewBundle = d.AutoSyncWebViewBundle;
+        WebViewBundlePath = d.WebViewBundlePath;
         FollowHachidoriOpacity = d.FollowHachidoriOpacity;
         ApplyHachidoriCustomCss = d.ApplyHachidoriCustomCss;
         HachidoriThemeOverride = d.HachidoriThemeOverride;
