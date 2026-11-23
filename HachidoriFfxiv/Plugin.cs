@@ -1,3 +1,4 @@
+using Dalamud.Game;
 using Dalamud.Game.Command;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
@@ -32,6 +33,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
+    [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
+    [PluginService] internal static IGameInteropProvider GameInterop { get; private set; } = null!;
 
     private readonly WindowSystem windows = new("HachidoriFfxiv");
     private readonly Configuration config;
@@ -301,6 +304,8 @@ public sealed class Plugin : IDalamudPlugin
             ["supportsWebView2Overlay"] = platform.SupportsWebView2Overlay,
             ["supportsProcessAudioLoopback"] = platform.SupportsProcessAudioLoopback,
             ["audioRecorderMode"] = media.Recorder?.Mode.ToString() ?? "Off",
+            ["voiceHooksActive"] = media.Voices.HooksActive,
+            ["lastVoicePath"] = media.Voices.LastVoicePath,
             ["ttsInjectOst"] = config.TtsInjectOst,
             ["ttsOstVolume"] = config.TtsOstVolume,
             ["bgmTrack"] = media.Bgm.LastSnapshot?.FilePath,

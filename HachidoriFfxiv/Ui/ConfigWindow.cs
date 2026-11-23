@@ -839,7 +839,9 @@ public sealed class ConfigWindow : Window
                     if (recorder.Mode == GameAudioCaptureMode.SystemLoopback)
                         ImGui.TextColored(AccentAmber, "Recording all system audio, so other apps can be heard.");
                     else if (Advanced)
-                        ImGui.TextDisabled("Recording FFXIV audio only.");
+                        ImGui.TextDisabled(media.Voices.HooksActive
+                            ? "Recording FFXIV audio only · native voice detection active."
+                            : "Recording FFXIV audio only · using volume-based voice detection.");
                 }
             }
 

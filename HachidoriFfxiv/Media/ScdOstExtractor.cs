@@ -22,6 +22,65 @@ public sealed record BgmSnapshot(
     public string DisplayName => Path.GetFileNameWithoutExtension(FilePath);
 }
 
+/// <summary>Minimal projection of a single <c>BGMSystem.Scene</c> slot for testable priority resolution.</summary>
+public readonly record struct BgmSceneEntry(ushort BgmId, ushort PlayingBgmId);
+
+/// <summary>
+/// Resolves the highest-priority active BGM path from FFXIV's <c>BGMSystem.Scenes</c> array.
+/// Matches OrchestrionPlugin's proven rules:
+/// - <c>BgmId == 0</c> means the scene slot is inactive.
+/// - <c>PlayingBgmId</c> is the actual resolved BGM sheet row (ignoring 0 and sentinel 9999).
+/// - <c>BGMSystem.Scene.PlayState</c> is NOT used to skip scenes, because FFXIV leaves it at 0 on normal playing scenes.
+/// - Row 1 or <c>BGM_Null.scd</c> in the highest-priority active scene means explicit silence.
+/// </summary>
+public static class BgmSceneSelector
+{
+    private const ushort NoChangeSentinelId = 9999;
+    private const ushort SilenceBgmId = 1;
+    private const string NullBgmSuffix = "BGM_Null.scd";
+
+    public static bool IsNullBgm(string path) =>
+        path.EndsWith(NullBgmSuffix, StringComparison.OrdinalIgnoreCase);
+
+    public static (string? ActivePath, bool ExplicitSilence, HashSet<string>? OverriddenPaths) Select(
+        ReadOnlySpan<BgmSceneEntry> scenes,
+        Func<ushort, string?> resolvePath)
+    {
+        string? activePath = null;
+        var explicitSilence = false;
+        HashSet<string>? overriddenPaths = null;
+
+        for (var i = 0; i < scenes.Length; i++)
+        {
+            var scene = scenes[i];
+            // BgmId (offset 0x0C, Orchestrion's BgmReference) is 0 when the scene slot is unused.
+            if (scene.BgmId == 0)
+                continue;
+
+            // PlayingBgmId (offset 0x0E) holds the resolved BGM row ID; 9999 is FFXIV's no-change sentinel.
+            var id = scene.PlayingBgmId;
+            if (id == 0 || id == NoChangeSentinelId)
+                continue;
+
+            var path = resolvePath(id);
+            if (activePath is null && !explicitSilence)
+            {
+                if (id == SilenceBgmId || string.IsNullOrEmpty(path) || IsNullBgm(path))
+                    explicitSilence = true;
+                else
+                    activePath = path;
+            }
+            else if (!string.IsNullOrEmpty(path) && !IsNullBgm(path)
+                     && !string.Equals(path, activePath, StringComparison.OrdinalIgnoreCase))
+            {
+                (overriddenPaths ??= new(StringComparer.OrdinalIgnoreCase)).Add(path);
+            }
+        }
+
+        return (activePath, explicitSilence, overriddenPaths);
+    }
+}
+
 /// <summary>A decoded-ready Ogg Vorbis OST entry extracted from an FFXIV .scd file, with sample-accurate loop bounds.</summary>
 public sealed class CachedOstTrack
 {

@@ -25,15 +25,18 @@ public sealed class MediaMiner : IDisposable
         this.config = config;
         this.capture = capture;
         Frames = new GameFrames(config);
+        Voices = new VoiceLineTracker();
         Tts = new TtsClient(config);
         Anki = new AnkiConnect(() => config.AnkiConnectUrl);
         Translator = new Translator(config);
         capture.LineCaptured += OnLine;
+        Voices.VoicePlayed += OnVoicePlayed;
         Frames.ClipReady += OnClip;
     }
 
     public GameFrames Frames { get; }
     public LineTimeline Timeline { get; } = new();
+    public VoiceLineTracker Voices { get; }
     public BgmTracker Bgm { get; } = new();
     public TtsClient Tts { get; }
     public AnkiConnect Anki { get; }
@@ -42,6 +45,8 @@ public sealed class MediaMiner : IDisposable
 
     /// <summary>Whether anything beyond Hachidori's own note needs AnkiConnect.</summary>
     public bool AttachesMedia => config.RecordVoiceLines || Tts.Enabled || config.CaptureGif || config.TranslationEnabled;
+
+    private void OnVoicePlayed(VoicePlaybackEvent voice) => Timeline.OnVoicePlayed(voice);
 
     private void OnLine(GameLine line)
     {
@@ -62,6 +67,8 @@ public sealed class MediaMiner : IDisposable
         var now = Stopwatch.GetTimestamp();
         Frames.Draw();
         Timeline.OnWindows(capture.TalkVisible, capture.BattleTalkVisible, now);
+        if (config.RecordVoiceLines)
+            Voices.Update(now);
         if (Tts.Enabled && config.TtsInjectOst)
             Bgm.Update(now);
         if (config.RecordVoiceLines && recorder is null)
@@ -203,19 +210,35 @@ public sealed class MediaMiner : IDisposable
             return (speech, AudioClips.Extension(speech) ?? "mp3", false, null);
 
         var (samples, rate) = decoded.Value;
-        if (config.TtsInjectOst && bgmSnapshot is not null && (!config.TtsOstRespectMute || !bgmSnapshot.Muted))
+        if (config.TtsInjectOst)
         {
-            const int outputRate = 48000;
-            var (_, _, _, totalSamples) = AudioClips.PrepareTtsForOst(samples, rate, outputRate);
-            var ostStartSeconds = Math.Max(0.0, bgmSnapshot.ElapsedSeconds - AudioClips.OstPreRollSeconds);
-            var ostSlice = await Task.Run(() => Bgm.ExtractSlice(bgmSnapshot, ostStartSeconds, totalSamples, outputRate)).ConfigureAwait(false);
-            if (ostSlice is not null)
+            if (bgmSnapshot is null)
             {
-                var (mixed, mixedOst) = AudioClips.MixTtsWithOst(samples, rate, ostSlice, config.TtsOstVolume, outputRate);
-                if (mixedOst)
+                DiagnosticLog.Write("ost", "Skipped OST mix into TTS: no active BGM track detected.");
+            }
+            else if (config.TtsOstRespectMute && bgmSnapshot.Muted)
+            {
+                DiagnosticLog.Write("ost", $"Skipped OST mix into TTS: game BGM is muted ({bgmSnapshot.DisplayName}).");
+            }
+            else
+            {
+                const int outputRate = 48000;
+                var (_, _, _, totalSamples) = AudioClips.PrepareTtsForOst(samples, rate, outputRate);
+                var ostStartSeconds = Math.Max(0.0, bgmSnapshot.ElapsedSeconds - AudioClips.OstPreRollSeconds);
+                var ostSlice = await Task.Run(() => Bgm.ExtractSlice(bgmSnapshot, ostStartSeconds, totalSamples, outputRate)).ConfigureAwait(false);
+                if (ostSlice is null)
                 {
-                    DiagnosticLog.Write("ost", $"Mixed {bgmSnapshot.DisplayName} @ {ostStartSeconds:0.0}s ({(bgmSnapshot.FromEngineClock ? "engine" : "wall")} clock) into TTS ({mixed.Length / (double)outputRate:0.1}s).");
-                    return (AudioClips.EncodeOpus(mixed, outputRate, bitrate: 64000), "ogg", true, bgmSnapshot);
+                    DiagnosticLog.Write("ost", $"Skipped OST mix into TTS: failed to extract slice from {bgmSnapshot.FilePath} @ {ostStartSeconds:0.0}s.");
+                }
+                else
+                {
+                    var (mixed, mixedOst) = AudioClips.MixTtsWithOst(samples, rate, ostSlice, config.TtsOstVolume, outputRate);
+                    if (mixedOst)
+                    {
+                        DiagnosticLog.Write("ost", $"Mixed {bgmSnapshot.DisplayName} @ {ostStartSeconds:0.0}s ({(bgmSnapshot.FromEngineClock ? "engine" : "wall")} clock) into TTS ({mixed.Length / (double)outputRate:0.1}s).");
+                        return (AudioClips.EncodeOpus(mixed, outputRate, bitrate: 64000), "ogg", true, bgmSnapshot);
+                    }
+                    DiagnosticLog.Write("ost", $"Skipped OST mix into TTS: extracted OST slice was silent ({bgmSnapshot.DisplayName} @ {ostStartSeconds:0.0}s).");
                 }
             }
         }
@@ -233,6 +256,29 @@ public sealed class MediaMiner : IDisposable
         if (ring.Written == 0)
             return null;
 
+        // Primary path: authoritative native voice playback events (LoadSoundFile + PlaySpecificSound hooks
+        // and SoundManager active-pool companion, matching TextToTalk / Echokraut).
+        var detectedVoice = Timeline.VoiceOf(span);
+        if (Voices.HooksActive)
+        {
+            // If mined right after the line appeared, wait briefly for a delayed voice onset while the line stays open.
+            var waitUntil = span.Start + (long)(1.8 * Stopwatch.Frequency);
+            while (detectedVoice is null && rec.Running && Timeline.EndOf(span) is null && Stopwatch.GetTimestamp() < waitUntil)
+            {
+                await Task.Delay(80).ConfigureAwait(false);
+                detectedVoice = Timeline.VoiceOf(span);
+            }
+
+            if (detectedVoice is null)
+                return null;
+
+            return await RecordConfirmedVoiceAsync(rec, span, detectedVoice).ConfigureAwait(false);
+        }
+
+        if (detectedVoice is not null)
+            return await RecordConfirmedVoiceAsync(rec, span, detectedVoice).ConfigureAwait(false);
+
+        // Fallback when native sound hooks are unavailable: RMS voice-over-background detector.
         var rate = ring.SampleRate;
         var frameSize = rate / AudioClips.FramesPerSecond;
         var start = ring.IndexAt(span.Start) - rate * 3 / 10;
@@ -279,6 +325,89 @@ public sealed class MediaMiner : IDisposable
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Cuts a game-audio clip for a line confirmed voiced by FFXIV's sound engine, using exact
+    /// voice start time and SCD duration / SoundManager stop time so consecutive voiced lines
+    /// or loud BGM never trigger a false fallback to TTS.
+    /// </summary>
+    private async Task<byte[]?> RecordConfirmedVoiceAsync(GameAudioRecorder rec, LineSpan span, VoicePlaybackEvent voice)
+    {
+        var ring = rec.Ring;
+        var rate = ring.SampleRate;
+        var voiceStartIdx = ring.IndexAt(voice.StartTicks);
+        var from = Math.Max(0, voiceStartIdx - rate * 3 / 10);
+        var maxEnd = voiceStartIdx + rate * (long)Math.Clamp(config.MaxLineSeconds, 3, 60);
+
+        // Give the async SCD header lookup a short window to supply exact clip duration.
+        if (voice.DurationSeconds is null)
+        {
+            var durDeadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 4;
+            while (voice.DurationSeconds is null && Stopwatch.GetTimestamp() < durDeadline)
+                await Task.Delay(25).ConfigureAwait(false);
+        }
+
+        long finalEnd = from;
+        while (rec.Running && Math.Max(0, ring.Written - ring.Capacity) <= from)
+        {
+            var lineEnd = Timeline.EndOf(span);
+            var boundary = lineEnd is { } ticks ? ring.IndexAt(ticks) : long.MaxValue;
+            var limit = Math.Min(boundary, maxEnd);
+            var recordedThrough = ring.IndexAt(Stopwatch.GetTimestamp() - Stopwatch.Frequency / 10);
+
+            if (voice.DurationSeconds is { } dur)
+            {
+                var desiredEnd = voiceStartIdx + (long)Math.Round((dur + 0.6) * rate);
+                var targetEnd = Math.Min(limit, desiredEnd);
+                if (recordedThrough >= targetEnd)
+                {
+                    finalEnd = targetEnd;
+                    break;
+                }
+            }
+            else if (voice.EndTicks is { } endTicks)
+            {
+                var desiredEnd = ring.IndexAt(endTicks) + rate * 5 / 10;
+                var targetEnd = Math.Min(limit, desiredEnd);
+                if (recordedThrough >= targetEnd)
+                {
+                    finalEnd = targetEnd;
+                    break;
+                }
+            }
+            else
+            {
+                if (lineEnd is not null && recordedThrough >= limit)
+                {
+                    finalEnd = limit;
+                    break;
+                }
+                if (recordedThrough >= maxEnd)
+                {
+                    finalEnd = maxEnd;
+                    break;
+                }
+            }
+
+            await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        if (finalEnd <= from)
+            return null;
+
+        var clip = ring.Read(from, finalEnd);
+        var peak = 0f;
+        foreach (var s in clip)
+            peak = Math.Max(peak, Math.Abs(s));
+        if (peak <= 1e-4f)
+        {
+            DiagnosticLog.Write("voice", $"Loopback clip for {voice.DisplayName} was digital silence (game muted?); falling back to TTS.");
+            return null;
+        }
+
+        DiagnosticLog.Write("voice", $"Recorded game voice {voice.DisplayName} ({clip.Length / (double)rate:0.1}s, scdDur={(voice.DurationSeconds is { } d ? $"{d:0.1}s" : "n/a")}).");
+        return AudioClips.EncodeOpus(AudioClips.Normalize(clip), rate);
     }
 
     /// <summary>The line with GSM-style dialogue context: up to N captured lines before and after it.</summary>
@@ -399,6 +528,7 @@ public sealed class MediaMiner : IDisposable
     public void Dispose()
     {
         capture.LineCaptured -= OnLine;
+        Voices.VoicePlayed -= OnVoicePlayed;
         Frames.ClipReady -= OnClip;
         lock (clips)
         {
@@ -407,6 +537,7 @@ public sealed class MediaMiner : IDisposable
             clips.Clear();
         }
         recorder?.Dispose();
+        Voices.Dispose();
         Frames.Dispose();
         Tts.Dispose();
         Translator.Dispose();

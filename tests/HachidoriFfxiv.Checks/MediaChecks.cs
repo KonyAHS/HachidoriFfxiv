@@ -89,6 +89,7 @@ static class MediaChecks
 
         // ----------------------------------------------------- OST extraction & TTS mixing
         CheckOstExtractionAndMixing(check);
+        CheckBgmSceneSelectionAndVoiceDetection(check);
 
         // ------------------------------------------------------------------- GIF
         var frames = Enumerable.Range(0, 3).Select(f =>
@@ -267,6 +268,87 @@ static class MediaChecks
         var (silentMixed, silentFlag) = AudioClips.MixTtsWithOst(ttsSpeech, ttsRate, new float[totalSamples], ostVolume: 0.28f, outputRate: rate);
         check(!silentFlag && silentMixed.Length > 0 && silentMixed.Length < totalSamples,
             "silent OST falls back to clean trimmed TTS without dead-air padding");
+    }
+
+    private static void CheckBgmSceneSelectionAndVoiceDetection(Action<bool, string> check)
+    {
+        // ----------------------------------------------- BGMSystem scene priority resolution
+        var bgmSheet = new Dictionary<ushort, string>
+        {
+            [1] = "music/ffxiv/BGM_Null.scd",
+            [10] = "music/ex1/BGM_EX1_Town_Ishgard_Day.scd",
+            [20] = "music/ex1/BGM_EX1_Event_Cutscene.scd",
+            [30] = "music/ex1/BGM_EX1_Field_Coerthas.scd",
+        };
+        string? Resolve(ushort id) => bgmSheet.TryGetValue(id, out var p) ? p : null;
+
+        // Normal territory BGM on scene 11 (BgmId != 0, PlayingBgmId == 10); inactive scenes have BgmId == 0.
+        var territoryOnly = new[]
+        {
+            new BgmSceneEntry(0, 20),   // inactive slot with stale PlayingBgmId -> must be skipped
+            new BgmSceneEntry(5001, 0), // unresolved BGMSituation -> must be skipped
+            new BgmSceneEntry(100, 9999), // sentinel 9999 -> must be skipped
+            new BgmSceneEntry(10, 10),  // active territory BGM
+        };
+        var (path1, silent1, overridden1) = BgmSceneSelector.Select(territoryOnly, Resolve);
+        check(path1 == bgmSheet[10] && !silent1 && overridden1 is null,
+            "BGMSceneSelector resolves active territory BGM while ignoring inactive slots and 9999 sentinels");
+
+        // Higher-priority cutscene/event BGM (scene 0) overrides territory BGM (scene 11), recording overridden paths.
+        var eventOverTerritory = new[]
+        {
+            new BgmSceneEntry(20, 20),
+            new BgmSceneEntry(30, 30),
+        };
+        var (path2, silent2, overridden2) = BgmSceneSelector.Select(eventOverTerritory, Resolve);
+        check(path2 == bgmSheet[20] && !silent2 && overridden2 is not null && overridden2.Contains(bgmSheet[30]),
+            "BGMSceneSelector prefers higher-priority event BGM and marks lower-priority tracks as overridden");
+
+        // Explicit silence (BGM row 1 / BGM_Null.scd) on higher-priority scene silences lower-priority territory BGM.
+        var explicitSilence = new[]
+        {
+            new BgmSceneEntry(1, 1),
+            new BgmSceneEntry(30, 30),
+        };
+        var (path3, silent3, overridden3) = BgmSceneSelector.Select(explicitSilence, Resolve);
+        check(path3 is null && silent3 && overridden3 is not null && overridden3.Contains(bgmSheet[30]),
+            "BGMSceneSelector treats BGM row 1 / BGM_Null.scd as explicit silence over lower scenes");
+
+        // ----------------------------------------------- native voice .scd path classification
+        check(VoiceLinePath.IsVoiceLine("cut/ex1/sound/vo_man/vo_man_00100_00010_ja.scd", out var k1) && k1 == VoiceLineKind.Cutscene,
+            "VoiceLinePath classifies cutscene vo_ .scd paths as Cutscene voice");
+        check(VoiceLinePath.IsVoiceLine(@"cut\ffxiv\sound\voice\voice_001_ja.scd", out var k2) && k2 == VoiceLineKind.Cutscene,
+            "VoiceLinePath normalizes backslashes and matches cut/*/voice .scd paths");
+        check(VoiceLinePath.IsVoiceLine("sound/voice/Vo_Line/8200101_ja.scd", out var k3) && k3 == VoiceLineKind.Battle,
+            "VoiceLinePath classifies sound/voice/Vo_Line/ .scd paths as Battle voice");
+        check(!VoiceLinePath.IsVoiceLine("sound/voice/Vo_Emote/vo_emote_01.scd", out _)
+              && !VoiceLinePath.IsVoiceLine("music/ex1/BGM_EX1_Town.scd", out _)
+              && !VoiceLinePath.IsVoiceLine("sound/battle/SE_Bt_01.scd", out _)
+              && !VoiceLinePath.IsVoiceLine("sound/vfx/SE_Vfx_01.scd", out _)
+              && !VoiceLinePath.IsVoiceLine("cut/ex1/sound/vo_man/vo_man_00100.avfx", out _),
+            "VoiceLinePath rejects emotes, BGM, SFX and non-.scd files");
+        check(!VoiceLinePath.IsValidVoiceSize(1) && !VoiceLinePath.IsValidVoiceSize(416)
+              && VoiceLinePath.IsValidVoiceSize(2048) && VoiceLinePath.IsValidVoiceSize(0),
+            "VoiceLinePath rejects 1-byte and 416-byte cut stub SCDs while accepting real clips");
+
+        // ----------------------------------------------- voice-to-line timestamp association
+        const long tps = 10_000_000; // 10 MHz ticks
+        var v1 = new VoicePlaybackEvent("cut/ex1/sound/vo_man/vo_1_ja.scd", VoiceLineKind.Cutscene, 10 * tps);
+        var v2 = new VoicePlaybackEvent("cut/ex1/sound/vo_man/vo_2_ja.scd", VoiceLineKind.Cutscene, 14 * tps - tps / 50); // 20 ms before line 2
+        var recent = new List<VoicePlaybackEvent> { v1, v2 };
+        var claimed = new HashSet<VoicePlaybackEvent> { v1 };
+        var matched = VoiceLineAssociation.FindUnclaimedPreLineVoice(recent, claimed, 14 * tps, isBattleTalk: false, tps);
+        check(ReferenceEquals(matched, v2),
+            "VoiceLineAssociation links an unclaimed voice fired 20 ms before the next cutscene line");
+
+        // Unvoiced line 1 at t=10s, voice2 fires at t=13.98s (tentatively on line 1), line 2 appears at t=14.00s -> transfers to line 2.
+        check(VoiceLineAssociation.ShouldTransferToNewLine(10 * tps, v2, 14 * tps, tps),
+            "VoiceLineAssociation transfers a voice fired right before line 2 away from an earlier unvoiced line");
+
+        // Voiced line 1 at t=10s with 2s dramatic pause (voice at t=12s), line 2 appears at t=16s -> stays on line 1.
+        var delayedVoice = new VoicePlaybackEvent("cut/ex1/sound/vo_man/vo_3_ja.scd", VoiceLineKind.Cutscene, 12 * tps);
+        check(!VoiceLineAssociation.ShouldTransferToNewLine(10 * tps, delayedVoice, 16 * tps, tps),
+            "VoiceLineAssociation keeps a delayed voice on its own line when the next line appears seconds later");
     }
 
     private static void CheckPlatformAndFallbacks(Action<bool, string> check)

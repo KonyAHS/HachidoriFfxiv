@@ -17,7 +17,6 @@ public sealed unsafe class BgmTracker
 {
     private const long PollIntervalTicks = 200; // milliseconds
     private const double ResumeRememberSeconds = 600.0; // remember paused track position for up to 10 minutes
-    private const string NullBgmSuffix = "BGM_Null.scd";
 
     private readonly object gate = new();
     private readonly OstTrackCache cache = new(maxEntries: 3);
@@ -228,34 +227,21 @@ public sealed unsafe class BgmTracker
 
             string? bgmSystemPath = null;
             var explicitSilence = false;
-            HashSet<string>? pausedScenePaths = null;
+            HashSet<string>? overriddenScenePaths = null;
 
             var bgmSystem = BGMSystem.Instance();
             if (bgmSystem != null)
             {
-                var count = Math.Min(bgmSystem->Scenes.Count, 32);
-                for (var i = 0; i < count; i++)
+                var count = (int)Math.Min(bgmSystem->Scenes.Count, 32);
+                if (count > 0)
                 {
-                    var scene = bgmSystem->Scenes[i];
-                    var id = scene.PlayingBgmId != 0 ? scene.PlayingBgmId : scene.BgmId;
-                    if (id == 0)
-                        continue;
-
-                    var path = ResolveBgmPath(id);
-                    if (scene.PlayState == BGMSystem.PlayState.Paused)
+                    Span<BgmSceneEntry> scenes = stackalloc BgmSceneEntry[count];
+                    for (var i = 0; i < count; i++)
                     {
-                        if (!string.IsNullOrEmpty(path))
-                            (pausedScenePaths ??= new(StringComparer.OrdinalIgnoreCase)).Add(path);
-                        continue;
+                        var scene = bgmSystem->Scenes[i];
+                        scenes[i] = new BgmSceneEntry(scene.BgmId, scene.PlayingBgmId);
                     }
-
-                    if (bgmSystemPath is null && !explicitSilence)
-                    {
-                        if (id == 1 || string.IsNullOrEmpty(path) || IsNullBgm(path))
-                            explicitSilence = true;
-                        else
-                            bgmSystemPath = path;
-                    }
+                    (bgmSystemPath, explicitSilence, overriddenScenePaths) = BgmSceneSelector.Select(scenes, ResolveBgmPath);
                 }
             }
 
@@ -265,6 +251,14 @@ public sealed unsafe class BgmTracker
             {
                 var entries = soundManager->SoundDataPool->Entries;
                 var orchestrionPath = NormalizePath(soundManager->OrchestrionPathString);
+
+                uint matchedSoundNumber = 0;
+                double? matchedElapsed = null;
+                float matchedVolume = -1f;
+
+                uint orchSoundNumber = 0;
+                double? orchElapsed = null;
+                float orchVolume = -1f;
 
                 string? bestFallbackPath = null;
                 uint bestFallbackSoundNumber = 0;
@@ -280,7 +274,7 @@ public sealed unsafe class BgmTracker
                         continue;
 
                     var path = ReadSoundPath(ref data);
-                    if (string.IsNullOrEmpty(path) || IsNullBgm(path))
+                    if (string.IsNullOrEmpty(path) || BgmSceneSelector.IsNullBgm(path))
                         continue;
 
                     var vol = data.GetVolume();
@@ -289,17 +283,28 @@ public sealed unsafe class BgmTracker
                         ? elapsedRaw
                         : null;
 
-                    if (bgmSystemPath is not null && string.Equals(path, bgmSystemPath, StringComparison.OrdinalIgnoreCase))
+                    if (orchestrionPath is not null
+                        && string.Equals(path, orchestrionPath, StringComparison.OrdinalIgnoreCase)
+                        && vol > 0.01f && vol > orchVolume)
                     {
-                        if (vol <= 0.005f)
-                            return (null, 0, null, 0f, muted);
-                        return (bgmSystemPath, data.GetSoundNumber(), elapsed, vol, muted);
+                        orchSoundNumber = data.GetSoundNumber();
+                        orchElapsed = elapsed;
+                        orchVolume = vol;
+                    }
+
+                    if (bgmSystemPath is not null
+                        && string.Equals(path, bgmSystemPath, StringComparison.OrdinalIgnoreCase)
+                        && vol > matchedVolume)
+                    {
+                        matchedSoundNumber = data.GetSoundNumber();
+                        matchedElapsed = elapsed;
+                        matchedVolume = vol;
                     }
 
                     if (path.StartsWith("music/", StringComparison.OrdinalIgnoreCase) && vol > 0.01f)
                     {
-                        // Skip tracks belonging to paused lower-priority BGMSystem scenes.
-                        if (pausedScenePaths is not null && pausedScenePaths.Contains(path)
+                        // Skip tracks belonging to lower-priority overridden BGMSystem scenes.
+                        if (overriddenScenePaths is not null && overriddenScenePaths.Contains(path)
                             && !string.Equals(path, orchestrionPath, StringComparison.OrdinalIgnoreCase))
                             continue;
 
@@ -317,8 +322,17 @@ public sealed unsafe class BgmTracker
                     }
                 }
 
+                // Estate / inn Orchestrion plays over BGMSystem when active.
+                if (orchestrionPath is not null && orchVolume > 0.01f)
+                    return (orchestrionPath, orchSoundNumber, orchElapsed, orchVolume, muted);
+
                 if (bgmSystemPath is not null)
+                {
+                    if (matchedVolume > 0.005f)
+                        return (bgmSystemPath, matchedSoundNumber, matchedElapsed, matchedVolume, muted);
+                    // Track is active in BGMSystem (e.g. starting/fading in or streaming); keep wall-clock tracking.
                     return (bgmSystemPath, 0, null, 1f, muted);
+                }
 
                 if (bestFallbackPath is not null)
                     return (bestFallbackPath, bestFallbackSoundNumber, bestFallbackElapsed, bestFallbackVolume, muted);
@@ -375,7 +389,4 @@ public sealed unsafe class BgmTracker
             return null;
         return raw.Trim().Replace('\\', '/');
     }
-
-    private static bool IsNullBgm(string path) =>
-        path.EndsWith(NullBgmSuffix, StringComparison.OrdinalIgnoreCase);
 }
