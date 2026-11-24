@@ -11,10 +11,13 @@ internal static partial class DiagnosticLog
 {
     private static readonly object Gate = new();
     private static readonly Queue<string> Events = new();
+    [GeneratedRegex(@"(?:https?|wss?)://[^\s""<>]+", RegexOptions.IgnoreCase)]
+    private static partial Regex RedactUrlRegex();
+
     public static void Write(string area, string message)
     {
         // Never store request bodies, media, dialogue, source URLs, or credentials.
-        var safe = Regex.Replace(message, @"(?:https?|wss?)://[^\s""<>]+", "<url>", RegexOptions.IgnoreCase);
+        var safe = RedactUrlRegex().Replace(message, "<url>");
         if (safe.Length > 2000) safe = safe[..2000];
         lock (Gate)
         {

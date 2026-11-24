@@ -416,15 +416,8 @@ public sealed class OstTrackCache
     {
         lock (gate)
         {
-            for (var node = entries.First; node is not null; node = node.Next)
-            {
-                if (node.Value.SoundNumber == soundNumber && string.Equals(node.Value.KeyPath, filePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    entries.Remove(node);
-                    entries.AddFirst(node);
-                    return node.Value.Track;
-                }
-            }
+            if (FindAndPromoteLocked(filePath, soundNumber) is { } cached)
+                return cached;
         }
 
         var loaded = loader();
@@ -434,20 +427,28 @@ public sealed class OstTrackCache
         lock (gate)
         {
             // Avoid duplicating if another thread loaded it concurrently.
-            for (var node = entries.First; node is not null; node = node.Next)
-            {
-                if (node.Value.SoundNumber == soundNumber && string.Equals(node.Value.KeyPath, filePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    entries.Remove(node);
-                    entries.AddFirst(node);
-                    return node.Value.Track;
-                }
-            }
+            if (FindAndPromoteLocked(filePath, soundNumber) is { } cached)
+                return cached;
 
             entries.AddFirst((filePath, soundNumber, loaded));
             while (entries.Count > maxEntries)
                 entries.RemoveLast();
             return loaded;
         }
+    }
+
+    private CachedOstTrack? FindAndPromoteLocked(string filePath, uint soundNumber)
+    {
+        for (var node = entries.First; node is not null; node = node.Next)
+        {
+            if (node.Value.SoundNumber != soundNumber || !string.Equals(node.Value.KeyPath, filePath, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            entries.Remove(node);
+            entries.AddFirst(node);
+            return node.Value.Track;
+        }
+
+        return null;
     }
 }

@@ -287,9 +287,10 @@ public sealed class HachidoriLink : IDisposable
                     ? $"v{MaxProtocolVersion}"
                     : $"v{MinProtocolVersion}–v{MaxProtocolVersion}";
                 var protoOk = protoParsed >= MinProtocolVersion && protoParsed <= MaxProtocolVersion;
-                var hasSnapshot = frame["snapshot"] is JsonObject;
-                if (!protoOk || !hasSnapshot)
+                var snapshot = frame["snapshot"] as JsonObject;
+                if (!protoOk || snapshot is null)
                 {
+                    var hasSnapshot = snapshot is not null;
                     var peerName = frame["name"]?.ToString() ?? string.Empty;
                     var peerVersion = frame["version"]?.ToString() ?? string.Empty;
                     var peerCaps = frame["capabilities"] is JsonArray rejectedCaps
@@ -313,7 +314,7 @@ public sealed class HachidoriLink : IDisposable
                     ? caps.Select(c => c?.ToString() ?? string.Empty).ToArray()
                     : [];
                 DiagnosticLog.Write("relay", $"Host connected: protocol=v{protoParsed}, version={HostVersion}, dictionaries={DictionaryCount}, capabilities={HostCapabilities.Length}");
-                Snapshot = frame["snapshot"] as JsonObject is { } snapshot ? (JsonObject)snapshot.DeepClone() : new JsonObject();
+                Snapshot = (JsonObject)snapshot.DeepClone();
                 Connected = true;
                 Error = null;
                 attempt = 0;
