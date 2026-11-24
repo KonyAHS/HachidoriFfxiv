@@ -856,20 +856,19 @@ public sealed class OfflineAnkiMiner : IDisposable
             }
         }
         if (uploads.Count == 0) return warnings;
-        var results = await anki.InvokeAsync("multi", new JsonObject
-        {
-            ["actions"] = new JsonArray(uploads.Select(u => (JsonNode?)new JsonObject
+        var replies = await anki.MultiAsync(
+            uploads.Select(u => ("storeMediaFile", (JsonObject?)new JsonObject
             {
-                ["action"] = "storeMediaFile",
-                ["params"] = new JsonObject { ["filename"] = u.Filename, ["data"] = u.Data, ["deleteExisting"] = false },
-            }).ToArray()),
-        }, ct).ConfigureAwait(false);
-        var replies = results as JsonArray ?? [];
+                ["filename"] = u.Filename,
+                ["data"] = u.Data,
+                ["deleteExisting"] = false,
+            })).ToList(),
+            readOnly: false,
+            ct).ConfigureAwait(false);
         for (var i = 0; i < uploads.Count; i++)
         {
-            var reply = i < replies.Count ? replies[i] : null;
-            var error = reply is JsonObject o ? AnkiFields.Str(o["error"]) : null;
-            var stored = reply is JsonObject r ? AnkiFields.Str(r["result"]) : AnkiFields.Str(reply);
+            var (result, error) = replies[i];
+            var stored = AnkiFields.Str(result);
             if (!string.IsNullOrEmpty(error)) Failed(uploads[i], error);
             else if (stored != uploads[i].Filename) Failed(uploads[i], "Anki stored media under a different filename.");
         }

@@ -22,6 +22,7 @@ internal static class AnkiChecks
         CheckSvg(check);
         CheckFields(check);
         await CheckBatchedPreflightAsync(check);
+        await CheckApiKeyAndBatchedMediaUploadAsync(check);
     }
 
     private static void CheckWordSplit(Action<bool, string> check)
@@ -270,6 +271,163 @@ internal static class AnkiChecks
         miner.InvalidateCache();
         check(await miner.TryLivePreflightManyAsync([MakeReq("焦り")]) is null,
             "live fast preflight falls back to live host for cross-model 'all' duplicate scope");
+
+        await app.StopAsync();
+    }
+
+    private static async Task CheckApiKeyAndBatchedMediaUploadAsync(Action<bool, string> check)
+    {
+        const string RequiredKey = "test-anki-secret-42";
+        var storedFiles = new List<string>();
+        var multiSubValid = true;
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        await using var app = builder.Build();
+
+        JsonNode? Dispatch(string action, JsonObject? p, out string? error)
+        {
+            error = null;
+            return action switch
+            {
+                "deckNames" => new JsonArray("Japanese Mining"),
+                "modelNamesAndIds" => new JsonObject { ["Kiku"] = 1789795159387L },
+                "modelFieldNames" => new JsonArray("Expression", "Picture"),
+                "canAddNotesWithErrorDetail" => new JsonArray((p?["notes"] as JsonArray ?? []).Select(_ =>
+                    (JsonNode)new JsonObject { ["canAdd"] = true, ["error"] = null }).ToArray()),
+                "storeMediaFile" => StoreMedia(p),
+                "addNote" => JsonValue.Create(7777L),
+                "notesInfo" => new JsonArray(new JsonObject
+                {
+                    ["noteId"] = 7777L,
+                    ["fields"] = new JsonObject
+                    {
+                        ["Expression"] = new JsonObject { ["value"] = "冒険者", ["order"] = 0 },
+                        ["Picture"] = new JsonObject { ["value"] = "", ["order"] = 1 },
+                    },
+                }),
+                "guiSelectedNotes" => new JsonArray(),
+                "updateNoteFields" => null,
+                _ => null,
+            };
+        }
+
+        JsonNode StoreMedia(JsonObject? p)
+        {
+            var name = p?["filename"]?.ToString() ?? string.Empty;
+            storedFiles.Add(name);
+            return JsonValue.Create(name)!;
+        }
+
+        app.MapPost("/", async context =>
+        {
+            var body = await JsonNode.ParseAsync(context.Request.Body) as JsonObject;
+            var key = body?["key"]?.ToString();
+            var version = body?["version"] is JsonValue vv && vv.TryGetValue<int>(out var v) ? v : 0;
+            context.Response.ContentType = "application/json";
+            if (!string.Equals(key, RequiredKey, StringComparison.Ordinal))
+            {
+                await context.Response.WriteAsync(new JsonObject { ["result"] = null, ["error"] = "valid api key must be provided" }.ToJsonString());
+                return;
+            }
+            if (version != 6)
+            {
+                await context.Response.WriteAsync(new JsonObject { ["result"] = null, ["error"] = "unsupported version" }.ToJsonString());
+                return;
+            }
+
+            var action = body?["action"]?.ToString() ?? "";
+            if (action == "multi")
+            {
+                var sub = new JsonArray();
+                foreach (var item in (body?["params"]?["actions"] as JsonArray ?? []).OfType<JsonObject>())
+                {
+                    var subKey = item["key"]?.ToString();
+                    var subVer = item["version"] is JsonValue sv && sv.TryGetValue<int>(out var svInt) ? svInt : 0;
+                    if (!string.Equals(subKey, RequiredKey, StringComparison.Ordinal) || subVer != 6)
+                    {
+                        multiSubValid = false;
+                        sub.Add(new JsonObject { ["result"] = null, ["error"] = "valid api key and version 6 must be provided" });
+                        continue;
+                    }
+                    var res = Dispatch(item["action"]?.ToString() ?? "", item["params"] as JsonObject, out var subErr);
+                    sub.Add(new JsonObject { ["result"] = res, ["error"] = subErr });
+                }
+                await context.Response.WriteAsync(new JsonObject { ["result"] = sub, ["error"] = null }.ToJsonString());
+                return;
+            }
+
+            var result = Dispatch(action, body?["params"] as JsonObject, out var err);
+            await context.Response.WriteAsync(new JsonObject { ["result"] = result, ["error"] = err }.ToJsonString());
+        });
+
+        await app.StartAsync();
+        var url = app.Urls.Single();
+
+        // 1. AnkiConnect without key fails against a key-protected server; with key succeeds.
+        using (var noKey = new HachidoriFfxiv.Media.AnkiConnect(() => url))
+        {
+            var rejected = false;
+            try { await noKey.FieldsAsync(7777L); }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("valid api key")) { rejected = true; }
+            check(rejected, "key-protected AnkiConnect rejects requests without an API key");
+        }
+        using (var withKey = new HachidoriFfxiv.Media.AnkiConnect(() => url, () => RequiredKey))
+        {
+            var fields = await withKey.FieldsAsync(7777L);
+            var stored = await withKey.StoreMediaAsync("media-clip.ogg", [1, 2, 3]);
+            await withKey.UpdateFieldsAsync(7777L, new Dictionary<string, string> { ["Picture"] = "<img src=\"media-clip.ogg\">" });
+            check(fields.Count == 2 && stored == "media-clip.ogg",
+                "AnkiConnect attaches API key to notesInfo, storeMediaFile, and updateNoteFields");
+        }
+
+        // 2. OfflineAnkiMiner batched media upload (rich-HTML Picture field) includes version: 6 and key on sub-actions.
+        storedFiles.Clear();
+        multiSubValid = true;
+        var snap = JsonNode.Parse($$"""
+        {
+          "options": {
+            "anki": {
+              "url": "{{url}}",
+              "apiKey": "{{RequiredKey}}",
+              "templates": [{
+                "id": "default",
+                "name": "Default",
+                "deck": "Japanese Mining",
+                "model": "Kiku",
+                "duplicateBehavior": "new",
+                "duplicateScope": "deck",
+                "captureScreenshot": true,
+                "tags": ["hachidori"],
+                "fieldTemplates": {
+                  "Expression": { "value": "{expression}", "overwriteMode": "coalesce" },
+                  "Picture": { "value": "<div>{screenshot}</div>", "overwriteMode": "coalesce" }
+                }
+              }]
+            }
+          }
+        }
+        """)!.AsObject();
+        using var native = HachidoriFfxiv.Offline.NativeEngine.LoadFrom(AppContext.BaseDirectory);
+        using var localEngine = new HachidoriFfxiv.Offline.LocalEngine(native);
+        using var http = new HttpClient();
+        using var miner = new OfflineAnkiMiner(() => snap, () => localEngine, http);
+        var status = await miner.StatusAsync("default");
+        var req = new JsonObject
+        {
+            ["term"] = new JsonObject { ["expression"] = "冒険者", ["reading"] = "ぼうけんしゃ" },
+            ["matched"] = "冒険者",
+            ["sentence"] = "冒険者さん",
+            ["matchOffset"] = 0,
+            ["generation"] = localEngine.Generation,
+            ["configKey"] = status.ConfigKey,
+            ["templateId"] = "default",
+        };
+        var shot = new HachidoriFfxiv.Media.ScreenshotMedia("tok", "hachidori-screenshot-test.jpg", Convert.ToBase64String([0xFF, 0xD8, 0xFF, 0xE0]));
+        var decision = await miner.SubmitAsync(req, shot);
+        check(decision.State == "added" && decision.NoteIds.SequenceEqual([7777L])
+              && multiSubValid && storedFiles.Contains("hachidori-screenshot-test.jpg"),
+            "offline batched media upload includes version 6 and API key on every multi sub-action");
 
         await app.StopAsync();
     }

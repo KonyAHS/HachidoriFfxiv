@@ -20,14 +20,14 @@ public sealed class MediaMiner : IDisposable
     private readonly TextCapture capture;
     private GameAudioRecorder? recorder;
 
-    public MediaMiner(Configuration config, TextCapture capture)
+    public MediaMiner(Configuration config, TextCapture capture, Func<string?>? ankiApiKey = null)
     {
         this.config = config;
         this.capture = capture;
         Frames = new GameFrames(config);
         Voices = new VoiceLineTracker();
         Tts = new TtsClient(config);
-        Anki = new AnkiConnect(() => config.AnkiConnectUrl);
+        Anki = new AnkiConnect(() => config.AnkiConnectUrl, ankiApiKey);
         Translator = new Translator(config);
         capture.LineCaptured += OnLine;
         Voices.VoicePlayed += OnVoicePlayed;
@@ -38,6 +38,7 @@ public sealed class MediaMiner : IDisposable
     public LineTimeline Timeline { get; } = new();
     public VoiceLineTracker Voices { get; }
     public BgmTracker Bgm { get; } = new();
+    public PluginAudioTracker PluginAudio { get; } = new();
     public TtsClient Tts { get; }
     public AnkiConnect Anki { get; }
     public Translator Translator { get; }
@@ -282,8 +283,11 @@ public sealed class MediaMiner : IDisposable
         var rate = ring.SampleRate;
         var frameSize = rate / AudioClips.FramesPerSecond;
         var start = ring.IndexAt(span.Start) - rate * 3 / 10;
+        var startTicks = span.Start - (long)(0.3 * Stopwatch.Frequency);
         var maxEnd = start + rate * (long)Math.Clamp(config.MaxLineSeconds, 3, 60);
-        var before = AudioClips.FrameLevels(ring.Read(start - rate * 2, start), rate);
+        var beforeSamples = ring.Read(start - rate * 2, start);
+        PluginAudio.MaskOverlappingSamples(beforeSamples, startTicks - 2 * Stopwatch.Frequency, rate);
+        var before = AudioClips.FrameLevels(beforeSamples, rate);
         var ratio = Math.Clamp(config.VoiceDetectionRatio, 1.1f, 10f);
         var levels = new List<float>();
         while (rec.Running && Math.Max(0, ring.Written - ring.Capacity) <= Math.Max(0, start))
@@ -297,7 +301,10 @@ public sealed class MediaMiner : IDisposable
             var count = (int)(Math.Max(0, scanEnd - start) / frameSize);
             if (count > levels.Count)
             {
-                var samples = ring.Read(start + levels.Count * frameSize, start + count * frameSize);
+                var chunkOffset = levels.Count * frameSize;
+                var samples = ring.Read(start + chunkOffset, start + count * frameSize);
+                var chunkStartTicks = startTicks + (long)(chunkOffset * (double)Stopwatch.Frequency / rate);
+                PluginAudio.MaskOverlappingSamples(samples, chunkStartTicks, rate);
                 levels.AddRange(AudioClips.FrameLevels(samples, rate));
             }
 
@@ -396,6 +403,19 @@ public sealed class MediaMiner : IDisposable
         if (finalEnd <= from)
             return null;
 
+        // If the plugin played pronunciation audio while this voice line was being captured,
+        // process/system loopback will contain that pronunciation mixed over the game voice.
+        // Extract the clean voice directly from FFXIV's .scd file instead.
+        var clipFromTicks = voice.StartTicks + (long)((from - voiceStartIdx) * (double)Stopwatch.Frequency / rate);
+        var clipEndTicks = voice.StartTicks + (long)((finalEnd - voiceStartIdx) * (double)Stopwatch.Frequency / rate);
+        if (PluginAudio.Overlaps(clipFromTicks, clipEndTicks))
+        {
+            var cleanScd = TryExtractCleanVoiceFromScd(voice);
+            if (cleanScd is not null)
+                return cleanScd;
+            DiagnosticLog.Write("voice", $"Plugin pronunciation overlapped loopback for {voice.DisplayName}, and direct SCD decode was unavailable; using loopback clip.");
+        }
+
         var clip = ring.Read(from, finalEnd);
         var peak = 0f;
         foreach (var s in clip)
@@ -408,6 +428,32 @@ public sealed class MediaMiner : IDisposable
 
         DiagnosticLog.Write("voice", $"Recorded game voice {voice.DisplayName} ({clip.Length / (double)rate:0.1}s, scdDur={(voice.DurationSeconds is { } d ? $"{d:0.1}s" : "n/a")}).");
         return AudioClips.EncodeOpus(AudioClips.Normalize(clip), rate);
+    }
+
+    private static byte[]? TryExtractCleanVoiceFromScd(VoicePlaybackEvent voice)
+    {
+        try
+        {
+            var scd = Plugin.DataManager?.GetFile<Lumina.Data.Files.ScdFile>(voice.FilePath);
+            if (scd is null)
+                return null;
+            var decoded = ScdVoiceExtractor.TryDecode(scd);
+            if (decoded is not { } audio || audio.Samples.Length == 0)
+                return null;
+            var samples48k = AudioClips.Resample(audio.Samples, audio.SampleRate, 48000);
+            var peak = 0f;
+            foreach (var s in samples48k)
+                peak = Math.Max(peak, Math.Abs(s));
+            if (peak <= 1e-4f)
+                return null;
+            DiagnosticLog.Write("voice", $"Plugin pronunciation overlapped loopback for {voice.DisplayName}; extracted clean voice directly from SCD ({samples48k.Length / 48000.0:0.1}s).");
+            return AudioClips.EncodeOpus(AudioClips.Normalize(samples48k), 48000);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("voice", $"Clean SCD voice extraction failed for {voice.DisplayName}: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>The line with GSM-style dialogue context: up to N captured lines before and after it.</summary>

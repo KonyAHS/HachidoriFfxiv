@@ -67,6 +67,14 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     public JsonObject Options => Snapshot["options"] as JsonObject ?? new JsonObject();
 
+    /// <summary>AnkiConnect API key shared by Hachidori's settings, if configured.</summary>
+    public string? AnkiApiKey =>
+        (Options["anki"] as JsonObject)?["apiKey"] is JsonValue v
+        && v.TryGetValue<string>(out var s)
+        && !string.IsNullOrWhiteSpace(s)
+            ? s.Trim()
+            : null;
+
     public IEnumerable<JsonObject> Dictionaries =>
         (Snapshot["dictionaryState"]?["dictionaries"] as JsonArray)?.OfType<JsonObject>() ?? [];
 
@@ -429,8 +437,10 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     public void Dispose()
     {
-        Link.SnapshotChanged -= ClearCache;
+        Link.SnapshotChanged -= OnSnapshotChanged;
         Link.ConnectionChanged -= OnConnectionChanged;
+        if (Offline is not null)
+            Offline.Changed -= ClearCache;
         offlineAnki?.Dispose();
         Offline?.Dispose();
         Link.Dispose();

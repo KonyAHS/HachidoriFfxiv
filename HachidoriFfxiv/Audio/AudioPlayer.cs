@@ -19,6 +19,7 @@ public sealed class AudioPlayer : IDisposable
     private WinMmWaveOut? fallbackOutput;
     private WaveStream? reader;
     private int sequence;
+    private long activePlaybackHandle;
     private bool disposed;
 
     public AudioPlayer(Configuration config)
@@ -28,6 +29,9 @@ public sealed class AudioPlayer : IDisposable
     }
 
     public string? LastError { get; private set; }
+
+    /// <summary>Optional tracker notified whenever this player renders pronunciation audio.</summary>
+    public Media.PluginAudioTracker? PlaybackTracker { get; set; }
 
     public void PlayTerm(HachidoriService service, string expression, string reading)
     {
@@ -73,8 +77,11 @@ public sealed class AudioPlayer : IDisposable
                 wasapi = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 100);
                 var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = vol };
                 wasapi.Init(volume);
+                var handle = PlaybackTracker?.BeginPlayback() ?? 0;
+                activePlaybackHandle = handle;
                 wasapi.PlaybackStopped += (_, e) =>
                 {
+                    EndTrackedPlayback(handle);
                     if (e.Exception is not null)
                     {
                         LastError = e.Exception.Message;
@@ -90,6 +97,7 @@ public sealed class AudioPlayer : IDisposable
             }
             catch (Exception wasapiEx)
             {
+                EndActivePlaybackLocked();
                 wasapi?.Dispose();
                 DiagnosticLog.Write("audio", $"WASAPI playback failed ({wasapiEx.Message}); trying WinMM waveOut fallback.");
                 try
@@ -97,11 +105,13 @@ public sealed class AudioPlayer : IDisposable
                     if (stream.CanSeek)
                         stream.Position = 0;
                     var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = vol };
+                    var handle = PlaybackTracker?.BeginPlayback() ?? 0;
+                    activePlaybackHandle = handle;
                     var winmm = WinMmWaveOut.Start(volume, err =>
                     {
                         LastError = err;
                         DiagnosticLog.Write("audio", $"WinMM playback error: {err}");
-                    });
+                    }, onFinished: () => EndTrackedPlayback(handle));
                     fallbackOutput = winmm;
                     stream.Dispose();
                     DiagnosticLog.Write("audio", $"Playing via WinMM fallback ({volume.WaveFormat}); bytes={data.Length}");
@@ -110,12 +120,34 @@ public sealed class AudioPlayer : IDisposable
                 }
                 catch (Exception winmmEx)
                 {
+                    EndActivePlaybackLocked();
                     stream.Dispose();
                     DiagnosticLog.Write("audio", $"WinMM fallback failed: {winmmEx.Message}");
                     throw new InvalidOperationException($"Audio playback failed (WASAPI: {wasapiEx.Message}; WinMM: {winmmEx.Message})", wasapiEx);
                 }
             }
         }
+    }
+
+    private void EndTrackedPlayback(long handle)
+    {
+        if (handle <= 0)
+            return;
+        lock (gate)
+        {
+            if (activePlaybackHandle == handle)
+                activePlaybackHandle = 0;
+        }
+        PlaybackTracker?.EndPlayback(handle);
+    }
+
+    private void EndActivePlaybackLocked()
+    {
+        if (activePlaybackHandle <= 0)
+            return;
+        var handle = activePlaybackHandle;
+        activePlaybackHandle = 0;
+        PlaybackTracker?.EndPlayback(handle);
     }
 
     public void Stop()
@@ -129,6 +161,7 @@ public sealed class AudioPlayer : IDisposable
             output = null;
             fallbackOutput = null;
             reader = null;
+            EndActivePlaybackLocked();
         }
     }
 
