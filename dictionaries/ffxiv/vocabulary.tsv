@@ -57,6 +57,7 @@ expression	reading	english	category	subtag	sources	note
 256ページ		page 256	enemy		BNpcName:3927	
 271オーダー・ウォッチマン		271st Order watchman	enemy		BNpcName:2694	
 2体目のサリ		second Sari	character		ENpcResident:1022182	
+2周	にしゅう	Two clears / Two farming rounds	pf	PF	curated-jp-lingo	2周 3滅解散 means farm two clears and disband after three wipes.
 2時		two o'clock	autotranslate		Completion:977	
 2月		February	autotranslate		Completion:1033	
 32ページ		vodoriga biblioclast	enemy		BNpcName:3919	
@@ -139,6 +140,7 @@ D2	でぃーに	Melee / Flex DPS 2	acronym	Role	https://xivjpraids.com/terminolo
 D3	でぃーさん	Physical Ranged DPS	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for BRD/MCH/DNC.
 D4	でぃーよん	Magical Ranged DPS (Caster)	acronym	Role	https://xivjpraids.com/terminology/	Standard JP raid position for BLM/SMN/RDM/PCT.
 DD	でぃーでぃー	Deep Dungeon	acronym	Content	curated-jp-lingo	Palace of the Dead, Heaven-on-High, Eureka Orthos, etc.
+DD	でぃーでぃー	Diamond Dust	acronym	E12S	curated-jp-lingo	Short for ダイアモンドダスト. Also used for the same mechanic in other encounters, such as Futures Rewritten (Ultimate).
 DD		Damage Dealing	acronym	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	
 DDoS		Distributed Denial of Service. A form of malice attack in which the attacker uses a multiple compromised computer systems attacking a target, such as a server, website or other network resources. FFXIV has received plenty DDoS attacks from time to time. Especially prevalent after the launch of Stormblood.	acronym	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	
 DEF上昇		DEF Up	status		Status:964	DEF is increased.
@@ -181,6 +183,20 @@ FL		Frontlines (PvP mode)	acronym	AkhMorning	https://www.akhmorning.com/resource
 Fleeting Moment ～万魔殿パンデモニウム：天獄編～		Fleeting Moment	music		Orchestrion:599	Obtained in Anabaseios: The Eleventh Circle.
 Force Your Way ～漆黒～		Force Your Way (Shadowbringers)	music		Orchestrion:327	Obtained in Eden's Gate: Resurrection or Descent.
 Forged in Crimson ～紅蓮の求道者～		Forged in Crimson	music		Orchestrion:565	Materials for synthesis obtained from a trial in Endwalker unlocked via the wandering minstrel. ※Drop rates increase when participating at minimum IL.
+G1		Timeworn Leather Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6688	Treasure map shorthand for 古ぼけた地図G1.
+G10		Timeworn Gazelleskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17836	Treasure map shorthand for 古ぼけた地図G10.
+G11		Timeworn Gliderskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26744	Treasure map shorthand for 古ぼけた地図G11.
+G12		Timeworn Zonureskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26745	Treasure map shorthand for 古ぼけた地図G12.
+G13		Timeworn Saigaskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36611	Treasure map shorthand for 古ぼけた地図G13.
+G14		Timeworn Kumbhiraskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36612	Treasure map shorthand for 古ぼけた地図G14.
+G2		Timeworn Goatskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6689	Treasure map shorthand for 古ぼけた地図G2.
+G3		Timeworn Toadskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6690	Treasure map shorthand for 古ぼけた地図G3.
+G4		Timeworn Boarskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6691	Treasure map shorthand for 古ぼけた地図G4.
+G5		Timeworn Peisteskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6692	Treasure map shorthand for 古ぼけた地図G5.
+G6		Timeworn Archaeoskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12241	Treasure map shorthand for 古ぼけた地図G6.
+G7		Timeworn Wyvernskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12242	Treasure map shorthand for 古ぼけた地図G7.
+G8		Timeworn Dragonskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12243	Treasure map shorthand for 古ぼけた地図G8.
+G9		Timeworn Gaganaskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17835	Treasure map shorthand for 古ぼけた地図G9.
 GB		Short term for “Gobaku”. See above.	acronym	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	
 GC	じーしー	Grand Company	acronym	System	curated-jp-lingo	グランドカンパニー (Maelstrom, Twin Adder, Immortal Flames).
 GC		Grand Company. Used the most instead of their Japanese counterpart	acronym	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	
@@ -1166,7 +1182,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 たれ耳のヴィース		timid townsviis	character		ENpcResident:1031405;ENpcResident:1031406	
 たんけんくん	たんけんくん	determined digger	character		ENpcResident:1045502;ENpcResident:1046085;ENpcResident:1046086	
 だまし	だまし	Short form of だまし討ち “Damashi Uchi”, Ninja’s Trick Attack	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	
-だまし討ち		Trick Attack	action	ROG	Action:2258	
+だまし打ち	だましうち	Trick Attack	slang	NIN	curated-jp-lingo	Alternate spelling of the action name だまし討ち.
+だまし討ち	だましうち	Trick Attack	action	ROG	Action:2258	
 だまし討ち		Trick Attack	status		Status:2014;Status:3254	Damage taken from the ninja who applied this effect is increased.
 だまし討ち皆伝		Trick Attack Mastery	trait	NIN	Trait:586	
 ちかい	ちかい	Pledge	status		Status:4234	Impervious to most damage for one strike.
@@ -1184,6 +1201,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 つつやき小道		The Hissing Cobbles	location		PlaceName:2053	
 つむじ風		tsumuji-kaze	enemy		BNpcName:7016	
 つややかなお姉さん		silky associate	character		ENpcResident:1005534	
+つらら	つらら	Icicle	slang	E12S	curated-jp-lingo	Ice pillar or icicle in a raid call. Also written 氷柱.
 つらら洞		Shiny Spring	location		PlaceName:4379	
 つるされてる海賊		つるされてる海賊	character		ENpcResident:1002090	
 つわものふたり	つわものふたり	Clotted Crime	duty		ContentFinderCondition:1087	
@@ -2466,7 +2484,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 アムリン	あむりん	Ameline	character		ENpcResident:1011227	
 アムルタート	あむるたーと	ameretat	enemy		BNpcName:7462	
 アムルック	あむるっく	amhuluk	enemy		BNpcName:10075	
-アムレン	あむれん	Arm's Length	slang	Combat	curated-jp-lingo	Short for アームズレングス (physical knockback immunity / slow).
+アムレン	あむれん	Arm's Length	slang	Combat	curated-jp-lingo	Short for アームズレングス. As a raid call, use your role's knockback immunity. Healers and magical ranged DPS use 堅実魔 (Surecast).
 アム・アレーン	あむ・あれーん	Amh Araeng	location		PlaceName:2955;PlaceName:3512	
 アム・ガランジ	あむ・がらんじ	Amh Garanjy	character		ENpcResident:1010740;ENpcResident:1017814;ENpcResident:1024169;ENpcResident:1026596;ENpcResident:1026603;ENpcResident:1026626;ENpcResident:1026627;ENpcResident:1031894;ENpcResident:1031904;ENpcResident:1035473;ENpcResident:1035502;ENpcResident:1040593;ENpcResident:1043695;ENpcResident:1043981;ENpcResident:1043982;ENpcResident:1045733;ENpcResident:1045742;ENpcResident:1051801;ENpcResident:1051802;ENpcResident:1051803;ENpcResident:1051804;ENpcResident:1051805;ENpcResident:1051830;ENpcResident:1052008;ENpcResident:1054361;ENpcResident:1054362;ENpcResident:1054460;ENpcResident:1058430	
 アム・ガランジ	あむ・がらんじ	アム・ガランジ	character		ENpcResident:1031911	
@@ -2978,6 +2996,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 アルテマウェポン破壊作戦		The Minstrel's Ballad: Ultima's Bane	autotranslate		Completion:2070	
 アルテマウェポン破壊作戦		the Porta Decumana	duty		ContentFinderCondition:830	
 アルテマウォリアー	あるてまうぉりあー	the Ultima Warrior	enemy		BNpcName:7055	
+アルテマテリジャ	あるてまてりじゃ	Materia X	materia	Gear	https://v2.xivapi.com/api/sheet/Item/33932	Grade suffix in names such as 武略のアルテマテリジャ (Savage Aim Materia X).
 アルテマデーモン	あるてまでーもん	ultima demon	enemy		BNpcName:10220	
 アルテマビースト	あるてまびーすと	the Ultima Beast	enemy		BNpcName:7058	
 アルテマ・イフリート	あるてま・いふりーと	Ultima Ifrit	enemy		BNpcName:2139	
@@ -3948,6 +3967,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 インバン	いんばん	Inban	character		ENpcResident:1022495;ENpcResident:1023286;ENpcResident:1023289	
 インパクト	いんぱくと	Impact	action	RDM	Action:16526	
 インパクト詠唱可		Impactful	status		Status:1367	Able to execute Impact.
+インビジブル	いんびじぶる	Prismatic Deception	slang	E11S	curated-jp-lingo	Short for プリズマチックインビジブル in Eden's Promise: Anamorphosis (Savage).
 インビジブル	いんびじぶる	Invisible	status		Status:616;Status:1007	Unable to be detected by sight.
 インビンシブル	いんびんしぶる	Hallowed Ground	action	PLD	Action:30;Action:8755	
 インビンシブル	いんびんしぶる	Hallowed Ground	status		Status:82;Status:1302	Impervious to most attacks.
@@ -4744,6 +4764,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 エクスプローシブ・フルドゥ	えくすぷろーしぶ・ふるどぅ	explosive huldu	enemy		BNpcName:8836	
 エクスプロージョン！		Anti-eruption Measures	fate		Fate:1526	
 エクスペクティング・フライ	えくすぺくてぃんぐ・ふらい	expecting damselfly	enemy		BNpcName:4283	
+エクスマテリジャ	えくすまてりじゃ	Materia VIII	materia	Gear	https://v2.xivapi.com/api/sheet/Item/26729	Grade suffix in names such as 武略のエクスマテリジャ (Savage Aim Materia VIII).
 エクセドラ大広場		The Exedra	location		PlaceName:3242	
 エクセレンス	えくせれんす	Excellence	status		Status:3301;Status:5463	Impervious to most attacks. Damage dealt is increased.
 エクセントリック・イヴ	えくせんとりっく・いゔ	Eccentric Eve	enemy		BNpcName:5614	
@@ -5533,6 +5554,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 オメガM		Omega-M	status		Status:1674;Status:3454	Mimicking the male form.
 オメガMの構え		Simulation M	emote		Emote:200	
 オメガフレーム	おめがふれーむ	Omega frame	enemy		BNpcName:10406	
+オメガマテリジャ	おめがまてりじゃ	Materia IX	materia	Gear	https://v2.xivapi.com/api/sheet/Item/33919	Grade suffix in names such as 武略のオメガマテリジャ (Savage Aim Materia IX).
 オメガ管制室		Omega Control	location		PlaceName:1887	
 オライオン	おらいおん	Orion	enemy		BNpcName:3786	
 オラオラ盗賊		brazen bandit	enemy		BNpcName:3346	
@@ -8370,6 +8392,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 コバルトゴーレム	こばるとごーれむ	cobalt golem	enemy		BNpcName:2700	
 コバルト・モルフォ	こばると・もるふぉ	cobalt morpho	enemy		BNpcName:8149	
 コバンザメ級潜水艦		sharksucker-class insubmersible	minion		Companion:348;BNpcName:11868	
+コヒー	こひー	Coherence	slang	P2S	curated-jp-lingo	Short for コヒーレンス.
+コヒーレンス	こひーれんす	Coherence	term	P2S	Action:26650	
 コピーキャット	こぴーきゃっと	Copy Cat	enemy		BNpcName:13071	
 コピーキャット・キャシー	こぴーきゃっと・きゃしー	Copycat Cassie	enemy		BNpcName:7505	
 コフィン・キーパー	こふぃん・きーぱー	coffinkeep	enemy		BNpcName:6988	
@@ -8887,6 +8911,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 サイクロプス・ピース	さいくろぷす・ぴーす	cyclops piece	enemy		BNpcName:14662;BNpcName:14671	
 サイクロン	さいくろん	cyclone	enemy		BNpcName:7236	
 サイコフレア	さいこふれあ	psycheflayer	enemy		BNpcName:1689	
+サイコロ	さいころ	Dice markers / Numbered markers	slang	Mechanics	https://jp.finalfantasyxiv.com/lodestone/character/40045391/blog/5559820/	Numbered overhead markers, often shown as dice pips. They can assign players an order for a Limit Cut-style mechanic.
 サイコロ	さいころ	Saikoro	character		ENpcResident:1019179	
 サイザブル・スラッグ	さいざぶる・すらっぐ	sizable slug	enemy		BNpcName:7018	
 サイスビーク	さいすびーく	Scythebeak	enemy		BNpcName:13417	
@@ -10000,6 +10025,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 シングリトゥヴ	しんぐりとぅゔ	Syngithuv	character		ENpcResident:1003240	
 シングルマインド	しんぐるまいんど	Single Mind	status		Status:760	The next appraisal will not use a gathering attempt.
 シンセティック・ドブラン	しんせてぃっく・どぶらん	synthetic doblyn	enemy		BNpcName:1836	
+シンソイルスラスト	しんそいるすらすと	Bound of Faith	term	E11S	Action:22143	
 シンダ	しんだ	Thinda	character		ENpcResident:1027611	
 シンデン	しんでん	Shinden	character		ENpcResident:1019260	
 シントウ	しんとう	Shinto	character		ENpcResident:1019050;ENpcResident:1021031;ENpcResident:1021044;ENpcResident:1021046	
@@ -11970,6 +11996,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 タンギー	たんぎー	tangie	enemy		BNpcName:6981	
 タンク	たんく	Tank	term		curated-game-terminology;https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/;Completion:907	
 タンクマスタリー	たんくますたりー	Tank Mastery	trait	GNB	Trait:317;Trait:318;Trait:319;Trait:320	
+タンク強	たんくきょう	Tankbuster	slang	Mechanics	curated-jp-lingo	Short for タンク強攻撃.
+タンク強攻撃	たんくきょうこうげき	Tankbuster	slang	Mechanics	curated-jp-lingo	A heavy attack aimed at a tank. It may require mitigation, invulnerability, a swap, or sharing the hit with another tank.
 タングル・ナルブルーイ	たんぐる・なるぶるーい	tangled narbrooi	enemy		BNpcName:4647	
 タングル湿林		The Tangle	location		PlaceName:413	
 タングル湿林の大掃除		Mud about You	fate		Fate:514	
@@ -12041,6 +12069,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 ダイアマイト・ウェディングパーティー	だいあまいと・うぇでぃんぐぱーてぃー	(You're) Having My Mitelings	fate		Fate:1067	
 ダイアマイト・バチェラーパーティー	だいあまいと・ばちぇらーぱーてぃー	(You're Not) Having My Mitelings	fate		Fate:1070;Fate:1071	
 ダイアマイト・ピース	だいあまいと・ぴーす	diremite piece	enemy		BNpcName:14621	
+ダイアモンドダスト	だいあもんどだすと	Diamond Dust	term	E12S	Action:22678	
 ダイア・ガーゴイル	だいあ・がーごいる	dire gargoyle	enemy		BNpcName:2758	
 ダイアーナルセクト	だいあーなるせくと	Diurnal Sect	status		Status:839	A **Regen** effect is added to certain actions.
 ダイアーナル・オートナイト	だいあーなる・おーとないと	diurnal knight	enemy		BNpcName:4598	
@@ -15069,6 +15098,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 ハイマ	はいま	Haima	action	SGE	Action:24305;Action:27833	
 ハイマ	はいま	Haima	status		Status:2612;Status:2869;Status:3110	A magicked barrier is nullifying damage.
 ハイマの印		Haimatinon	status		Status:2642;Status:2870;Status:3111	Stacks are consumed to restore the **Haima** barrier each time it is absorbed. Grants a healing effect when duration expires, its potency based on the number of remaining stacks.
+ハイマテリジャ	はいまてりじゃ	Materia VI	materia	Gear	https://v2.xivapi.com/api/sheet/Item/18019	Grade suffix in names such as 武略のハイマテリジャ (Savage Aim Materia VI).
 ハイミスリルキャップ	はいみすりるきゃっぷ	noble mythrilcap	enemy		BNpcName:11032	
 ハイムリック	はいむりっく	Haimirich	character		ENpcResident:1013230;ENpcResident:1013233;ENpcResident:1013859;ENpcResident:1013933;ENpcResident:1013943;ENpcResident:1013956;ENpcResident:1013959	
 ハイメ	はいめ	Haimet	character		ENpcResident:1027736	
@@ -15633,6 +15663,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 バランスゲージ	ばらんすげーじ	Balance Gauge	autotranslate		Completion:2935	
 バランティノア	ばらんてぃのあ	Valentinoix	character	Levewatch	ENpcResident:1001867	
 バラー	ばらー	valar	enemy		BNpcName:821	
+バリア	ばりあ	Shield / Barrier	slang	Combat	curated-jp-lingo	An effect that absorbs incoming damage, such as a healer shield or The Blackest Night.
 バリア	ばりあ	Manaward	status		Status:1989	An aetherial barrier is preventing damage.
 バリアウア	ばりあうあ	Bariaua	enemy		BNpcName:5615	
 バリアテンダー	ばりあてんだー	acutender	enemy		BNpcName:12523	
@@ -17650,6 +17681,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 ブラッド・バテラー	ぶらっど・ばてらー	blood bateleur	enemy		BNpcName:1789	
 ブラッド・マウンテン	ぶらっど・まうんてん	blood of the mountain	enemy		BNpcName:3797	
 ブラディヒルンド	ぶらでぃひるんど	Brandihild	character		ENpcResident:1044498;ENpcResident:1044749;ENpcResident:1044760;ENpcResident:1044762;ENpcResident:1044772;ENpcResident:1044786;ENpcResident:1044791;ENpcResident:1044797;ENpcResident:1044802;ENpcResident:1044812;ENpcResident:1044817;ENpcResident:1044827;ENpcResident:1044833	
+ブラナイ	ぶらない	The Blackest Night	slang	Combat	curated-jp-lingo	Short for ブラックナイト, the Dark Knight shield.
 ブラバーアイズ	ぶらばーあいず	blubber eyes	enemy		BNpcName:7429	
 ブラブラ	ぶらぶら	burabura chochin	mount		Mount:321	
 ブラン	ぶらん	Bran	character		ENpcResident:1009489;ENpcResident:1031193;ENpcResident:1031194;ENpcResident:1031492;ENpcResident:1045528	
@@ -17993,6 +18025,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 プリオルフェ	ぷりおるふぇ	Priorfaix	character		ENpcResident:1011921	
 プリクリー・スパインモール	ぷりくりー・すぱいんもーる	prickly barbmole	enemy		BNpcName:13512	
 プリズナーズ・デライト	ぷりずなーず・でらいと	prisoner's delight	enemy		BNpcName:438	
+プリズマチックインビジブル	ぷりずまちっくいんびじぶる	Prismatic Deception	term	E11S	Action:22130	
 プリズマチック・シンク	ぷりずまちっく・しんく	The Prismatic Pull	location		PlaceName:5293;PlaceName:5314	
 プリズムコブラン	ぷりずむこぶらん	prism coblyn	enemy		BNpcName:901	
 プリズム・ディコタイタス	ぷりずむ・でぃこたいたす	prismatic decotitus	enemy		BNpcName:8800	
@@ -19175,6 +19208,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 マティルド	まてぃるど	Mathild	character		ENpcResident:1019481	
 マティー	まてぃー	Mahti	character		ENpcResident:1039539	
 マテオミ牙軍曹		Matheomi	character		ENpcResident:1000756	
+マテリア	まてりあ	Materia I	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5669	Grade suffix in names such as 武略のマテリア (Savage Aim Materia I). Also the general Japanese name for materia.
 マテリア	まてりあ	Materias	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	
 マテリア	まてりあ	materia	autotranslate		Completion:1604	
 マテリアはめ	まてりあはめ	Materia meld	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	
@@ -19187,6 +19221,10 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 マテリア装着してくれませんか？		Can you meld materia for me?	autotranslate		Completion:326	
 マテリア装着しましょうか？		Do you want me to meld materia to it?	autotranslate		Completion:325	
 マテリア装着請負中		Looking to Meld Materia	status	Online Status	OnlineStatus:21;Completion:1505	
+マテリガ	まてりが	Materia IV	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5672	Grade suffix in names such as 武略のマテリガ (Savage Aim Materia IV).
+マテリジャ	まてりじゃ	Materia V	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5673	Grade suffix in names such as 武略のマテリジャ (Savage Aim Materia V).
+マテリダ	まてりだ	Materia III	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5671	Grade suffix in names such as 武略のマテリダ (Savage Aim Materia III).
+マテリラ	まてりら	Materia II	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5670	Grade suffix in names such as 武略のマテリラ (Savage Aim Materia II).
 マディソン元船長		Captain Madison	enemy		BNpcName:3015	
 マディソン船長		Captain Madison	enemy		BNpcName:1382	
 マディーンシンボル	までぃーんしんぼる	Madeen Portrait	status		Status:4104	Able to execute **Retribution of the Madeen**.
@@ -20093,6 +20131,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 メガネウラ	めがねうら	meganeura	enemy		BNpcName:3909	
 メガフレア	めがふれあ	Megaflare	emote		Emote:62	
 メガマゲイ	めがまげい	megamaguey	enemy		BNpcName:13080	
+メガマテリジャ	めがまてりじゃ	Materia VII	materia	Gear	https://v2.xivapi.com/api/sheet/Item/25188	Grade suffix in names such as 武略のメガマテリジャ (Savage Aim Materia VII).
 メガリスポリス	めがりすぽりす	Megalithopolis	location		PlaceName:5407	
 メガリスポリス東		Megalithopolis	location		PlaceName:5426	
 メガリス・マリオネット	めがりす・まりおねっと	megalith marionette	enemy		BNpcName:1693	
@@ -20780,6 +20819,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 ライオット・メデューサ	らいおっと・めでゅーさ	riotous medusa	enemy		BNpcName:10991	
 ライオット・モルボル	らいおっと・もるぼる	riotous morbol	enemy		BNpcName:10990	
 ライオニシア	らいおにしあ	Lyonicia	character		ENpcResident:1028276	
+ライオン	らいおん	Lions	slang	E12S	curated-jp-lingo	The lion statues and their targeted flame attacks in the first phase of E12S.
 ライオンズナップ	らいおんずなっぷ	Lion's Nap	location		PlaceName:2629	
 ライケンウィード演習場		Lichenweed	location		PlaceName:1884	
 ライジングウィンドミル	らいじんぐうぃんどみる	Rising Windmill	action	DNC	Action:15995	
@@ -24082,6 +24122,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 優しそうな父親		gentle-faced father	character		ENpcResident:1018314	
 優しそうな錬金術師		amiable alchemist	character		ENpcResident:1039232	
 優先突入権：フォークタワー		Right of Entry: The Forked Tower	status		Status:4474	Permitted to enter the Forked Tower.
+優先順位	ゆうせんじゅんい	Priority order	slang	Mechanics	curated-jp-lingo	The order used to assign positions or jobs when several players qualify, such as healer > tank > DPS.
 優等のモグポポ		Mogpo the Magnificent	enemy		BNpcName:3951	
 優等のララー・ジンジャル		Lalah Jinjahl the Studious	enemy		BNpcName:10729	
 優等のララー・ジンジャル		優等のララー・ジンジャル	enemy		BNpcName:11061	
@@ -24214,6 +24255,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 入道のケナバヌ		Kena Vanu	enemy		BNpcName:3999	
 入門希望の冒険者		eager adventurer	character		ENpcResident:1010430;ENpcResident:1023899	
 入院患者の男性		contented patient	character		ENpcResident:1036317	
+全体攻撃	ぜんたいこうげき	Raidwide AoE	slang	Mechanics	curated-jp-lingo	An attack that hits the entire party or arena.
 全体攻撃		whole area of effect attack	autotranslate		Completion:1439	
 全力で攻撃してください！		Full attack!	autotranslate		Completion:805	
 全滅	ぜんめつ	Wipe	slang	Combat	curated-jp-lingo;https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Entire party is defeated.
@@ -24226,8 +24268,9 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 八丁のマウンドリンクス		Moundrinx Eightclinks	enemy		BNpcName:3942	
 八分儀広場		The Octant	location		PlaceName:739	
 八剣士の前庭		The Eight Sentinels	location		PlaceName:942	
-八卦無刃殺		Hakke Mujinsatsu	action	NIN	Action:16488	
+八卦無刃殺	はっけむじんさつ	Hakke Mujinsatsu	action	NIN	Action:16488	
 八号坑口		Pit 8	location		PlaceName:3104	
+八方向	はちほうこう	Eight-way spread / Clock positions	slang	Mechanics	https://jp.finalfantasyxiv.com/lodestone/character/31219919/blog/4754041/	Spread to the eight cardinal and intercardinal positions, for example to bait protean cones.
 八番艦管制区画		IC-08 Control	location		PlaceName:1421	
 公演参加		Face in the Crowd	status		Status:1494	Participating in a live performance.
 公開処刑塔		Danglylimbs	location		PlaceName:1842	
@@ -24249,7 +24292,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 六根山麓		Mountain Base	location		PlaceName:4309;PlaceName:4326	
 六洋院の観察者		Thalassai observer	character		ENpcResident:1041551;ENpcResident:1042179	
 六花		snow bee	enemy		BNpcName:7528	
-六道輪廻		Bhavacakra	action	NIN	Action:7402;Action:8815	
+六道輪廻	りくどうりんね	Bhavacakra	action	NIN	Action:7402;Action:8815	
 共倒れの呪詛		Quantum Nullification	status		Status:4883	Unraveling in concert with another, resulting in damage over time.
 共倒れの呪詛［被］		Quantum Entanglement	status		Status:4884	Unraveling in concert with another, resulting in damage over time.
 共同作業の現場監督		Firmament foreman	character		ENpcResident:1032493;BNpcName:9043	
@@ -24272,10 +24315,12 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 内丹		Second Wind	action		Action:7541	
 内丹効果アップ		Enhanced Second Wind	trait		Trait:642	
 内乱記		A Bit of a Problem	fate		Fate:1796	
+内側	うちがわ	Inside / Get in	slang	Mechanics	curated-jp-lingo	Move to the inside or central safe zone, for example during a donut AoE.
 内側		inside	autotranslate		Completion:966	
 内周		inner	autotranslate		Completion:3504	
 内気な子分ポーキー		solitary swineling	enemy		BNpcName:10085	
 内気な街女房		withdrawn woman	character		ENpcResident:1020905;ENpcResident:1020909	
+円	えん	Circle AoE	slang	Mechanics	curated-jp-lingo	A circular area of effect in raid diagrams and calls.
 円卓の霧王「キングアースロ」		Morte Arthro	fate		Fate:1360	
 円壇の間		Majesty's Auspice	location		PlaceName:3547	
 円形		circle	autotranslate		Completion:3512	
@@ -24646,6 +24691,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 助けを求める配達員		troubled Rider	character		ENpcResident:1042468	
 助けを求める風車番		miller in need	enemy		BNpcName:1321	
 助手のサスザント		Sathzant	enemy		BNpcName:10741	
+劫火滅却	ごうかめっきゃく	Goka Mekkyaku	slang	NIN	curated-jp-lingo	Short for 劫火滅却の術.
+劫火滅却の術	ごうかめっきゃくのじゅつ	Goka Mekkyaku	action	NIN	Action:16491	
 劫火滅却の術		Goka Mekkyaku	status		Status:3184	Suffering damage over time.
 劫火滅却の術実行不可		Sealed Goka Mekkyaku	status		Status:3193	Unable to execute **Goka Mekkyaku**.
 励ます		Rally	emote		Emote:34	
@@ -25062,7 +25109,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 受取人らしき男性		loitering lad	character		ENpcResident:1040581	
 口が悪いウサギ		razor-tongued rabbit	character		ENpcResident:1032960	
 口の島		The Jaws	location		PlaceName:1443	
-口寄せの術・大蝦蟇		Hellfrog Medium	action	NIN	Action:7401;Action:17731	
+口寄せの術	くちよせのじゅつ	Hellfrog Medium	slang	NIN	curated-jp-lingo	Shorthand for 口寄せの術・大蝦蟇. Also used for its upgraded form 口寄せの術・蝦蟇仙 (Deathfrog Medium).
+口寄せの術・大蝦蟇	くちよせのじゅつおおがま	Hellfrog Medium	action	NIN	Action:7401;Action:17731	
 口寄せの陣		medium circle	enemy		BNpcName:3171	
 口笛粉屋		The Whistling Miller	location		PlaceName:584	
 口笛粉屋の店員		Whistling Miller clerk	character		ENpcResident:1040600	
@@ -25085,6 +25133,20 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 古の闘技場		The Forgotten Arena	location		PlaceName:2875	
 古の闘神「オーディン」		Steel Reign	fate		Fate:196;Fate:197;Fate:198;Fate:199;Fate:200;Fate:201;Fate:202;Fate:203;Fate:204;Fate:205;Fate:206;Fate:207	
 古びたねぐら		Old Nest	location		PlaceName:5388	
+古ぼけた地図G1		Timeworn Leather Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6688	Grade 1 treasure map.
+古ぼけた地図G10		Timeworn Gazelleskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17836	Grade 10 treasure map.
+古ぼけた地図G11		Timeworn Gliderskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26744	Grade 11 treasure map.
+古ぼけた地図G12		Timeworn Zonureskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26745	Grade 12 treasure map.
+古ぼけた地図G13		Timeworn Saigaskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36611	Grade 13 treasure map.
+古ぼけた地図G14		Timeworn Kumbhiraskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36612	Grade 14 treasure map.
+古ぼけた地図G2		Timeworn Goatskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6689	Grade 2 treasure map.
+古ぼけた地図G3		Timeworn Toadskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6690	Grade 3 treasure map.
+古ぼけた地図G4		Timeworn Boarskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6691	Grade 4 treasure map.
+古ぼけた地図G5		Timeworn Peisteskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6692	Grade 5 treasure map.
+古ぼけた地図G6		Timeworn Archaeoskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12241	Grade 6 treasure map.
+古ぼけた地図G7		Timeworn Wyvernskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12242	Grade 7 treasure map.
+古ぼけた地図G8		Timeworn Dragonskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12243	Grade 8 treasure map.
+古ぼけた地図G9		Timeworn Gaganaskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17835	Grade 9 treasure map.
 古アムダプール市街		The Lost City of Amdapor	location		PlaceName:125;Completion:2093	
 古アムダプール市街 (Hard)		The Lost City of Amdapor (Hard)	location		PlaceName:1704	
 古代のカテドラル		The Cathedral	location		PlaceName:2170	
@@ -25256,6 +25318,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 呑気な見張り役		wide-eyed watchguard	character		ENpcResident:1014330;ENpcResident:1014331	
 呑気な酒保商人		spirited sutler	character		ENpcResident:1014124	
 呑気な酔っ払い		carefree drunkard	character		ENpcResident:1050638	
+周	しゅう	Clear / Farming round	pf	PF	https://xivjpraids.com/terminology/	Counts completed runs in a farm party. 週, also read しゅう, counts weeks.
 周回		Repeated runs	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Shuukai · Often used to describe allagan currency grinding or dungeon grinds. Can be used to describe repeating runs to cap tombstones or any other form of runs until your objective is reached. Very commonly used when doing Relic/Anima quests, Extreme Primal farm runs…
 周囲を監視中の海賊衆		perplexed Confederate	character		ENpcResident:1023307	
 周囲を窺う若者		surly youth	character		ENpcResident:1048359	
@@ -25441,14 +25504,17 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 四の呪印		Fourth Brand	status		Status:3271	Branded with a cryptic spark that will grow into the **Fourth Flame** when this effect expires.
 四君子の術		Seasons of the Fleeting	status		Status:3623	Able to execute ninjutsu in succession.
 四国合同演習		a Spectacle for the Ages	duty		ContentFinderCondition:167	
+四天召		Right of the Heavens	term	E11S	Action:22126	The first Right of the Heavens leads into Sundered Sky.
 四学科の座		The Quadrivium	location		PlaceName:3239;PlaceName:3290	
 四柱大広間		Hall of the Four Pillars	location		PlaceName:1991	
 四番艦管制区画		IC-04 Control	location		PlaceName:1423	
 四連装対竜カノン砲		Bertha	enemy		BNpcName:2168	
+四連魔鎖		Fourfold Shackles	slang	P1S	curated-jp-lingo	Short for 結呪の四連魔鎖.
 四面脚		Four-point Fury	action	MNK	Action:16473	
 回し		GCD rolling	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: GCD mawashi · Rolling your GCDs. An example of it would be GCDを回す (Rolling a GCD).
 回収は一刻を争う！		Parts Unknown	fate		Fate:1798	
 回天		Kaiten	status		Status:3201	**Yukikaze** is upgraded to **Hyosetsu**, **Gekko** is upgraded to **Mangetsu**, and **Kasha** is upgraded to **Oka**.
+回復	かいふく	Healing	slang	Combat	curated-jp-lingo	Restoring HP. In a raid call, heal up before or after the next hit.
 回復してください！		Heal!	autotranslate		Completion:812	
 回復アクション効果アップ		Enhanced Healing Magic	trait	AST	Trait:377;Trait:489;Trait:493;Trait:499	
 回復ミツムシ		Vigorwasp	minion		Companion:552;BNpcName:14249	
@@ -25573,6 +25639,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 土球		sand sphere	enemy		BNpcName:13652	
 土産屋 チャ・ノギア		T'noggya	character	Exporter of Exotics	ENpcResident:1001519	
 土竜の山師「ピックマン59 ベ・ゼ」		The Miner in the Mirror	fate		Fate:586	
+土遁	どとん	Doton	slang	NIN	curated-jp-lingo	Short for 土遁の術.
+土遁の術	どとんのじゅつ	Doton	action	NIN	Action:2270	
 土遁の術		Doton	status		Status:501;Status:3187;Status:4304	Damage taken is reduced.
 土遁の術実行不可		Sealed Doton	status		Status:3197	Unable to execute **Doton**.
 土遁の術［害］		Doton Corruption	status		Status:3079	Sustaining earth damage over time.
@@ -25712,11 +25780,12 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 堅物な神殿騎士		punctilious Temple Knight	character		ENpcResident:1014615;ENpcResident:1014876	
 堕天せし者		Fallen Angel	music		Orchestrion:31	Materials for synthesis obtained in the Howling Eye (Extreme). ※Drop rates increase when participating at minimum IL.
 堕天の証		Ruination	enemy		BNpcName:7908	
+堕獄絶技		Sundered Sky	term	E11S	Action:22135	
 堕落 ～廃砦捜索 ダスクヴィジル～		Descent	music		Orchestrion:529	Obtained in the Dusk Vigil.
 堕落した神殿騎士		dishonored Temple Knight	enemy		BNpcName:4123	
 報酬品管理人		recompense officer	character		ENpcResident:1017613;ENpcResident:1017614;ENpcResident:1017615	
 報酬：		Reward:	autotranslate		Completion:616	
-塔		Tower	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Tou · In FFXIV this refers to Pillar mechanic. Seen in T13 and Thordan EX, and many others.
+塔	とう	Tower	lingo	Mechanics	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/;curated-jp-lingo	A marked area that the required number of players must stand in (soak).
 塔踏み	とうふみ	Tower soak	slang	Mechanics	curated-jp-lingo	Standing inside meteor/tower circles to prevent raid-wide explosions.
 塗りつぶし＋1		+1 Correction	status		Status:5014	Knowledge level has been increased by one via a scrawled revision.
 塗りつぶし＋2		+2 Correction	status		Status:5015	Knowledge level has been increased by two via a scrawled revision.
@@ -25827,7 +25896,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 外人鯖		Servers that are non Japanese majority, also refers to NA/EU data centers	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: *Gaijin saba · Tonberry, despite being a Japanese server, counts as one due to the majority of Oceania and South-East Asia players residing there.
 外側		outside	autotranslate		Completion:967	
 外出帰りのドプロ族		weary Doppro	character		ENpcResident:1052574	
-外周	がいしゅう	Arena edge / Outer perimeter	slang	Mechanics	curated-jp-lingo	Outer edge of the boss arena (often has death walls or adds).
+外周	がいしゅう	Arena edge / Outer perimeter	slang	Mechanics	curated-jp-lingo	The edge of the arena. As a positioning call, move out toward the edge when it is safe, for example to avoid a boss-centered circle AoE (chariot).
 外周		outer	autotranslate		Completion:3505	
 外地ラノシア		Outer La Noscea	location		PlaceName:350	
 外征前哨 ヴァンガード		Vanguard	duty		ContentFinderCondition:831	
@@ -25844,8 +25913,10 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 外道風の斧術士		roughspun ruffian	enemy		BNpcName:5051	
 外郭中庭		Outer Training Grounds	location		PlaceName:1531	
 外郭攻略 カストルム・メリディアヌム		Castrum Meridianum	duty		ContentFinderCondition:15	
+多刻印	たこくいん	Predatory Avarice	slang	P2S	curated-jp-lingo	Shortened spelling of 多重刻印.
 多彩なる都 ～ラザハン：昼～		Vibrant Voices	music		Orchestrion:517	Available for exchange in Radz-at-Han.
 多産の王妃「ステップ・ハタン」		Hat's Off	fate		Fate:1254	
+多重刻印	たじゅうこくいん	Predatory Avarice	term	P2S	Action:26663	
 多関節型		serial-jointed model	enemy		BNpcName:9923	
 多関節型：兵隊機		serial-jointed service model	enemy		BNpcName:9142;BNpcName:9155	
 多関節型：司令機		serial-jointed command model	enemy		BNpcName:9141	
@@ -25925,6 +25996,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 大地のハンマー		Please Hammers, Don't Hurt Them	fate		Fate:345	
 大地の傷痕		The Wound	location		PlaceName:2825	
 大地の守り		Earthen Ward	status		Status:311	Damage taken is reduced.
+大地の怒り	だいちのいかり	Earthen Fury	term	E12S	Action:22687	Titan's raidwide attack.
 大地の怒り		Razed Earth	status		Status:312	Jagged shards protrude from the ground, dealing earth damage to any who tread upon them.
 大地の恵み		The Giving Land	action	BTN	Action:4589;Action:4590	
 大地の恵み		The Giving Land	status		Status:1802	Increases the number of shards, crystals, or clusters that are obtained by a random amount.
@@ -26904,6 +26976,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 巨人の兎小屋		Hare Among Giants	location		PlaceName:3056	
 巨人族の木箱		giant's strongbox	enemy		BNpcName:1796	
 巨体のキヨフサ		reinforced kiyofusa	enemy		BNpcName:5939	
+巨兵	きょへい	Classical Sculpture	slang	E12S	curated-jp-lingo	Short for 巨兵創出 in E12S.
+巨兵創出		Classical Sculpture	term	E12S	Action:22706	
 巨匠のマテリア		Craftsman’s Command Materia	materia	Materia	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Kyoshou no Materia
 巨大な怪鳥		legendary bird	enemy		BNpcName:14280	
 巨大な蛾		great unweaver	enemy		BNpcName:14332	
@@ -27236,6 +27310,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 広場への道		Unfamiliar Street	location		PlaceName:5461	
 床ペロ	ゆかぺろ	Floor tanking	term		curated-community-alias	Slang for lying defeated on the floor.
 床ペロ		Lick the floor	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Yukapero · This refers to player who dies (often). This term does NOT automatically refer to the infamous Dragoon meme, but applicable to all players.
+序	じょ	Basic Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・序 in E12S.
 底に潜みし者 ～黒風海底 アニドラス・アナムネーシス～		Floundering in the Depths	music		Orchestrion:370	Obtained in Anamnesis Anyder.
 底無の酒豪「飲んべえググルン」		Wrecked Rats	fate		Fate:374	
 底碧きセシュドロース		The Cerulean Cexudross	location		PlaceName:4611	
@@ -27736,6 +27811,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 思考するイーア		thinking Ea	character		ENpcResident:1040876	
 思考する奇花「プラントブレイン」		Feed Me, Sentries	fate		Fate:1912	
 怠け者のモーグリ族		maundering moogle	character		ENpcResident:1017457;ENpcResident:1017458;ENpcResident:1017459;ENpcResident:1017460;ENpcResident:1017461;ENpcResident:1017462	
+急	きゅう	Advanced Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・急 in E12S.
 急所経穴		Pressure Point	status		Status:3172	Weaponskill or **Meteodrive** damage taken from the monk who applied this effect will trigger an additional damage effect.
 急流之路		The Wrathful Current	location		PlaceName:2445	
 急進派の会計士		reformist accountant	character		ENpcResident:1010258;ENpcResident:1010336	
@@ -28253,6 +28329,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 所長		所長	character		ENpcResident:1003872	
 所長カニロッカ		Overseer Kanilokka	enemy		BNpcName:13634	
 所長室		Director's Office	location		PlaceName:4955	
+扇	おうぎ	Cone AoE / Fan-shaped AoE	slang	Mechanics	curated-jp-lingo	A fan-shaped attack that widens away from its source.
 扇の舞い		Fan Dance	action	DNC	Action:29428	
 扇の舞い		Fan Dance	status		Status:2052	Damage taken is reduced.
 扇の舞い【序】		Fan Dance	action	DNC	Action:16007;Action:17761	
@@ -28614,10 +28691,11 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 教皇庁の射手		Vault auditor	enemy		BNpcName:4401	
 教皇庁の身廊		Vault Nave	location		PlaceName:1562	
 教皇庁の輔祭		Vault deacon	enemy		BNpcName:3843	
+散会	さんかい	Spread out	slang	Mechanics	https://jp.finalfantasyxiv.com/lodestone/character/9449995/blog/4529142/	Raid-chat spelling of 散開.
 散布型パワーローダー		xenoscaping vacuum suit	mount		Mount:433	
 散歩中のアルパカ		ambling alpaca	character		ENpcResident:1052345	
 散歩中のフビゴ族		kindly Hoobigo	character		ENpcResident:1047157	
-散開	さんかい	Spread out	slang	Mechanics	curated-jp-lingo;Completion:3536	Spreading out to assigned positions so AoEs do not overlap.
+散開	さんかい	Spread out	slang	Mechanics	curated-jp-lingo;Completion:3536	Spread to assigned positions so AoEs do not overlap. In raid chat, 散会 is also used; 三回, 山海, and 参会 can appear as conversion typos.
 散開位置		Spread out position	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Sankai ichi · A lot of mechanics in this game require players to spread out and stand in their position in order to get past a certain mechanic. This is seen very frequently in macros.
 敬礼する		Salute	emote		Emote:31	
 敬虔なる養育者「風狂のプルシオ」		The Gale that Rocks the Cradle	fate		Fate:622	
@@ -28657,6 +28735,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 料理屋 ササメロ		Sasamero	character	Independent Culinarian	ENpcResident:1000232	
 料理屋 ハンジ・フェー		Hanji-Fae	character	Culinarian	ENpcResident:1027240	
 料理屋 メストノ		Mestonnaux	character	Independent Culinarian	ENpcResident:1011205;ENpcResident:1018349	
+斜め	ななめ	Diagonals / Intercardinals	slang	Mechanics	curated-jp-lingo	NE, SE, SW, and NW when describing positions around the arena.
 斜め立ち		Lean	emote		Emote:203	
 斜行リフト		The Echelon	location		PlaceName:453	
 斥候の薬		Spirit of the Watcher	status		Status:2319	Evasion is increased while maximum HP is reduced.
@@ -28998,6 +29077,11 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 時間停止無効		Temporal Barrier	status		Status:1571	The effect of **Temporal Stasis** is nullified.
 時間切れ	じかんぎれ	Enrage (hard enrage)	slang	Mechanics	curated-jp-lingo	Boss finishes its final unmitigable cast because DPS was insufficient.
 時間切れ		Timeout	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Jikan gire · In FFXIV, it means Enrage.
+時間圧縮	じかんあっしゅく	Relativity	slang	E12S	curated-jp-lingo	The family of Relativity mechanics. 序, 破, 急, and 終 distinguish the four casts in E12S.
+時間圧縮・序	じかんあっしゅくじょ	Basic Relativity	term	E12S	Action:22752	
+時間圧縮・急	じかんあっしゅくきゅう	Advanced Relativity	term	E12S	Action:22754	
+時間圧縮・破	じかんあっしゅくは	Intermediate Relativity	term	E12S	Action:22753	
+時間圧縮・終	じかんあっしゅくしゅう	Terminal Relativity	term	E12S	Action:22755	
 時間操作		Time and Tide	status		Status:3739	Cast time of next spell cast is greatly reduced.
 時限の魔鎖		Shackles of Time	status		Status:2741;Status:2874;Status:2875	Bound by chains containing light- and fire-aspected aether.
 時限呪詛・北風		時限呪詛・北風	status		Status:5056	時限の呪詛が刻まれた状態。効果時間終了時に、北から突風を受ける。
@@ -30208,6 +30292,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 水辺に佇む永久人		water-watching Endless	character		ENpcResident:1047992	
 水辺に佇む老竜		old wyrm	character		ENpcResident:1042067;ENpcResident:1042076	
 水辺の暴君「レグナントキマイラ」		Shoreline Showdown	fate		Fate:2076	
+水遁	すいとん	Suiton	slang	NIN	curated-jp-lingo	Short for 水遁の術.
+水遁の術	すいとんのじゅつ	Suiton	action	NIN	Action:2271	
 水遁の術		Suiton	status		Status:507;Status:2839	Body is enveloped in a light-bending veil of water, allowing use of actions normally requiring the **Hidden** status.
 水遊びのしあわせうさぎ		Drink Me	fate		Fate:1425	
 水道トカゲ		sewer skink	minion		Companion:464;BNpcName:11984	
@@ -30257,7 +30343,10 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 氷属性耐性低下［強］		Ice Resistance Down II	status		Status:2465;Status:2903	Ice resistance is significantly reduced.
 氷属性耐性向上		Ice Resistance Up	status		Status:525;Status:1761;Status:5002	Ice resistance is increased.
 氷床		Thin Ice	status		Status:604;Status:911;Status:1579;Status:1580	Having trouble maintaining a solid foothold upon ice-covered ground.
+氷晶乱流	ひょうしょうらんりゅう	Hyosho Ranryu	slang	NIN	curated-jp-lingo	Short for 氷晶乱流の術.
+氷晶乱流の術	ひょうしょうらんりゅうのじゅつ	Hyosho Ranryu	action	NIN	Action:16492	
 氷晶乱流の術実行不可		Sealed Hyosho Ranryu	status		Status:3194	Unable to execute **Hyosho Ranryu**.
+氷柱	つらら	Icicle	slang	E12S	curated-jp-lingo	Ice pillar or icicle in a raid call. Also written つらら.
 氷柱		ice pillar	enemy		BNpcName:7492;BNpcName:9821;BNpcName:10397;BNpcName:10493;BNpcName:12025;BNpcName:13615;BNpcName:14763	
 氷柱		icicle	enemy		BNpcName:8062;BNpcName:9740	
 氷柱の円庭		Oblivion	location		PlaceName:1398	
@@ -30274,6 +30363,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 氷結球		ice sphere	enemy		BNpcName:4957	
 氷結陣		frozen circle	enemy		BNpcName:2195	
 氷華洞		Icebloom Cavern	location		PlaceName:2480	
+氷遁	ひょうとん	Hyoton	slang	NIN	curated-jp-lingo	Short for 氷遁の術.
+氷遁の術	ひょうとんのじゅつ	Hyoton	action	NIN	Action:2268	
 氷雪乱舞		Glass Dance	action	BLU	Action:11430	
 氷霧		Touch of Frost	status		Status:2494	Enveloped in an icy fog. Able to execute the blue magic spell **White Death**.
 氷面鏡		frozen mirror	enemy		BNpcName:9317	
@@ -30757,6 +30848,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 溺没		Drowning	status		Status:1696	Being dragged under by the current. Unable to move or execute actions.
 溺没のベーンリス		Baenryss of the Deep	enemy		BNpcName:1373	
 溺没の兆し		Smothering Waters	status		Status:1853	Overflowing with water-aspected aether. A **Smothering Tsunami** will occur when effect expires.
+滅	めつ	Wipe	pf	PF	curated-jp-lingo	Counts failed pulls that reset the fight. 3滅解散 means the party disbands after three wipes.
 滅	めつ	Chaotic Alliance Raid	term	Content	curated-jp-lingo	24-player high-difficulty Chaotic Alliance Raid (e.g. 滅暗闇の雲激闘戦).
 滅びは影のように速い		Yet it was neither claw nor flame, but our very sins─	location		PlaceName:2994	
 滅びゆく星		Fading Hearth	location		PlaceName:2987	
@@ -30922,6 +31014,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 火薬樽		firesand keg	enemy		BNpcName:4916	
 火踊りのママージャ		Firedance Magmaal Ja	enemy		BNpcName:13380	
 火車の灰		Ashen	status		Status:1388	Covered in stygian ash.
+火遁	かとん	Katon	slang	NIN	curated-jp-lingo	Short for 火遁の術.
+火遁の術	かとんのじゅつ	Katon	action	NIN	Action:2266	
 火霊鳥		sparkfledged	enemy		BNpcName:10721	
 灰だらけの荒野		The Field of Ash	location		PlaceName:2748	
 灰の旅程		Ashfall	location		PlaceName:3469	
@@ -31065,6 +31159,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 無我		Anatman	status		Status:1862	Form and **Disciplined Fist** timers are suspended due to a transcendent inner calm.
 無我の境地		Banner of Limitless Grace	status		Status:2353	Potency of all HP restoration actions is increased while MP cost is reduced.
 無手勝流のブレイフロクス		Brayflox Alltalks	enemy		BNpcName:1300;BNpcName:10484	
+無敵	むてき	Invulnerability / Tank invuln	slang	Combat	curated-jp-lingo	In a raid call, use a tank invulnerability cooldown to survive the hit.
 無敵		Invincibility	status		Status:325;Status:394;Status:529;Status:656;Status:671;Status:775;Status:776;Status:895;Status:969;Status:981;Status:1570;Status:1697;Status:1829;Status:4410;Status:4539;Status:4875	Invulnerable to all damage.
 無敵		無敵	status		Status:2001	すべての攻撃に対してＨＰが1より減ることがない状態。
 無敵の眷属を従えし、大型妖異を討て！		Shadow and Claw	duty		ContentFinderCondition:52;Completion:2053	
@@ -31359,7 +31454,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 特級キメラ培養室		High-level Incubation Bay	location		PlaceName:1550	
 特訓中のピクシー		concealed pixie	character		ENpcResident:1032208	
 特設景品交換窓口		campaign attendant	character		ENpcResident:1019797;ENpcResident:1026074;ENpcResident:1028250;ENpcResident:1034489;ENpcResident:1036894;ENpcResident:1042833;ENpcResident:1044880;ENpcResident:1046491;ENpcResident:1049034;ENpcResident:1056512	
-牽制		Feint	action		Action:7549;Action:18954	
+牽制	けんせい	Feint	action	Melee	Action:7549;Action:18954	Melee DPS role action that reduces the target's damage dealt, with a stronger effect on physical damage.
 牽制		Feint	status		Status:1195;Status:2185	Sustaining increased damage from target who executed **Feint**.
 牽制効果アップ		Enhanced Feint	trait		Trait:641	
 犬		Dog	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Inu · In FFXIV, this refers to dog mounts. Obtainable through EX primals.
@@ -32225,6 +32320,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 砦の指揮官		garrison commander	character		ENpcResident:1043731	
 砲撃システム		weapons node	enemy		BNpcName:3199	
 砲撃ドローン		weapons drone	enemy		BNpcName:12248	
+破	は	Intermediate Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・破 in E12S.
 破壊された外部隔壁		Breached Hull	location		PlaceName:1312	
 破壊された山小屋		Windtorn Cabin	location		PlaceName:2436	
 破壊された市街		Orphaned Ruins	location		PlaceName:3549	
@@ -33214,6 +33310,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 紳士的なゾンビー		Gentle Dead Man	character		ENpcResident:1016624;ENpcResident:1016629;ENpcResident:1016630;ENpcResident:1016752;ENpcResident:1024645;ENpcResident:1024722;ENpcResident:1026328;ENpcResident:1044497;ENpcResident:1057923	
 紳士的なハヌハヌ族		eloquent Hanuhanu	character		ENpcResident:1051035	
 紳士風の自由市民		free citizen	character		ENpcResident:1029362;ENpcResident:1030193	
+終	しゅう	Terminal Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・終 in E12S.
 終の戦		Finality	music		Orchestrion:497	Obtained from treasure hunts.
 終の星		doomed stars	enemy		BNpcName:11195	
 終わりなき軌跡		A Trail Unending	music		Orchestrion:663	Obtained in Alexandria.
@@ -33243,6 +33340,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 経験値アップ（ギャザラー専用）		Gatherer's Grace	status		Status:46	Increased experience point gains as a Disciple of the Land.
 経験値アップ（クラフター専用）		Crafter's Grace	status		Status:45	Increased experience point gains as a Disciple of the Hand.
 経験値ボーナス		EXP Bonus	status		Status:1050	Receiving a mentor/new adventurer/returner party bonus.
+結呪の四連魔鎖		Fourfold Shackles	term	P1S	Action:26150	
 結晶付着［弱］		Seed Crystals	status		Status:3809	Heavy crystals are encasing your lower body. Will bear a **Crystal Burden** when this effect expires.
 結晶付着［強］		Crystal Burden	status		Status:3810	Heavy crystals are encasing your body, preventing movement and slowing activity. Will become **Crystallized** when this effect expires.
 結晶化		Crystallized	status		Status:3811	Completely encased in crystal and unable to move or breathe. KO is imminent.
@@ -33817,6 +33915,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 至天の座アルカディア：ライトヘビー級4		AAC Light-heavyweight M4	duty		ContentFinderCondition:991	
 至天の歩廊		The Walk of Divine Ascent	location		PlaceName:2459	
 至天の階段		The Ladder of Ascension	location		PlaceName:1356	
+至天絶技		Shifting Sky	term	E11S	Action:22133	The sequence that follows the first Turn of the Heavens.
 至妙の傀儡子「ドゥリン」		Dangerous When Dead	duty		ContentFinderCondition:697	
 至暗所		The Darker	location		PlaceName:3171	
 至福のソルクウィブ		Solkwyb the Enlightened	enemy		BNpcName:824	
@@ -34423,7 +34522,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 血祭のアタブ・チャー		Bloodshower Atabb Chah	enemy		BNpcName:4261	
 血統レベル		pedigree level	autotranslate		Completion:3007	
 血色の悪い帝都市民		sickly refugee	character		ENpcResident:1038850;ENpcResident:1038859;ENpcResident:1041493	
-血花五月雨		Death Blossom	action	ROG	Action:2254	
+血花五月雨	けっかさみだれ	Death Blossom	action	ROG	Action:2254	
 血行促進I		Spicy Circulation I	status		Status:3613	Warmed and invigorated by a bowl of hot curry.
 血行促進XXII		Spicy Circulation XXII	status		Status:3612	Reforged by the flames of truly challenging curry.
 血風のル・アシャ		Storm Commander Rhiki	enemy		BNpcName:4741;BNpcName:4906	
@@ -34729,6 +34828,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 解放軍の輸送兵		Resistance escort	character		ENpcResident:1033636;ENpcResident:1033637;ENpcResident:1035243	
 解放軍の闘士		Resistance fighter	character		ENpcResident:1023175;ENpcResident:1023256;ENpcResident:1024619;ENpcResident:1026553;ENpcResident:1048319;ENpcResident:1049625;BNpcName:12469	
 解放軍の闘士		surveying Resistance fighter	character		ENpcResident:1022070	
+解散	かいさん	Disband	pf	PF	curated-jp-lingo	End the party, for example once the agreed wipe limit is reached.
 解析サポーター		analysis supporter	character		ENpcResident:1046037	
 解析型オミクロン		analysis unit	character		ENpcResident:1044050	
 触れ得ざる身廊		Undisturbed Shrine	location		PlaceName:3608	
@@ -35270,7 +35370,9 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 超越者		Resonant	status		Status:780;Status:1438	Strength is transcending that of mere mortals.
 超高性能爆弾		smartbomb	enemy		BNpcName:3646	
 足の風車		Our Ladies' Feet	location		PlaceName:3125	
+足下	あしもと	Underfoot / Get in	slang	Mechanics	curated-jp-lingo	Stand at the boss's feet when the center is safe, for example during a donut AoE (dynamo).
 足下がおぼつかないウサギ		ungainly rabbit	character		ENpcResident:1032958	
+足元	あしもと	Underfoot / Get in	slang	Mechanics	curated-jp-lingo	Another spelling of 足下.
 足止めしてください！		Hold the target!	autotranslate		Completion:810	
 足跡の谷		The Footfalls	location		PlaceName:245	
 足軽弓兵		ashigaru kyuhei	enemy		BNpcName:12360	
@@ -35340,6 +35442,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 転移装置		Pylon of Passage	autotranslate		Completion:3629	
 転移装置		personnel displacement panels	autotranslate		Completion:1530	
 転移装置利用不可		System Lock	status		Status:2578	Unable to teleport due to system overload.
+転輪召		Turn of the Heavens	term	E11S	Action:22122	Raid macros may specify the first or second cast, e.g. 転輪召（2回目）.
 転送技術管理室		Aethernet Control	location		PlaceName:2431	
 転送準備		Aetherially Primed	status		Status:1754	Awash in aether attuned for traveling via unstable currents.
 転送魔法研究所		The Confluence	location		PlaceName:3813	
@@ -35408,7 +35511,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 近づいてください。		Come closer.	autotranslate		Completion:856	
 近呪の魔鎖		Shackles of Companionship	status		Status:2742;Status:2885;Status:2886;Status:2887;Status:2923	Wrapped in chains binding you ever tighter to nearby allies.
 近呪の魔鎖：発動		Inescapable Companionship	status		Status:2744	Fully bound to nearby allies.
-近接		Melee range	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Kinsetsu · Dragoons, Ninjas, and Monks fall under this category. The full term is 近接DPS, which means melee DPS.
+近接	きんせつ	Melee range	lingo	Role	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/;curated-jp-lingo	In a role or position assignment, shorthand for 近接DPS (melee DPS).
 近接攻撃役		melee	autotranslate		Completion:908	
 近東秘宝 アルザダール海底遺跡群		Alzadaal's Legacy	duty		ContentFinderCondition:844	
 近東風の商人		Hannish spice trader	character		ENpcResident:1020471	
@@ -35556,6 +35659,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 連絡艇の船頭		expedition ferryman	character		ENpcResident:1052325	
 連絡艇の飛空士		shuttle pilot	character		ENpcResident:1023979;ENpcResident:1024156;ENpcResident:1024157;ENpcResident:1025884;ENpcResident:1027059	
 連絡通路		Connecting Corridor	location		PlaceName:3432;PlaceName:4130	
+連続剣	れんぞくけん	Cycle of Faith	slang	E11S	https://jp.finalfantasyxiv.com/lodestone/character/25231887/blog/4621801	Short for 魔装連続剣 in E11S.
 連続剣		Relentless Rush	action	GNB	Action:29130	
 連続剣		Relentless Rush	status		Status:3052	Swinging blade wildly, dealing damage over time to nearby enemies and deflecting a portion of damage taken.
 連続剣［被］		Relentless Shrapnel	status		Status:3053	Damage taken is increased.
@@ -35640,7 +35744,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 遠呪の魔鎖		Shackles of Loneliness	status		Status:2743;Status:2888;Status:2889;Status:2890;Status:2924	Wrapped in chains binding you ever tighter to faraway allies.
 遠呪の魔鎖：発動		Inescapable Loneliness	status		Status:2745	Fully bound to faraway allies.
 遠距離から敵視を集めよう！		Execute a Ranged Attack to Increase Enmity	duty		ContentFinderCondition:156	
-遠隔		Long range	lingo	AkhMorning	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/	Romaji: Enkaku · Summoners, Bards, Machinists, and Black mages fall under this role. This is the short form for 遠隔DPS, which means Ranged DPS.
+遠隔	えんかく	Long range	lingo	Role	https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/;curated-jp-lingo	In role assignments, shorthand for 遠隔DPS (ranged DPS). レンジ specifically means physical ranged DPS.
 遠隔攻撃役		ranged	autotranslate		Completion:909	
 遠隔無効		Ranged Resistance	status		Status:941	Invulnerable to ranged attacks.
 遠鳴り岩		Summoning Stone	location		PlaceName:2238	
@@ -36531,6 +36635,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 雷神シドのテーマ		Thunder God Cid's Theme	music		Orchestrion:787	Available for purchase on the online store or via promotional bonuses.
 雷輪		rairin	enemy		BNpcName:12430	
 雷轟電撃 ～希望の園エデン：共鳴編～		Twice Stricken	music		Orchestrion:363	Obtained in Eden's Verse: Fulmination.
+雷遁	らいとん	Raiton	slang	NIN	curated-jp-lingo	Short for 雷遁の術.
+雷遁の術	らいとんのじゅつ	Raiton	action	NIN	Action:2267	
 雷遁の術効果アップ		Enhanced Raiton	trait	NIN	Trait:441	
 雷雨		Thunderstorms	weather		Weather:10	
 雷雨呼ぶ者「ブラウンガー」		Make It Rain	fate		Fate:589	
@@ -36582,7 +36688,9 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 霊気球		spirit orb	enemy		BNpcName:6665	
 霊水の剣		The Drowning Brand	location		PlaceName:3952	
 霊氷の剣		The Numbing Brand	location		PlaceName:3953	
+霊泉	れいせん	Fountain of Fire	slang	P3S	curated-jp-lingo	Short for 霊泉の炎 in Asphodelos: The Third Circle (Savage).
 霊泉		Hellish Conduit	status		Status:1867	Able to execute **Brand of Purgatory**.
+霊泉の炎	れいせんのほのお	Fountain of Fire	term	P3S	Action:26343	
 霊泉の炎		fountain of fire	enemy		BNpcName:3207;BNpcName:10727	
 霊泉の炎		Fountain of Fire	status		Status:2029;Status:2928	Flames are enhancing target capabilities. Damage dealt and healing potency are increased.
 霊泉の炎［弱］		Trickle of Fire	status		Status:2929	Flames are enhancing target capabilities. Healing potency is increased.
@@ -36832,6 +36940,8 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 風脈之間		The Heart of Wind	location		PlaceName:2442	
 風花		Fuka	status		Status:1299	Weaponskill cast time and recast time, spell cast time and recast time, and auto-attack delay are reduced.
 風花		Troubadour's Paeon	status		Status:1450	Weaponskill and spell cast and recast time are reduced.
+風遁	ふうとん	Huton	slang	NIN	curated-jp-lingo	Short for 風遁の術.
+風遁の術	ふうとんのじゅつ	Huton	action	NIN	Action:2269	
 風遁の術		Huton	status		Status:500;Status:3186;Status:3616	Recast time reduced, enabling a rapid shuriken assault.
 風遁の術実行不可		Sealed Huton	status		Status:3196	Unable to execute **Huton**.
 風邪引き中のドプロ族		coughing Doppro	character		ENpcResident:1054144	
@@ -37404,6 +37514,7 @@ x無人島：仮：0006		x無人島：仮：0006	character		ENpcResident:1043459
 魔術工房 マトーヤのアトリエ		Matoya's Relict	duty		ContentFinderCondition:746	
 魔装支給官		storm sergeant	character		ENpcResident:1005245	Title: Disciple of Magic Armor Outfitter
 魔装着用		Veil of Gukumatz	status		Status:1905	Combat capabilities are sharply enhanced by Gukumatz's power.
+魔装連続剣		Cycle of Faith	term	E11S	Action:22154	
 魔道増幅器【アクス】		axe empowerment conduit	enemy		BNpcName:13952	
 魔道増幅器【ランス】		lance empowerment conduit	enemy		BNpcName:13951	
 魔雷球		charged orb	enemy		BNpcName:9446	

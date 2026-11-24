@@ -37,6 +37,10 @@ expression	reading	english	category	subtag	source	note
 3滅解散	さんめつかいさん	Disband after 3 wipes	pf	PF	https://xivjpraids.com/terminology/	Party agrees to disband if 3 wipes occur without clearing.
 1滅解散	いちめつかいさん	Disband after 1 wipe	pf	PF	curated-jp-lingo	Party disbands after a single wipe.
 滅解散	めつかいさん	Disband after X wipes	pf	PF	curated-jp-lingo	Used with a number (e.g. 2滅解散, 3滅解散).
+周	しゅう	Clear / Farming round	pf	PF	https://xivjpraids.com/terminology/	Counts completed runs in a farm party. 週, also read しゅう, counts weeks.
+2周	にしゅう	Two clears / Two farming rounds	pf	PF	curated-jp-lingo	2周 3滅解散 means farm two clears and disband after three wipes.
+滅	めつ	Wipe	pf	PF	curated-jp-lingo	Counts failed pulls that reset the fight. 3滅解散 means the party disbands after three wipes.
+解散	かいさん	Disband	pf	PF	curated-jp-lingo	End the party, for example once the agreed wipe limit is reached.
 RC	あーるしー	Ready Check	pf	PF	curated-jp-lingo	Abbreviation for レディチェック (Ready Check).
 レディチェ	れでぃちぇ	Ready Check	pf	PF	curated-jp-lingo	Short for レディチェック.
 カウント	かうんと	Countdown (pull timer)	pf	PF	curated-jp-lingo	Countdown timer before pulling a boss.
@@ -55,7 +59,8 @@ RC	あーるしー	Ready Check	pf	PF	curated-jp-lingo	Abbreviation for レディ
 イディル	いでぃる	Idyllshire (JP raid guide site)	pf	PF	curated-jp-lingo	Popular JP raid guide site (イディルシャイア居住区); イディル式 = Idyll strat.
 頭割り	あたまわり	Stack marker / Shared damage	slang	Mechanics	curated-jp-lingo	Mechanic where party members gather together to split incoming damage.
 ペア割り	ぺあわり	Pair stack (2-person stack)	slang	Mechanics	curated-jp-lingo	Stack mechanic resolved in pairs (typically TH + DPS).
-散開	さんかい	Spread out	slang	Mechanics	curated-jp-lingo	Spreading out to assigned positions so AoEs do not overlap.
+散開	さんかい	Spread out	slang	Mechanics	curated-jp-lingo	Spread to assigned positions so AoEs do not overlap. In raid chat, 散会 is also used; 三回, 山海, and 参会 can appear as conversion typos.
+散会	さんかい	Spread out	slang	Mechanics	https://jp.finalfantasyxiv.com/lodestone/character/9449995/blog/4529142/	Raid-chat spelling of 散開.
 スイッチ	すいっち	Tank swap	slang	Mechanics	curated-jp-lingo	Handing boss aggro from MT to ST (or vice versa) using Provoke/Shirk.
 無敵受け	むてきうけ	Invuln (taking a tankbuster with invulnerability)	slang	Mechanics	curated-jp-lingo	Resolving a tankbuster or mechanic using Hallowed Ground, Holmgang, Living Dead, or Superbolide.
 フルバフ	ふるばふ	Full mitigation / Kitchen sink	slang	Mechanics	curated-jp-lingo	Stacking multiple defensive cooldowns to survive heavy damage.
@@ -69,10 +74,10 @@ RC	あーるしー	Ready Check	pf	PF	curated-jp-lingo	Abbreviation for レディ
 詠唱	えいしょう	Cast / Cast bar	slang	Mechanics	curated-jp-lingo	Spell/ability cast time or boss cast bar.
 予兆	よちょう	Telegraph / AoE indicator	slang	Mechanics	curated-jp-lingo	Visual ground or boss indicator warning of an upcoming attack.
 安置	あんち	Safe spot	slang	Mechanics	curated-jp-lingo	Short for 安全地帯. Safe area to stand during an attack.
-外周	がいしゅう	Arena edge / Outer perimeter	slang	Mechanics	curated-jp-lingo	Outer edge of the boss arena (often has death walls or adds).
+外周	がいしゅう	Arena edge / Outer perimeter	slang	Mechanics	curated-jp-lingo	The edge of the arena. As a positioning call, move out toward the edge when it is safe, for example to avoid a boss-centered circle AoE (chariot).
 視線	しせん	Gaze mechanic (look away)	slang	Mechanics	curated-jp-lingo	Attack with an eye icon that requires facing away from the source.
 ノックバック	のっくばっく	Knockback	slang	Mechanics	curated-jp-lingo	Forced pushback effect (countered with Arm's Length / Surecast).
-アムレン	あむれん	Arm's Length	slang	Combat	curated-jp-lingo	Short for アームズレングス (physical knockback immunity / slow).
+アムレン	あむれん	Arm's Length	slang	Combat	curated-jp-lingo	Short for アームズレングス. As a raid call, use your role's knockback immunity. Healers and magical ranged DPS use 堅実魔 (Surecast).
 堅実魔	けんじつま	Surecast	slang	Combat	curated-jp-lingo	Caster/healer knockback immunity ability.
 線取り	せんとり	Tether interception / Taking tethers	slang	Mechanics	curated-jp-lingo	Intercepting or picking up boss tethers (often by tanks).
 塔踏み	とうふみ	Tower soak	slang	Mechanics	curated-jp-lingo	Standing inside meteor/tower circles to prevent raid-wide explosions.
@@ -87,6 +92,25 @@ X字	えっくすじ	Intercardinals (× / NE, SE, SW, NW)	slang	Mechanics	curate
 距離減衰	きょりげんすい	Proximity damage (flare/falloff)	slang	Mechanics	curated-jp-lingo	Attack whose damage decreases the farther you stand from the impact point.
 迅速蘇生	じんそくそせい	Swiftcast Raise	slang	Combat	curated-jp-lingo	Using Swiftcast to instantly resurrect a fallen party member.
 リプ	りぷ	Reprisal	slang	Combat	curated-jp-lingo	Short for リプライザル (tank AoE damage-reduction ability).
+ブラナイ	ぶらない	The Blackest Night	slang	Combat	curated-jp-lingo	Short for ブラックナイト, the Dark Knight shield.
+無敵	むてき	Invulnerability / Tank invuln	slang	Combat	curated-jp-lingo	In a raid call, use a tank invulnerability cooldown to survive the hit.
+バリア	ばりあ	Shield / Barrier	slang	Combat	curated-jp-lingo	An effect that absorbs incoming damage, such as a healer shield or The Blackest Night.
+回復	かいふく	Healing	slang	Combat	curated-jp-lingo	Restoring HP. In a raid call, heal up before or after the next hit.
+全体攻撃	ぜんたいこうげき	Raidwide AoE	slang	Mechanics	curated-jp-lingo	An attack that hits the entire party or arena.
+タンク強攻撃	たんくきょうこうげき	Tankbuster	slang	Mechanics	curated-jp-lingo	A heavy attack aimed at a tank. It may require mitigation, invulnerability, a swap, or sharing the hit with another tank.
+タンク強	たんくきょう	Tankbuster	slang	Mechanics	curated-jp-lingo	Short for タンク強攻撃.
+八方向	はちほうこう	Eight-way spread / Clock positions	slang	Mechanics	https://jp.finalfantasyxiv.com/lodestone/character/31219919/blog/4754041/	Spread to the eight cardinal and intercardinal positions, for example to bait protean cones.
+斜め	ななめ	Diagonals / Intercardinals	slang	Mechanics	curated-jp-lingo	NE, SE, SW, and NW when describing positions around the arena.
+足下	あしもと	Underfoot / Get in	slang	Mechanics	curated-jp-lingo	Stand at the boss's feet when the center is safe, for example during a donut AoE (dynamo).
+足元	あしもと	Underfoot / Get in	slang	Mechanics	curated-jp-lingo	Another spelling of 足下.
+内側	うちがわ	Inside / Get in	slang	Mechanics	curated-jp-lingo	Move to the inside or central safe zone, for example during a donut AoE.
+扇	おうぎ	Cone AoE / Fan-shaped AoE	slang	Mechanics	curated-jp-lingo	A fan-shaped attack that widens away from its source.
+円	えん	Circle AoE	slang	Mechanics	curated-jp-lingo	A circular area of effect in raid diagrams and calls.
+塔	とう	Tower	lingo	Mechanics	curated-jp-lingo	A marked area that the required number of players must stand in (soak).
+サイコロ	さいころ	Dice markers / Numbered markers	slang	Mechanics	https://jp.finalfantasyxiv.com/lodestone/character/40045391/blog/5559820/	Numbered overhead markers, often shown as dice pips. They can assign players an order for a Limit Cut-style mechanic.
+優先順位	ゆうせんじゅんい	Priority order	slang	Mechanics	curated-jp-lingo	The order used to assign positions or jobs when several players qualify, such as healer > tank > DPS.
+近接	きんせつ	Melee range	lingo	Role	curated-jp-lingo	In a role or position assignment, shorthand for 近接DPS (melee DPS).
+遠隔	えんかく	Long range	lingo	Role	curated-jp-lingo	In role assignments, shorthand for 遠隔DPS (ranged DPS). レンジ specifically means physical ranged DPS.
 スタンス	すたんす	Tank stance	slang	Combat	curated-jp-lingo	Enmity-generating stance (Iron Will, Defiance, Grit, Royal Guard).
 タゲ	たげ	Target / Aggro	slang	Combat	curated-jp-lingo	Short for ターゲット.
 ヘイト	へいと	Enmity / Aggro / Threat	slang	Combat	curated-jp-lingo	Threat level determining who the enemy attacks.
@@ -230,3 +254,99 @@ GCD	じーしーでぃー	Global Cooldown	acronym	Combat	curated-jp-lingo	Shared
 oGCD	おーじーしーでぃー	Off-Global Cooldown (Ability)	acronym	Combat	curated-jp-lingo	Instant ability woven between GCDs.
 LB	えるびー	Limit Break	acronym	Combat	curated-jp-lingo	Party-wide special gauge attack/heal/mitigation.
 DPS	でぃーぴーえす	Damage Per Second / Attacker role	acronym	Role	curated-jp-lingo	Damage-dealing role or damage rate.
+牽制	けんせい	Feint	action	Melee	Action:7549	Melee DPS role action that reduces the target's damage dealt, with a stronger effect on physical damage.
+火遁の術	かとんのじゅつ	Katon	action	NIN	Action:2266	
+火遁	かとん	Katon	slang	NIN	curated-jp-lingo	Short for 火遁の術.
+水遁の術	すいとんのじゅつ	Suiton	action	NIN	Action:2271	
+水遁	すいとん	Suiton	slang	NIN	curated-jp-lingo	Short for 水遁の術.
+雷遁の術	らいとんのじゅつ	Raiton	action	NIN	Action:2267	
+雷遁	らいとん	Raiton	slang	NIN	curated-jp-lingo	Short for 雷遁の術.
+氷遁の術	ひょうとんのじゅつ	Hyoton	action	NIN	Action:2268	
+氷遁	ひょうとん	Hyoton	slang	NIN	curated-jp-lingo	Short for 氷遁の術.
+土遁の術	どとんのじゅつ	Doton	action	NIN	Action:2270	
+土遁	どとん	Doton	slang	NIN	curated-jp-lingo	Short for 土遁の術.
+風遁の術	ふうとんのじゅつ	Huton	action	NIN	Action:2269	
+風遁	ふうとん	Huton	slang	NIN	curated-jp-lingo	Short for 風遁の術.
+劫火滅却の術	ごうかめっきゃくのじゅつ	Goka Mekkyaku	action	NIN	Action:16491	
+劫火滅却	ごうかめっきゃく	Goka Mekkyaku	slang	NIN	curated-jp-lingo	Short for 劫火滅却の術.
+氷晶乱流の術	ひょうしょうらんりゅうのじゅつ	Hyosho Ranryu	action	NIN	Action:16492	
+氷晶乱流	ひょうしょうらんりゅう	Hyosho Ranryu	slang	NIN	curated-jp-lingo	Short for 氷晶乱流の術.
+口寄せの術・大蝦蟇	くちよせのじゅつおおがま	Hellfrog Medium	action	NIN	Action:7401	
+口寄せの術	くちよせのじゅつ	Hellfrog Medium	slang	NIN	curated-jp-lingo	Shorthand for 口寄せの術・大蝦蟇. Also used for its upgraded form 口寄せの術・蝦蟇仙 (Deathfrog Medium).
+だまし討ち	だましうち	Trick Attack	action	ROG	Action:2258	
+だまし打ち	だましうち	Trick Attack	slang	NIN	curated-jp-lingo	Alternate spelling of the action name だまし討ち.
+血花五月雨	けっかさみだれ	Death Blossom	action	ROG	Action:2254	
+八卦無刃殺	はっけむじんさつ	Hakke Mujinsatsu	action	NIN	Action:16488	
+六道輪廻	りくどうりんね	Bhavacakra	action	NIN	Action:7402	
+結呪の四連魔鎖		Fourfold Shackles	term	P1S	Action:26150	
+四連魔鎖		Fourfold Shackles	slang	P1S	curated-jp-lingo	Short for 結呪の四連魔鎖.
+コヒーレンス	こひーれんす	Coherence	term	P2S	Action:26650	
+コヒー	こひー	Coherence	slang	P2S	curated-jp-lingo	Short for コヒーレンス.
+多重刻印	たじゅうこくいん	Predatory Avarice	term	P2S	Action:26663	
+多刻印	たこくいん	Predatory Avarice	slang	P2S	curated-jp-lingo	Shortened spelling of 多重刻印.
+霊泉の炎	れいせんのほのお	Fountain of Fire	term	P3S	Action:26343	
+霊泉	れいせん	Fountain of Fire	slang	P3S	curated-jp-lingo	Short for 霊泉の炎 in Asphodelos: The Third Circle (Savage).
+転輪召		Turn of the Heavens	term	E11S	Action:22122	Raid macros may specify the first or second cast, e.g. 転輪召（2回目）.
+至天絶技		Shifting Sky	term	E11S	Action:22133	The sequence that follows the first Turn of the Heavens.
+四天召		Right of the Heavens	term	E11S	Action:22126	The first Right of the Heavens leads into Sundered Sky.
+堕獄絶技		Sundered Sky	term	E11S	Action:22135	
+シンソイルスラスト	しんそいるすらすと	Bound of Faith	term	E11S	Action:22143	
+プリズマチックインビジブル	ぷりずまちっくいんびじぶる	Prismatic Deception	term	E11S	Action:22130	
+インビジブル	いんびじぶる	Prismatic Deception	slang	E11S	curated-jp-lingo	Short for プリズマチックインビジブル in Eden's Promise: Anamorphosis (Savage).
+魔装連続剣		Cycle of Faith	term	E11S	Action:22154	
+連続剣	れんぞくけん	Cycle of Faith	slang	E11S	https://jp.finalfantasyxiv.com/lodestone/character/25231887/blog/4621801	Short for 魔装連続剣 in E11S.
+ダイアモンドダスト	だいあもんどだすと	Diamond Dust	term	E12S	Action:22678	
+DD	でぃーでぃー	Diamond Dust	acronym	E12S	curated-jp-lingo	Short for ダイアモンドダスト. Also used for the same mechanic in other encounters, such as Futures Rewritten (Ultimate).
+つらら	つらら	Icicle	slang	E12S	curated-jp-lingo	Ice pillar or icicle in a raid call. Also written 氷柱.
+氷柱	つらら	Icicle	slang	E12S	curated-jp-lingo	Ice pillar or icicle in a raid call. Also written つらら.
+大地の怒り	だいちのいかり	Earthen Fury	term	E12S	Action:22687	Titan's raidwide attack.
+巨兵創出		Classical Sculpture	term	E12S	Action:22706	
+巨兵	きょへい	Classical Sculpture	slang	E12S	curated-jp-lingo	Short for 巨兵創出 in E12S.
+ライオン	らいおん	Lions	slang	E12S	curated-jp-lingo	The lion statues and their targeted flame attacks in the first phase of E12S.
+時間圧縮	じかんあっしゅく	Relativity	slang	E12S	curated-jp-lingo	The family of Relativity mechanics. 序, 破, 急, and 終 distinguish the four casts in E12S.
+時間圧縮・序	じかんあっしゅくじょ	Basic Relativity	term	E12S	Action:22752	
+時間圧縮・破	じかんあっしゅくは	Intermediate Relativity	term	E12S	Action:22753	
+時間圧縮・急	じかんあっしゅくきゅう	Advanced Relativity	term	E12S	Action:22754	
+時間圧縮・終	じかんあっしゅくしゅう	Terminal Relativity	term	E12S	Action:22755	
+序	じょ	Basic Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・序 in E12S.
+破	は	Intermediate Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・破 in E12S.
+急	きゅう	Advanced Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・急 in E12S.
+終	しゅう	Terminal Relativity	slang	E12S	curated-jp-lingo	Short for 時間圧縮・終 in E12S.
+古ぼけた地図G1		Timeworn Leather Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6688	Grade 1 treasure map.
+G1		Timeworn Leather Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6688	Treasure map shorthand for 古ぼけた地図G1.
+古ぼけた地図G2		Timeworn Goatskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6689	Grade 2 treasure map.
+G2		Timeworn Goatskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6689	Treasure map shorthand for 古ぼけた地図G2.
+古ぼけた地図G3		Timeworn Toadskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6690	Grade 3 treasure map.
+G3		Timeworn Toadskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6690	Treasure map shorthand for 古ぼけた地図G3.
+古ぼけた地図G4		Timeworn Boarskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6691	Grade 4 treasure map.
+G4		Timeworn Boarskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6691	Treasure map shorthand for 古ぼけた地図G4.
+古ぼけた地図G5		Timeworn Peisteskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6692	Grade 5 treasure map.
+G5		Timeworn Peisteskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/6692	Treasure map shorthand for 古ぼけた地図G5.
+古ぼけた地図G6		Timeworn Archaeoskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12241	Grade 6 treasure map.
+G6		Timeworn Archaeoskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12241	Treasure map shorthand for 古ぼけた地図G6.
+古ぼけた地図G7		Timeworn Wyvernskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12242	Grade 7 treasure map.
+G7		Timeworn Wyvernskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12242	Treasure map shorthand for 古ぼけた地図G7.
+古ぼけた地図G8		Timeworn Dragonskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12243	Grade 8 treasure map.
+G8		Timeworn Dragonskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/12243	Treasure map shorthand for 古ぼけた地図G8.
+古ぼけた地図G9		Timeworn Gaganaskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17835	Grade 9 treasure map.
+G9		Timeworn Gaganaskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17835	Treasure map shorthand for 古ぼけた地図G9.
+古ぼけた地図G10		Timeworn Gazelleskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17836	Grade 10 treasure map.
+G10		Timeworn Gazelleskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/17836	Treasure map shorthand for 古ぼけた地図G10.
+古ぼけた地図G11		Timeworn Gliderskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26744	Grade 11 treasure map.
+G11		Timeworn Gliderskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26744	Treasure map shorthand for 古ぼけた地図G11.
+古ぼけた地図G12		Timeworn Zonureskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26745	Grade 12 treasure map.
+G12		Timeworn Zonureskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/26745	Treasure map shorthand for 古ぼけた地図G12.
+古ぼけた地図G13		Timeworn Saigaskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36611	Grade 13 treasure map.
+G13		Timeworn Saigaskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36611	Treasure map shorthand for 古ぼけた地図G13.
+古ぼけた地図G14		Timeworn Kumbhiraskin Map	term	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36612	Grade 14 treasure map.
+G14		Timeworn Kumbhiraskin Map	slang	Treasure Hunt	https://v2.xivapi.com/api/sheet/Item/36612	Treasure map shorthand for 古ぼけた地図G14.
+マテリア	まてりあ	Materia I	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5669	Grade suffix in names such as 武略のマテリア (Savage Aim Materia I). Also the general Japanese name for materia.
+マテリラ	まてりら	Materia II	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5670	Grade suffix in names such as 武略のマテリラ (Savage Aim Materia II).
+マテリダ	まてりだ	Materia III	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5671	Grade suffix in names such as 武略のマテリダ (Savage Aim Materia III).
+マテリガ	まてりが	Materia IV	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5672	Grade suffix in names such as 武略のマテリガ (Savage Aim Materia IV).
+マテリジャ	まてりじゃ	Materia V	materia	Gear	https://v2.xivapi.com/api/sheet/Item/5673	Grade suffix in names such as 武略のマテリジャ (Savage Aim Materia V).
+ハイマテリジャ	はいまてりじゃ	Materia VI	materia	Gear	https://v2.xivapi.com/api/sheet/Item/18019	Grade suffix in names such as 武略のハイマテリジャ (Savage Aim Materia VI).
+メガマテリジャ	めがまてりじゃ	Materia VII	materia	Gear	https://v2.xivapi.com/api/sheet/Item/25188	Grade suffix in names such as 武略のメガマテリジャ (Savage Aim Materia VII).
+エクスマテリジャ	えくすまてりじゃ	Materia VIII	materia	Gear	https://v2.xivapi.com/api/sheet/Item/26729	Grade suffix in names such as 武略のエクスマテリジャ (Savage Aim Materia VIII).
+オメガマテリジャ	おめがまてりじゃ	Materia IX	materia	Gear	https://v2.xivapi.com/api/sheet/Item/33919	Grade suffix in names such as 武略のオメガマテリジャ (Savage Aim Materia IX).
+アルテマテリジャ	あるてまてりじゃ	Materia X	materia	Gear	https://v2.xivapi.com/api/sheet/Item/33932	Grade suffix in names such as 武略のアルテマテリジャ (Savage Aim Materia X).

@@ -12,8 +12,8 @@ systems, character portraits, and Japanese player/Party Finder lingo.
 
 > **Spoiler notice:** Contains character names, titles, and portraits across all FFXIV expansions.
 
-Dictionary revision `2026.11.23.1` (game snapshot **7.58**) contains
-**37,729 entries** across 31 categories:
+Dictionary revision `2026.11.24.1` (game snapshot **7.58**) contains
+**37,840 entries** across 31 categories:
 
 - **10,026 characters / NPCs** (including official NPC titles, full names,
   dotless spellings, and nicknames such as `ラマチ`, `ラハ`, `ゼノス`, `エメト`,
@@ -24,14 +24,16 @@ Dictionary revision `2026.11.23.1` (game snapshot **7.58**) contains
 - **11,974 enemies / bosses**, **4,735 locations**, **1,380 FATEs**,
   **759 duties** (including Duty Roulettes & short names), **587 minions**,
   **358 mounts**, **43 jobs/classes**, **12 Guardian Deities (The Twelve)**
-- **Game systems**: **1,019 player actions** (tagged by job), **481 job traits**,
+- **Game systems**: **1,027 player actions** (tagged by job), **481 job traits**,
   **3,321 status effects** (with descriptions), **1,056 official Auto-Translate**
   phrases (`Completion`), **298 emotes**, **95 weather types**, and **758
   Orchestrion rolls**
 - **Player lingo & community slang**: **396 AkhMorning JP–EN entries**,
-  **56 Party Finder / raiding terms**, **100 community slang / mechanics terms**,
-  **88 acronyms**, **34 job abbreviations** (including single-character PF job
-  codes), **32 JP Worlds**, and **18 Materia** entries
+  **60 Party Finder terms**, **156 community slang / mechanics terms**,
+  **89 acronyms**, **34 job abbreviations** (including single-character PF job
+  codes), **32 JP Worlds**, and **28 Materia** entries. Includes raid calls and
+  localized mechanic names from Eden's Promise and Asphodelos (Savage), plus
+  treasure map grades G1–G14.
 - **190 embedded images** (178 character portraits + 12 location artworks,
   optimized to ≤360px) illustrating **250 entries** across all expansions
   (Dawntrail 44, Endwalker 45, Shadowbringers 25, Earlier expansions 64).

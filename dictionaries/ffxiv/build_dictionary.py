@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 COMMIT = "a9f3a282a0e6070fdc0469b6d4e3e7ea17e16edf"  # 7.58, 2026-11-18
 GAME_SNAPSHOT = "7.58"
-REVISION = "2026.11.23.1"
+REVISION = "2026.11.24.1"
 AKHMORNING_URL = "https://www.akhmorning.com/resources/ffxiv-en-jp-dictionary/"
 MAX_IMAGE_DIM = 360
 
