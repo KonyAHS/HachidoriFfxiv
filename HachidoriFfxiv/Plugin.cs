@@ -75,7 +75,8 @@ public sealed class Plugin : IDalamudPlugin
         nativeHover = new NativeTextHover(config);
         publisher = new TextPublisher(config, capture);
         popups = new PopupManager(config, service, audio, fonts);
-        media = new Media.MediaMiner(config, capture);
+        media = new Media.MediaMiner(config, capture, () => !string.IsNullOrWhiteSpace(config.AnkiConnectApiKey) ? config.AnkiConnectApiKey.Trim() : service.AnkiApiKey);
+        audio.PlaybackTracker = media.PluginAudio;
         stats = new StatsTracker(
             System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "stats"),
             text => service.Link.Connected || (service.Offline?.Ready == true)

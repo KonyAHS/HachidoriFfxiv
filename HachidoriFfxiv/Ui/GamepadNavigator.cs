@@ -122,6 +122,7 @@ public sealed class GamepadNavigator : IDisposable
         touchpad.Stop();
         Plugin.Gamepad.EnableGamepadNav = false;
         nativeHover.ControllerScan = false;
+        popups.SetWebControllerCursor(null);
         popups.ControllerActive = false;
         popups.CloseAll();
         scanState.Reset();
@@ -244,6 +245,7 @@ public sealed class GamepadNavigator : IDisposable
 
             noTextSince ??= now;
             Notice = "Waiting for text...";
+            popups.SetWebControllerCursor(null);
             if (seenText && config.ControllerExitWhenDialogueCloses && (now - noTextSince.Value).TotalSeconds > 1.5)
                 Exit();
             DrawHints();
@@ -363,7 +365,7 @@ public sealed class GamepadNavigator : IDisposable
         cursor[level] = (block, stop.Index);
 
         // ------------------------------------------------------ popup actions
-        if (HasBound(pressed, config.ControllerDiveButton) && popups.VisibleCount > level && popups.ScanBlocks(level).Count > 0)
+        if (HasBound(pressed, config.ControllerDiveButton) && popups.VisibleCount > level && popups.HasScanTargets(level))
         {
             level++;
             while (cursor.Count <= level)
@@ -517,9 +519,8 @@ public sealed class GamepadNavigator : IDisposable
         }
         else
         {
-            foreach (var block in popups.ScanBlocks(atLevel - 1))
+            foreach (var (block, cells) in popups.ScanTargets(atLevel - 1))
             {
-                var cells = RichText.GlyphRects(block);
                 if (cells.Count > 0)
                     blocks.Add((string.Empty, block, cells, null, false));
             }
@@ -862,13 +863,25 @@ public sealed class GamepadNavigator : IDisposable
 
     private void DrawCursor(CursorStop stop)
     {
-        var draw = ImGui.GetForegroundDrawList();
-        var color = Rendering.Css.CssColor.ToAbgr(Rendering.Css.PopupTheme.Current.Accent with { W = 1 });
+        var accent = Rendering.Css.PopupTheme.Current.Accent with { W = 1 };
         IReadOnlyList<(Vector2 Min, Vector2 Max)> segments = stop.Target < stopCells.Count
             ? CursorMoves.SpanLineRects(stopCells[stop.Target], stop.Index, stop.EffectiveEnd)
             : [(stop.Min, stop.Max)];
         if (segments.Count == 0)
             segments = [(stop.Min, stop.Max)];
+
+        if (level > 0 && popups.UsingWebView)
+        {
+            var r = (byte)Math.Clamp(MathF.Round(accent.X * 255f), 0, 255);
+            var g = (byte)Math.Clamp(MathF.Round(accent.Y * 255f), 0, 255);
+            var b = (byte)Math.Clamp(MathF.Round(accent.Z * 255f), 0, 255);
+            popups.SetWebControllerCursor(segments, $"#{r:X2}{g:X2}{b:X2}");
+            return;
+        }
+
+        popups.SetWebControllerCursor(null);
+        var draw = ImGui.GetForegroundDrawList();
+        var color = Rendering.Css.CssColor.ToAbgr(accent);
         foreach (var (min, max) in segments)
         {
             var y = max.Y + 2;
@@ -907,7 +920,7 @@ public sealed class GamepadNavigator : IDisposable
             if (config.ControllerAudioButton != GamepadButtons.None) parts.Add($"{L(config.ControllerAudioButton)} audio");
             if (config.ControllerPrevEntryButton != GamepadButtons.None || config.ControllerNextEntryButton != GamepadButtons.None)
                 parts.Add($"{L(config.ControllerPrevEntryButton)}/{L(config.ControllerNextEntryButton)} entry");
-            if (popupAtLevel && config.ControllerDiveButton != GamepadButtons.None)
+            if (popupAtLevel && popups.HasScanTargets(level) && config.ControllerDiveButton != GamepadButtons.None)
                 parts.Add($"{L(config.ControllerDiveButton)} inside");
         }
 

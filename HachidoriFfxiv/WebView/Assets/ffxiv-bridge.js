@@ -35,15 +35,75 @@
     return root;
   };
 
-  // Respect plugin AudioVolume on any <audio> playback inside the WebView.
+  // Respect plugin AudioVolume on any <audio> playback inside the WebView,
+  // and report active playback intervals so game voice recording avoids bleed.
   let audioVolume = 0.8;
+  const activeMediaElements = new Set();
+  const activeSpeechUtterances = new Set();
+  let lastAudioPlayingReported = false;
+
+  function syncAudioPlaybackState() {
+    const playing = activeMediaElements.size > 0 || activeSpeechUtterances.size > 0;
+    if (playing !== lastAudioPlayingReported) {
+      lastAudioPlayingReported = playing;
+      postToHost({ kind: "audioPlayback", playing });
+    }
+  }
+
+  function trackMediaElement(el) {
+    if (!el || activeMediaElements.has(el)) return;
+    activeMediaElements.add(el);
+    syncAudioPlaybackState();
+    const stop = () => {
+      if (activeMediaElements.delete(el)) syncAudioPlaybackState();
+    };
+    el.addEventListener("ended", stop, { once: true });
+    el.addEventListener("pause", stop, { once: true });
+    el.addEventListener("error", stop, { once: true });
+    el.addEventListener("emptied", stop, { once: true });
+  }
+
   const nativeMediaPlay = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function (...args) {
     try {
       this.volume = Math.max(0, Math.min(1, audioVolume));
     } catch { /* ignore */ }
-    return nativeMediaPlay.apply(this, args);
+    trackMediaElement(this);
+    const result = nativeMediaPlay.apply(this, args);
+    if (result && typeof result.catch === "function") {
+      result.catch(() => {
+        if (activeMediaElements.delete(this)) syncAudioPlaybackState();
+      });
+    }
+    return result;
   };
+
+  if (globalThis.speechSynthesis && typeof globalThis.speechSynthesis.speak === "function") {
+    const synth = globalThis.speechSynthesis;
+    const nativeSpeak = synth.speak.bind(synth);
+    const nativeCancel = typeof synth.cancel === "function" ? synth.cancel.bind(synth) : null;
+    synth.speak = function (utterance, ...rest) {
+      if (utterance) {
+        activeSpeechUtterances.add(utterance);
+        syncAudioPlaybackState();
+        const done = () => {
+          if (activeSpeechUtterances.delete(utterance)) syncAudioPlaybackState();
+        };
+        utterance.addEventListener?.("end", done, { once: true });
+        utterance.addEventListener?.("error", done, { once: true });
+      }
+      return nativeSpeak(utterance, ...rest);
+    };
+    if (nativeCancel) {
+      synth.cancel = function (...args) {
+        if (activeSpeechUtterances.size > 0) {
+          activeSpeechUtterances.clear();
+          syncAudioPlaybackState();
+        }
+        return nativeCancel(...args);
+      };
+    }
+  }
 
   let manifest = { manifest_version: 3, name: "Hachidori", version: "0.0.0", content_scripts: [] };
   let storageState = { options: {}, dictionaryState: null, lookupStats: null, wordStatusOverrides: null };
@@ -262,9 +322,16 @@
 
   // ------------------------------------------------------------------ Shadow DOM tracking (rects + NPC camera)
 
+  const DEFINITION_TEXT_SELECTOR = ".gsm-hoshidicts-glossary-content, .gsm-hoshidicts-compact-definition-summary";
+  const SCROLLER_SELECTOR = ".gsm-hoshidicts-scroll, .jl-scroll, .nazeka-scroll, .plain-scroll, .crystal-scroll, .gsm-hoshidicts-content";
+
   let rectsFrame = 0;
   let rectsTimer = 0;
   let lastRectsJson = "";
+  let lastPopupTextsJson = "";
+  let controllerMode = false;
+  let controllerCursorOverlay = null;
+  const observedScrollers = new WeakSet();
   let shadowObserver = null;
   let shadowResizeObserver = null;
   let lastReportedMatch = "";
@@ -276,12 +343,19 @@
 
   function computeRects() {
     const rects = [];
+    const layerRects = [];
     const popups = visiblePopups();
     const dpr = window.devicePixelRatio || 1;
     const isCrystal = hachidoriHostEl?.dataset?.hoshidictsRenderer === "crystal";
     for (const el of popups) {
       const r = el.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) continue;
+      layerRects.push({
+        left: Math.floor(r.left * dpr),
+        top: Math.floor(r.top * dpr),
+        right: Math.ceil(r.right * dpr),
+        bottom: Math.ceil(r.bottom * dpr),
+      });
       // Include protruding shadow / Crystal top crest so hover and paint aren't clipped.
       const padTop = isCrystal ? 26 : 8;
       const padSide = 8;
@@ -307,7 +381,183 @@
         });
       }
     }
-    return { rects, visibleCount: popups.length };
+    return { rects, layerRects, visibleCount: popups.length };
+  }
+
+  function ensureScrollerListeners(popups) {
+    if (!controllerMode) return;
+    for (const popup of popups) {
+      const scroller = popup.querySelector(SCROLLER_SELECTOR) ?? popup;
+      if (!observedScrollers.has(scroller)) {
+        observedScrollers.add(scroller);
+        scroller.addEventListener("scroll", () => {
+          if (controllerMode) scheduleRectsSync();
+        }, { passive: true });
+      }
+    }
+  }
+
+  function isSkippedDefinitionNode(node, rootEl) {
+    let cur = node.parentElement;
+    while (cur && cur !== rootEl) {
+      const tag = cur.localName;
+      if (tag === "rt" || tag === "rp" || tag === "script" || tag === "style" || cur.hidden) return true;
+      const st = window.getComputedStyle(cur);
+      if (st.display === "none" || st.visibility === "hidden") return true;
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
+  function extractPopupBlocks(popup) {
+    const blocks = [];
+    const pr = popup.getBoundingClientRect();
+    if (pr.width <= 0 || pr.height <= 0) return blocks;
+    const dpr = window.devicePixelRatio || 1;
+    const visTop = pr.top - 240;
+    const visBottom = pr.bottom + 240;
+    const containers = popup.querySelectorAll(DEFINITION_TEXT_SELECTOR);
+    const range = document.createRange();
+
+    for (const container of containers) {
+      const parentMatch = container.parentElement?.closest(DEFINITION_TEXT_SELECTOR);
+      if (parentMatch && popup.contains(parentMatch)) continue;
+
+      let text = "";
+      const cells = [];
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const val = node.nodeValue;
+        if (!val) continue;
+        if (isSkippedDefinitionNode(node, container)) continue;
+
+        const baseOffset = text.length;
+        text += val;
+
+        range.selectNodeContents(node);
+        const nr = range.getBoundingClientRect();
+        if (nr.width <= 0 && nr.height <= 0) continue;
+        if (nr.bottom < visTop || nr.top > visBottom) continue;
+
+        for (let i = 0; i < val.length;) {
+          const cp = val.codePointAt(i);
+          const step = cp > 0xffff ? 2 : 1;
+          const ch = val.slice(i, i + step);
+          if (!/^\s$/u.test(ch)) {
+            range.setStart(node, i);
+            range.setEnd(node, i + step);
+            const rects = range.getClientRects();
+            if (rects.length > 0) {
+              const r = rects[0];
+              if (r.width > 0 && r.height > 0 && r.bottom >= visTop && r.top <= visBottom) {
+                cells.push([
+                  baseOffset + i,
+                  Math.round(r.left * dpr),
+                  Math.round(r.top * dpr),
+                  Math.round(r.right * dpr),
+                  Math.round(r.bottom * dpr),
+                ]);
+              }
+            }
+          }
+          i += step;
+        }
+      }
+
+      if (text.trim().length > 0 && cells.length > 0) {
+        blocks.push({ text, cells });
+      }
+    }
+    return blocks;
+  }
+
+  function syncPopupTexts(force = false) {
+    if (!controllerMode) {
+      if (lastPopupTextsJson !== "") {
+        lastPopupTextsJson = "";
+        postToHost({ kind: "popupTexts", layers: [] });
+      }
+      return;
+    }
+    const popups = visiblePopups();
+    ensureScrollerListeners(popups);
+    const layers = popups.map((popup, depth) => ({
+      depth,
+      blocks: extractPopupBlocks(popup),
+    }));
+    const json = JSON.stringify(layers);
+    if (force || json !== lastPopupTextsJson) {
+      lastPopupTextsJson = json;
+      postToHost({ kind: "popupTexts", layers });
+    }
+  }
+
+  function clearControllerCursor() {
+    if (controllerCursorOverlay) {
+      controllerCursorOverlay.replaceChildren();
+      controllerCursorOverlay.hidden = true;
+    }
+  }
+
+  function setControllerCursor(rectsPx, colorCss) {
+    if (!Array.isArray(rectsPx) || rectsPx.length === 0) {
+      clearControllerCursor();
+      return;
+    }
+    if (!controllerCursorOverlay) {
+      controllerCursorOverlay = document.createElement("div");
+      controllerCursorOverlay.id = "ffxiv-controller-cursor";
+      controllerCursorOverlay.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:2147483647;";
+      document.body.appendChild(controllerCursorOverlay);
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const color = typeof colorCss === "string" && colorCss.length > 0 ? colorCss : "#a89ce4";
+    controllerCursorOverlay.replaceChildren();
+    for (const r of rectsPx) {
+      const left = (Number(r.left) || 0) / dpr;
+      const top = (Number(r.top) || 0) / dpr;
+      const right = (Number(r.right) || 0) / dpr;
+      const bottom = (Number(r.bottom) || 0) / dpr;
+      const width = Math.max(4, right - left);
+      const height = Math.max(2, Math.round((bottom - top) / 10));
+      const bar = document.createElement("div");
+      bar.style.cssText = `position:fixed;left:${left}px;top:${bottom + 1}px;width:${width}px;height:${height}px;background:${color};border-radius:1px;box-shadow:0 0 3px rgba(0,0,0,0.65);pointer-events:none;`;
+      controllerCursorOverlay.appendChild(bar);
+    }
+    controllerCursorOverlay.hidden = false;
+  }
+
+  function scanPopupPoint(depth, xPx, yPx) {
+    const popups = visiblePopups();
+    const popup = popups[depth];
+    if (!popup || !hachidoriShadow) return;
+    const dpr = window.devicePixelRatio || 1;
+    const clientX = (Number(xPx) || 0) / dpr;
+    const clientY = (Number(yPx) || 0) / dpr;
+    const target = hachidoriShadow.elementFromPoint?.(clientX, clientY) ?? popup;
+    const dispatchTarget = popup.contains(target) ? target : popup;
+    const opts = globalThis.HDReaderOptions?.normaliseOptions?.(storageState.options) ?? storageState.options ?? {};
+
+    if (opts.definitionLookupMode === "click") {
+      dispatchTarget.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, composed: true, button: 0, buttons: 1, clientX, clientY }));
+      dispatchTarget.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true, button: 0, buttons: 0, clientX, clientY }));
+      dispatchTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true, button: 0, buttons: 0, clientX, clientY }));
+    } else {
+      const init = { bubbles: true, composed: true, clientX, clientY };
+      if (opts.definitionLookupMode === "activation") {
+        const key = String(opts.activationKey || "shift").toLowerCase();
+        if (key === "ctrl" || key === "control") init.ctrlKey = true;
+        else if (key === "alt") init.altKey = true;
+        else if (key === "meta") init.metaKey = true;
+        else if (key === "middle") init.buttons = 4;
+        else if (key === "mouse4" || key === "back") init.buttons = 8;
+        else if (key === "mouse5" || key === "forward") init.buttons = 16;
+        else init.shiftKey = true;
+      }
+      dispatchTarget.dispatchEvent(new MouseEvent("mousemove", init));
+    }
+    scheduleRectsSync();
   }
 
   function flushRectsSync() {
@@ -324,9 +574,12 @@
     const json = JSON.stringify(state);
     if (json !== lastRectsJson) {
       lastRectsJson = json;
-      postToHost({ kind: "rects", rects: state.rects, visibleCount: state.visibleCount });
+      postToHost({ kind: "rects", rects: state.rects, layerRects: state.layerRects, visibleCount: state.visibleCount });
     }
     reportMatchedText();
+    if (controllerMode) {
+      syncPopupTexts();
+    }
   }
 
   function scheduleRectsSync() {
@@ -521,6 +774,7 @@
   }
 
   function closeAllPopups() {
+    clearControllerCursor();
     window.getSelection()?.removeAllRanges();
     if (!readerApi) return;
     for (let i = 0; i < 8; i++) {
@@ -530,12 +784,27 @@
     flushRectsSync();
   }
 
+  function closeFromDepth(depth) {
+    const targetDepth = Math.max(0, Number(depth) || 0);
+    if (targetDepth === 0) {
+      closeAllPopups();
+      return;
+    }
+    if (!readerApi) return;
+    for (let i = 0; i < 8; i++) {
+      if (visiblePopups().length <= targetDepth) break;
+      if (!readerApi.act("close")) break;
+    }
+    flushRectsSync();
+  }
+
   function scrollPopup(depth, deltaY) {
     const popups = visiblePopups();
     const target = popups[Math.min(depth, popups.length - 1)];
     if (!target) return;
-    const scroller = target.querySelector(".gsm-hoshidicts-scroll, .jl-scroll, .nazeka-scroll, .plain-scroll, .crystal-scroll, .gsm-hoshidicts-content") ?? target;
+    const scroller = target.querySelector(SCROLLER_SELECTOR) ?? target;
     scroller.scrollTop += Number(deltaY) || 0;
+    if (controllerMode) scheduleRectsSync();
   }
 
   function handleHostMessage(msg) {
@@ -597,6 +866,26 @@
       case "closeTop": {
         readerApi?.act("close");
         scheduleRectsSync();
+        return;
+      }
+      case "closeFrom": {
+        closeFromDepth(msg.depth);
+        return;
+      }
+      case "controllerMode": {
+        controllerMode = Boolean(msg.active);
+        if (!controllerMode) {
+          clearControllerCursor();
+        }
+        syncPopupTexts(true);
+        return;
+      }
+      case "scanPopup": {
+        scanPopupPoint(Number(msg.depth) || 0, msg.x, msg.y);
+        return;
+      }
+      case "controllerCursor": {
+        setControllerCursor(msg.rects, msg.color);
         return;
       }
       case "command": {

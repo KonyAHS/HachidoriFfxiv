@@ -21,14 +21,16 @@ internal sealed class WinMmWaveOut : IDisposable
     private readonly GCHandle headerPin;
     private readonly AutoResetEvent doneEvent;
     private readonly Thread watcher;
+    private readonly Action? onFinished;
     private volatile bool disposed;
 
-    private WinMmWaveOut(nint handle, GCHandle pcmPin, GCHandle headerPin, AutoResetEvent doneEvent, Action<string>? onError)
+    private WinMmWaveOut(nint handle, GCHandle pcmPin, GCHandle headerPin, AutoResetEvent doneEvent, Action<string>? onError, Action? onFinished)
     {
         this.handle = handle;
         this.pcmPin = pcmPin;
         this.headerPin = headerPin;
         this.doneEvent = doneEvent;
+        this.onFinished = onFinished;
         watcher = new Thread(() =>
         {
             try
@@ -58,7 +60,7 @@ internal sealed class WinMmWaveOut : IDisposable
         watcher.Start();
     }
 
-    public static WinMmWaveOut Start(ISampleProvider source, Action<string>? onError = null)
+    public static WinMmWaveOut Start(ISampleProvider source, Action<string>? onError = null, Action? onFinished = null)
     {
         var channels = Math.Clamp(source.WaveFormat.Channels, 1, 2);
         var sampleRate = Math.Max(8000, source.WaveFormat.SampleRate);
@@ -99,7 +101,7 @@ internal sealed class WinMmWaveOut : IDisposable
             if (mm != 0) throw new InvalidOperationException($"waveOutPrepareHeader failed (MMRESULT {mm}).");
             mm = waveOutWrite(handle, headerPin.AddrOfPinnedObject(), hdrSize);
             if (mm != 0) throw new InvalidOperationException($"waveOutWrite failed (MMRESULT {mm}).");
-            return new WinMmWaveOut(handle, pcmPin, headerPin, doneEvent, onError);
+            return new WinMmWaveOut(handle, pcmPin, headerPin, doneEvent, onError, onFinished);
         }
         catch
         {
@@ -159,6 +161,7 @@ internal sealed class WinMmWaveOut : IDisposable
         if (headerPin.IsAllocated) headerPin.Free();
         if (pcmPin.IsAllocated) pcmPin.Free();
         try { doneEvent.Dispose(); } catch { }
+        try { onFinished?.Invoke(); } catch { }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 2)]

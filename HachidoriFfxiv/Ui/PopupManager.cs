@@ -34,8 +34,10 @@ public sealed class PopupManager : IDisposable
     private int webLastOffset = -1;
     private string? webLastTitle;
     private float webLastAnchorY = float.NaN;
+    private (int Depth, RichBlock Block, int Index)? webNestedLast;
     private DateTime webSustainedAt = DateTime.MinValue;
     private bool wasWebViewActive;
+    private bool controllerActive;
 
     public PopupManager(Configuration config, HachidoriService service, Audio.AudioPlayer audio, Fonts fonts)
     {
@@ -54,7 +56,7 @@ public sealed class PopupManager : IDisposable
     /// <summary>Optional Hachidori Web (WebView2) popup host; falls back to ImGui popups when inactive.</summary>
     public WebView.WebViewPopupController? WebView { get; set; }
 
-    private bool UsingWebView => WebView is { Active: true };
+    public bool UsingWebView => WebView is { Active: true };
 
     public bool AnyOpen => UsingWebView ? WebView!.AnyOpen : layers.Any(l => l.Visible);
     public DictionaryImages Images { get; }
@@ -91,6 +93,7 @@ public sealed class PopupManager : IDisposable
         webLastOffset = -1;
         webLastTitle = null;
         webLastAnchorY = float.NaN;
+        webNestedLast = null;
     }
     public void Dispose()
     {
@@ -106,7 +109,17 @@ public sealed class PopupManager : IDisposable
     // ------------------------------------------------------------ controller
 
     /// <summary>Controller mode: mouse hovers only count after the mouse moves, and the cursor's parents stay open.</summary>
-    public bool ControllerActive { get; set; }
+    public bool ControllerActive
+    {
+        get => controllerActive;
+        set
+        {
+            if (controllerActive == value)
+                return;
+            controllerActive = value;
+            WebView?.SetControllerMode(value);
+        }
+    }
     private Vector2 lastMouse;
     private DateTime mouseMovedAt = DateTime.MinValue;
     private int sustainDepth = -1;
@@ -121,18 +134,55 @@ public sealed class PopupManager : IDisposable
 
     /// <summary>The popup's screen rectangle.</summary>
     public (Vector2 Min, Vector2 Max)? LayerRect(int depth) =>
-        depth < layers.Count && layers[depth].Visible ? (layers[depth].WindowPos, layers[depth].WindowPos + layers[depth].WindowSize) : null;
+        UsingWebView
+            ? WebView!.PopupRectScreen(depth)
+            : depth < layers.Count && layers[depth].Visible ? (layers[depth].WindowPos, layers[depth].WindowPos + layers[depth].WindowSize) : null;
 
     /// <summary>The scannable definition text of popup <paramref name="depth"/>, in reading order.</summary>
     public List<RichBlock> ScanBlocks(int depth)
     {
         var blocks = new List<RichBlock>();
+        if (UsingWebView)
+        {
+            foreach (var (block, _) in WebView!.GetScanTargets(depth))
+                blocks.Add(block);
+            return blocks;
+        }
         if (depth >= layers.Count || layers[depth].Showing is not { } shown)
             return blocks;
         foreach (var entry in shown.Entries)
             foreach (var (_, group) in entry.Definitions)
                 blocks.AddRange(group.Where(b => b.Image is null && !b.IsEmpty));
         return blocks;
+    }
+
+    /// <summary>Scannable definition blocks and screen-space glyph rects inside popup <paramref name="depth"/>.</summary>
+    public IReadOnlyList<(RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells)> ScanTargets(int depth)
+    {
+        if (UsingWebView)
+            return WebView!.GetScanTargets(depth);
+        var blocks = ScanBlocks(depth);
+        if (blocks.Count == 0)
+            return [];
+        var result = new List<(RichBlock, IReadOnlyList<(int, Vector2, Vector2)>)>(blocks.Count);
+        foreach (var block in blocks)
+        {
+            var cells = RichText.GlyphRects(block);
+            if (cells.Count > 0)
+                result.Add((block, cells));
+        }
+        return result;
+    }
+
+    /// <summary>True when popup <paramref name="depth"/> has scannable definition text the controller can dive into.</summary>
+    public bool HasScanTargets(int depth) =>
+        UsingWebView ? WebView!.GetScanTargets(depth).Count > 0 : ScanBlocks(depth).Count > 0;
+
+    /// <summary>Updates or clears the controller cursor underline rendered on top of the WebView2 overlay.</summary>
+    public void SetWebControllerCursor(IReadOnlyList<(Vector2 Min, Vector2 Max)>? segments, string? colorCss = null)
+    {
+        if (UsingWebView)
+            WebView!.SetControllerCursor(segments, colorCss);
     }
 
     /// <summary>Moves the controller's entry selection in popup <paramref name="depth"/> and scrolls to it.</summary>
@@ -196,8 +246,16 @@ public sealed class PopupManager : IDisposable
         sustainDepth = Math.Min(sustainDepth, depth - 1);
         if (UsingWebView)
         {
-            if (depth <= 0) CloseAll();
-            else WebView!.CloseTop();
+            if (depth <= 0)
+            {
+                CloseAll();
+            }
+            else
+            {
+                if (webNestedLast is { } nested && nested.Depth >= depth)
+                    webNestedLast = null;
+                WebView!.CloseFrom(depth);
+            }
             return;
         }
         if (depth < layers.Count)
@@ -306,7 +364,8 @@ public sealed class PopupManager : IDisposable
             wasWebViewActive = usingWeb;
             layers.Clear();
             ClearWebSource();
-            if (!usingWeb) WebView?.CloseAll();
+            if (usingWeb && controllerActive) WebView?.SetControllerMode(true);
+            else if (!usingWeb) WebView?.CloseAll();
         }
 
         if (usingWeb)
@@ -493,6 +552,26 @@ public sealed class PopupManager : IDisposable
             else if (insideMatch)
             {
                 webSustainedAt = now;
+            }
+        }
+        else if (hit is not null && hit.Depth > 0 && hit.Depth <= config.MaxPopupDepth)
+        {
+            webSustainedAt = now;
+            var text = hit.Hit.Block.ScanText;
+            var index = hit.Hit.CharIndex;
+            var scanning = hit.Forced || ModifierHeld();
+            if (scanning && index < text.Length)
+            {
+                var cp = Japanese.CodePointAt(text, index);
+                if (!config.ScanOnlyJapanese || Japanese.IsJapanese(cp))
+                {
+                    var key = (hit.Depth, hit.Hit.Block, index);
+                    if (webNestedLast != key)
+                    {
+                        webNestedLast = key;
+                        wv.ScanPopupAt(hit.Depth - 1, (hit.Hit.Min + hit.Hit.Max) * 0.5f);
+                    }
+                }
             }
         }
 

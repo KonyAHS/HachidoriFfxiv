@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Media;
+using HachidoriFfxiv.Rendering;
 using HachidoriFfxiv.Stats;
 using Microsoft.Web.WebView2.Core;
 
@@ -34,6 +36,7 @@ public sealed class WebViewPopupController : IDisposable
 
     private readonly Configuration config;
     private readonly HachidoriService service;
+    private readonly Func<MediaMiner?> getMedia;
     private readonly string userDataRoot;
     private readonly HachidoriWebAdapter adapter;
     private readonly HachidoriWebBridge bridge;
@@ -43,6 +46,7 @@ public sealed class WebViewPopupController : IDisposable
     private WebViewPopupHost? host;
     private string? activeSessionDataFolder;
     private volatile string? controllerError;
+    private bool controllerMode;
     private bool startAttempted;
     private string? lastSyncedHostVersion;
     private string? lastConfigFingerprint;
@@ -71,6 +75,7 @@ public sealed class WebViewPopupController : IDisposable
     {
         this.config = config;
         this.service = service;
+        this.getMedia = getMedia;
         userDataRoot = Path.Combine(configDirectory, "webview2-data");
         Bundles = new HachidoriBundleManager(Path.Combine(configDirectory, "hachidori-web"));
         _ = Task.Run(() => PruneStaleSessionFolders(userDataRoot));
@@ -162,8 +167,85 @@ public sealed class WebViewPopupController : IDisposable
 
     public void CloseAll() => host?.CloseAll();
     public void CloseTop() => host?.CloseTop();
+    public void CloseFrom(int depth) => host?.CloseFrom(depth);
     public void SendCommand(string action) => host?.SendCommand(action);
     public void ScrollPopup(int depth, float deltaY) => host?.ScrollPopup(depth, deltaY);
+
+    public void SetControllerMode(bool active)
+    {
+        controllerMode = active;
+        host?.SetControllerMode(active);
+    }
+
+    public (Vector2 Min, Vector2 Max)? PopupRectScreen(int depth)
+    {
+        if (!Active || host!.GetPopupLayerRect(depth) is not { } r)
+            return null;
+        var vp = ImGui.GetMainViewport();
+        var sx = MathF.Max(0.01f, lastScaleX);
+        var sy = MathF.Max(0.01f, lastScaleY);
+        return (
+            new Vector2(vp.Pos.X + r.Left / sx, vp.Pos.Y + r.Top / sy),
+            new Vector2(vp.Pos.X + r.Right / sx, vp.Pos.Y + r.Bottom / sy));
+    }
+
+    public IReadOnlyList<(RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells)> GetScanTargets(int depth)
+    {
+        if (!Active)
+            return [];
+        var raw = host!.GetScanBlocks(depth);
+        if (raw.Count == 0)
+            return [];
+        var vp = ImGui.GetMainViewport();
+        var sx = MathF.Max(0.01f, lastScaleX);
+        var sy = MathF.Max(0.01f, lastScaleY);
+        var result = new List<(RichBlock, IReadOnlyList<(int, Vector2, Vector2)>)>(raw.Count);
+        foreach (var item in raw)
+        {
+            var cells = new List<(int, Vector2, Vector2)>(item.Cells.Count);
+            foreach (var (index, l, t, r, b) in item.Cells)
+            {
+                cells.Add((
+                    index,
+                    new Vector2(vp.Pos.X + l / sx, vp.Pos.Y + t / sy),
+                    new Vector2(vp.Pos.X + r / sx, vp.Pos.Y + b / sy)));
+            }
+            if (cells.Count > 0)
+                result.Add((item.Block, cells));
+        }
+        return result;
+    }
+
+    public void ScanPopupAt(int parentDepth, Vector2 screenPoint)
+    {
+        if (!Active) return;
+        var vp = ImGui.GetMainViewport();
+        host!.ScanPopupAt(
+            parentDepth,
+            (screenPoint.X - vp.Pos.X) * lastScaleX,
+            (screenPoint.Y - vp.Pos.Y) * lastScaleY);
+    }
+
+    public void SetControllerCursor(IReadOnlyList<(Vector2 Min, Vector2 Max)>? screenRects, string? colorCss = null)
+    {
+        if (!Active) return;
+        if (screenRects is null || screenRects.Count == 0)
+        {
+            host!.SetControllerCursor(null, colorCss);
+            return;
+        }
+        var vp = ImGui.GetMainViewport();
+        var mapped = new List<(float, float, float, float)>(screenRects.Count);
+        foreach (var (min, max) in screenRects)
+        {
+            mapped.Add((
+                (min.X - vp.Pos.X) * lastScaleX,
+                (min.Y - vp.Pos.Y) * lastScaleY,
+                (max.X - vp.Pos.X) * lastScaleX,
+                (max.Y - vp.Pos.Y) * lastScaleY));
+        }
+        host!.SetControllerCursor(mapped, colorCss);
+    }
 
     /// <summary>Called once per frame on Dalamud's UiBuilder.Draw thread (non-blocking, allocation-free when idle).</summary>
     public void Draw(Vector2 mouseScreenPos)
@@ -502,7 +584,12 @@ public sealed class WebViewPopupController : IDisposable
                 // never collide with an orphaned msedgewebview2.exe holding a stale user-data lock/args.
                 var sessionFolder = Path.Combine(userDataRoot, $"run-{Guid.NewGuid():N}");
                 activeSessionDataFolder = sessionFolder;
-                host = new WebViewPopupHost(sessionFolder, bridge, Bundles, headless: false);
+                host = new WebViewPopupHost(sessionFolder, bridge, Bundles, headless: false)
+                {
+                    OnAudioPlaybackChanged = playing => getMedia()?.PluginAudio.SetExternalPlaying(playing),
+                };
+                if (controllerMode)
+                    host.SetControllerMode(true);
             }
             catch (Exception ex)
             {

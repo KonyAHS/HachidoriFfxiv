@@ -208,6 +208,7 @@ public sealed class Configuration : IPluginConfiguration
         return changed;
     }
     public string AnkiConnectUrl { get; set; } = "http://127.0.0.1:8765";
+    public string AnkiConnectApiKey { get; set; } = string.Empty;
 
     // Sentence translation, with GameSentenceMiner's parameters (Settings → Mining).
     public bool TranslationEnabled { get; set; } = false;
@@ -324,6 +325,7 @@ public sealed class Configuration : IPluginConfiguration
         GifFps = d.GifFps;
         GifSeconds = d.GifSeconds;
         AnkiConnectUrl = d.AnkiConnectUrl;
+        AnkiConnectApiKey = d.AnkiConnectApiKey;
         TranslationEnabled = d.TranslationEnabled;
         TranslationProvider = d.TranslationProvider;
         TranslationField = d.TranslationField;

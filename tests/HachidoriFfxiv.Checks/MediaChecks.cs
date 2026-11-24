@@ -90,6 +90,7 @@ static class MediaChecks
         // ----------------------------------------------------- OST extraction & TTS mixing
         CheckOstExtractionAndMixing(check);
         CheckBgmSceneSelectionAndVoiceDetection(check);
+        CheckPluginAudioAndScdVoiceExtraction(check);
 
         // ------------------------------------------------------------------- GIF
         var frames = Enumerable.Range(0, 3).Select(f =>
@@ -349,6 +350,66 @@ static class MediaChecks
         var delayedVoice = new VoicePlaybackEvent("cut/ex1/sound/vo_man/vo_3_ja.scd", VoiceLineKind.Cutscene, 12 * tps);
         check(!VoiceLineAssociation.ShouldTransferToNewLine(10 * tps, delayedVoice, 16 * tps, tps),
             "VoiceLineAssociation keeps a delayed voice on its own line when the next line appears seconds later");
+    }
+
+    private static void CheckPluginAudioAndScdVoiceExtraction(Action<bool, string> check)
+    {
+        const long tps = 10_000_000;
+        var tracker = new PluginAudioTracker(tps);
+
+        // Active and finished playback overlap detection (including 250 ms tail margin).
+        var h1 = tracker.BeginPlayback(10 * tps);
+        check(tracker.Overlaps(10 * tps, 12 * tps, nowTicks: 11 * tps),
+            "PluginAudioTracker detects an active pronunciation playback overlapping a voice window");
+        tracker.EndPlayback(h1, 11 * tps);
+        check(tracker.Overlaps(11 * tps + tps / 10, 13 * tps, nowTicks: 13 * tps),
+            "PluginAudioTracker includes WASAPI tail margin after playback ends");
+        check(!tracker.Overlaps(12 * tps, 14 * tps, nowTicks: 14 * tps),
+            "PluginAudioTracker reports no overlap for a clean voice window after pronunciation finishes");
+
+        // External (WebView2) boolean playback tracking.
+        tracker.SetExternalPlaying(true, 20 * tps);
+        check(tracker.Overlaps(20 * tps, 21 * tps, nowTicks: 21 * tps),
+            "PluginAudioTracker tracks WebView2 external audio playback start");
+        tracker.SetExternalPlaying(false, 21 * tps);
+        check(!tracker.Overlaps(22 * tps, 24 * tps, nowTicks: 24 * tps),
+            "PluginAudioTracker closes WebView2 external audio playback interval on stop");
+
+        // MaskOverlappingSamples suppresses pronunciation audio on RMS fallback so unvoiced lines stay unvoiced.
+        const int rate = 48000;
+        var quietBefore = new float[rate];
+        var unvoicedWithPronunciation = Enumerable.Range(0, rate * 2)
+            .Select(i => i >= rate / 2 && i < rate ? 0.4f * MathF.Sin(2f * MathF.PI * 300f * i / rate) : 0f)
+            .ToArray();
+        var maskTracker = new PluginAudioTracker(tps);
+        var h2 = maskTracker.BeginPlayback(100 * tps + tps / 2);
+        maskTracker.EndPlayback(h2, 101 * tps);
+        maskTracker.MaskOverlappingSamples(unvoicedWithPronunciation, 100 * tps, rate, nowTicks: 102 * tps);
+        var maskedVoice = AudioClips.FindVoice(AudioClips.FrameLevels(quietBefore, rate), AudioClips.FrameLevels(unvoicedWithPronunciation, rate), 2f);
+        check(maskedVoice is null && unvoicedWithPronunciation.Max(Math.Abs) == 0f,
+            "PluginAudioTracker masks pronunciation audio out of RMS fallback voice detection");
+
+        // MS-ADPCM pure C# decoder check (mono block: predictor=0 => coef1=256, coef2=0, delta=100, samp1=1000, samp2=500, nibbles +1, -1).
+        var block = new byte[8];
+        block[0] = 0; // predictor 0 -> (256, 0)
+        System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(block.AsSpan(1, 2), 100);  // delta
+        System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(block.AsSpan(3, 2), 1000); // samp1
+        System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(block.AsSpan(5, 2), 500);  // samp2
+        block[7] = 0x1F; // high nibble = +1, low nibble = -1 (0xF -> -1)
+        var adpcm = ScdVoiceExtractor.DecodeMsAdpcm(block, channels: 1, blockAlign: 8, samplesPerBlock: 4, coefs: []);
+        // Expected: [500, 1000, 1100, 1100 - 89 = 1011] / 32768 (delta after +1 is 230*100/256 = 89).
+        check(adpcm is { Length: 4 }
+              && MathF.Abs(adpcm[0] - 500f / 32768f) < 1e-4f
+              && MathF.Abs(adpcm[1] - 1000f / 32768f) < 1e-4f
+              && MathF.Abs(adpcm[2] - 1100f / 32768f) < 1e-4f
+              && MathF.Abs(adpcm[3] - 1011f / 32768f) < 1e-4f,
+            "ScdVoiceExtractor decodes MS-ADPCM voice blocks accurately");
+
+        // Ogg Vorbis voice decode check using real fixture.
+        var oggPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "tone.ogg");
+        var decodedOgg = ScdVoiceExtractor.DecodeOggVorbis(File.ReadAllBytes(oggPath));
+        check(decodedOgg is { SampleRate: > 0, Samples.Length: > 1000 } && decodedOgg.Value.Samples.Max(Math.Abs) > 0.05f,
+            "ScdVoiceExtractor decodes Ogg Vorbis voice streams to mono PCM");
     }
 
     private static void CheckPlatformAndFallbacks(Action<bool, string> check)

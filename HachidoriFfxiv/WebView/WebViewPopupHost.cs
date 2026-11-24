@@ -13,6 +13,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
+using HachidoriFfxiv.Rendering;
 
 namespace HachidoriFfxiv.WebView;
 
@@ -21,6 +22,11 @@ public readonly record struct OverlayRect(int Left, int Top, int Right, int Bott
 {
     public bool Contains(float x, float y) => x >= Left && x <= Right && y >= Top && y <= Bottom;
 }
+
+/// <summary>A scannable definition text block extracted from an active WebView2 popup, with physical-pixel character rects.</summary>
+public sealed record WebPopupScanBlock(
+    RichBlock Block,
+    IReadOnlyList<(int Index, float Left, float Top, float Right, float Bottom)> Cells);
 
 /// <summary>Snapshot of the active popup DOM inside WebView2 (used for diagnostics and automated parity tests).</summary>
 public sealed record WebViewInspectResult(
@@ -107,7 +113,12 @@ public sealed class WebViewPopupHost : IDisposable
     private volatile string matchedExpression = string.Empty;
     private volatile string matchedReading = string.Empty;
     private OverlayRect[] popupRects = [];
+    private OverlayRect[] popupLayerRects = [];
     private readonly object rectsLock = new();
+    private readonly Dictionary<int, List<WebPopupScanBlock>> popupScanBlocks = new();
+    private readonly object scanBlocksLock = new();
+    private bool controllerMode;
+    private string? lastCursorJson;
     private bool overlayShown;
     private long lookupPendingUntilUtcTicks;
     private nint lastGameHwnd;
@@ -161,6 +172,9 @@ public sealed class WebViewPopupHost : IDisposable
     public string? LoadedVersion => mappedBundleVersion;
     internal nint OverlayHwnd => hwnd;
 
+    /// <summary>Invoked whenever WebView2 starts or stops playing pronunciation audio.</summary>
+    public Action<bool>? OnAudioPlaybackChanged { get; set; }
+
     public Task<bool> WaitUntilReadyAsync(TimeSpan timeout) =>
         readyTcs.Task.WaitAsync(timeout);
 
@@ -200,6 +214,18 @@ public sealed class WebViewPopupHost : IDisposable
     public OverlayRect[] GetPopupRects()
     {
         lock (rectsLock) return [.. popupRects];
+    }
+
+    public OverlayRect? GetPopupLayerRect(int depth)
+    {
+        lock (rectsLock)
+            return depth >= 0 && depth < popupLayerRects.Length ? popupLayerRects[depth] : null;
+    }
+
+    public IReadOnlyList<WebPopupScanBlock> GetScanBlocks(int depth)
+    {
+        lock (scanBlocksLock)
+            return popupScanBlocks.TryGetValue(depth, out var list) ? [.. list] : [];
     }
 
     /// <summary>
@@ -370,6 +396,75 @@ public sealed class WebViewPopupHost : IDisposable
     {
         if (!IsReady) return;
         PostJson(new JsonObject { ["kind"] = "closeTop" });
+    }
+
+    public void CloseFrom(int depth)
+    {
+        if (depth <= 0)
+        {
+            CloseAll();
+            return;
+        }
+        if (!IsReady) return;
+        PostJson(new JsonObject { ["kind"] = "closeFrom", ["depth"] = depth });
+    }
+
+    public void SetControllerMode(bool active)
+    {
+        controllerMode = active;
+        if (!active)
+        {
+            lastCursorJson = null;
+            lock (scanBlocksLock) popupScanBlocks.Clear();
+        }
+        if (!IsReady) return;
+        PostJson(new JsonObject { ["kind"] = "controllerMode", ["active"] = active });
+    }
+
+    public void ScanPopupAt(int parentDepth, float viewportX, float viewportY)
+    {
+        if (!IsReady) return;
+        PostJson(new JsonObject
+        {
+            ["kind"] = "scanPopup",
+            ["depth"] = parentDepth,
+            ["x"] = viewportX,
+            ["y"] = viewportY,
+        });
+    }
+
+    public void SetControllerCursor(IReadOnlyList<(float Left, float Top, float Right, float Bottom)>? rects, string? colorCss = null)
+    {
+        if (!IsReady) return;
+        var arr = new JsonArray();
+        if (rects is not null)
+        {
+            foreach (var (l, t, r, b) in rects)
+            {
+                arr.Add(new JsonObject
+                {
+                    ["left"] = MathF.Round(l),
+                    ["top"] = MathF.Round(t),
+                    ["right"] = MathF.Round(r),
+                    ["bottom"] = MathF.Round(b),
+                });
+            }
+        }
+        var payload = new JsonObject
+        {
+            ["kind"] = "controllerCursor",
+            ["rects"] = arr,
+            ["color"] = colorCss ?? string.Empty,
+        };
+        var json = payload.ToJsonString();
+        if (string.Equals(json, lastCursorJson, StringComparison.Ordinal))
+            return;
+        lastCursorJson = json;
+        PostToSta(() =>
+        {
+            try { webView?.PostWebMessageAsJson(json); }
+            catch (Exception ex) { DiagnosticLog.Write("webview", $"PostWebMessage failed: {ex.Message}"); }
+        });
     }
 
     public void SendCommand(string action)
@@ -728,6 +823,8 @@ public sealed class WebViewPopupHost : IDisposable
                 statusText = "Ready";
                 bundles.MarkBootSuccess(mappedBundleVersion);
                 DiagnosticLog.Write("webview", $"Hachidori Web v{msg["version"]} popup host ready.");
+                if (controllerMode)
+                    PostJson(new JsonObject { ["kind"] = "controllerMode", ["active"] = true });
                 readyTcs.TrySetResult(true);
                 return;
 
@@ -752,6 +849,14 @@ public sealed class WebViewPopupHost : IDisposable
 
             case "rects":
                 HandleRectsMessage(msg);
+                return;
+
+            case "popupTexts":
+                HandlePopupTextsMessage(msg);
+                return;
+
+            case "audioPlayback":
+                OnAudioPlaybackChanged?.Invoke(BoolVal(msg["playing"]));
                 return;
 
             case "lookupMiss":
@@ -829,9 +934,101 @@ public sealed class WebViewPopupHost : IDisposable
                     IntVal(r["bottom"])));
             }
         }
-        lock (rectsLock) popupRects = list.ToArray();
+        var layers = new List<OverlayRect>();
+        if (msg["layerRects"] is JsonArray layerArr)
+        {
+            foreach (var r in layerArr.OfType<JsonObject>())
+            {
+                layers.Add(new OverlayRect(
+                    IntVal(r["left"]),
+                    IntVal(r["top"]),
+                    IntVal(r["right"]),
+                    IntVal(r["bottom"])));
+            }
+        }
+        lock (rectsLock)
+        {
+            popupRects = list.ToArray();
+            popupLayerRects = layers.ToArray();
+        }
         visibleCount = count;
+        if (count == 0)
+        {
+            lock (scanBlocksLock) popupScanBlocks.Clear();
+        }
     }
+
+    private void HandlePopupTextsMessage(JsonObject msg)
+    {
+        var layersArr = msg["layers"] as JsonArray;
+        lock (scanBlocksLock)
+        {
+            var prev = new Dictionary<int, List<WebPopupScanBlock>>(popupScanBlocks);
+            popupScanBlocks.Clear();
+            if (layersArr is null)
+                return;
+
+            foreach (var layerNode in layersArr.OfType<JsonObject>())
+            {
+                var depth = IntVal(layerNode["depth"]);
+                prev.TryGetValue(depth, out var prevBlocks);
+                var nextBlocks = new List<WebPopupScanBlock>();
+                var blockIdx = 0;
+                foreach (var blockNode in (layerNode["blocks"] as JsonArray ?? []).OfType<JsonObject>())
+                {
+                    var text = blockNode["text"]?.ToString() ?? string.Empty;
+                    if (text.Length == 0)
+                    {
+                        blockIdx++;
+                        continue;
+                    }
+                    var cellsArr = blockNode["cells"] as JsonArray;
+                    if (cellsArr is null || cellsArr.Count == 0)
+                    {
+                        blockIdx++;
+                        continue;
+                    }
+                    var cells = new List<(int Index, float Left, float Top, float Right, float Bottom)>(cellsArr.Count);
+                    foreach (var cellNode in cellsArr.OfType<JsonArray>())
+                    {
+                        if (cellNode.Count < 5) continue;
+                        cells.Add((
+                            IntVal(cellNode[0]),
+                            FloatVal(cellNode[1]),
+                            FloatVal(cellNode[2]),
+                            FloatVal(cellNode[3]),
+                            FloatVal(cellNode[4])));
+                    }
+                    if (cells.Count == 0)
+                    {
+                        blockIdx++;
+                        continue;
+                    }
+
+                    // Reuse the previous RichBlock instance when the definition text at this depth/index
+                    // did not change (e.g. while scrolling) so controller cursor identity stays stable.
+                    RichBlock block;
+                    if (prevBlocks is not null && blockIdx < prevBlocks.Count
+                        && string.Equals(prevBlocks[blockIdx].Block.ScanText, text, StringComparison.Ordinal))
+                    {
+                        block = prevBlocks[blockIdx].Block;
+                    }
+                    else
+                    {
+                        block = prevBlocks?.FirstOrDefault(b => string.Equals(b.Block.ScanText, text, StringComparison.Ordinal))?.Block
+                            ?? new RichBlock().Add(text);
+                    }
+                    nextBlocks.Add(new WebPopupScanBlock(block, cells));
+                    blockIdx++;
+                }
+                if (nextBlocks.Count > 0)
+                    popupScanBlocks[depth] = nextBlocks;
+            }
+        }
+    }
+
+    private static float FloatVal(JsonNode? node) =>
+        node is JsonValue v && v.TryGetValue<double>(out var d) ? (float)d : 0f;
 
     private void HandleInspectReply(JsonObject msg)
     {
@@ -874,6 +1071,7 @@ public sealed class WebViewPopupHost : IDisposable
         lastError = error;
         failed = true;
         ready = false;
+        OnAudioPlaybackChanged?.Invoke(false);
         DiagnosticLog.Write("webview", error);
         readyTcs.TrySetResult(false);
     }
@@ -970,6 +1168,7 @@ public sealed class WebViewPopupHost : IDisposable
     {
         if (disposed) return;
         disposed = true;
+        OnAudioPlaybackChanged?.Invoke(false);
         bundles.BundleChanged -= OnBundleChanged;
         lifetime.Cancel();
         readyTcs.TrySetResult(false);

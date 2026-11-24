@@ -34,6 +34,8 @@
     <Compile Include="../../HachidoriFfxiv/Media/AudioRing.cs" Link="Media/AudioRing.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AudioClips.cs" Link="Media/AudioClips.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/ScdOstExtractor.cs" Link="Media/ScdOstExtractor.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/ScdVoiceExtractor.cs" Link="Media/ScdVoiceExtractor.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/PluginAudioTracker.cs" Link="Media/PluginAudioTracker.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/VoiceLineDetection.cs" Link="Media/VoiceLineDetection.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GifEncoder.cs" Link="Media/GifEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnimationEncoder.cs" Link="Media/AnimationEncoder.cs" />

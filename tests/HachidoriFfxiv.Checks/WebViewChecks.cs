@@ -412,6 +412,36 @@ internal static class WebViewChecks
                 $"WebView2 Anki preflight batch transitions mine button out of checking (state={crystal?.MineButtonState})");
             check(host.MatchedLength == 3, $"WebView2 reports exact matched word length ({host.MatchedLength}) for FFXIV highlight");
 
+            // Controller dive inside WebView2 popup: extract definition scan blocks, scan a nested word, open child popup, close child.
+            host.SetControllerMode(true);
+            IReadOnlyList<WebPopupScanBlock> scanBlocks = [];
+            for (var i = 0; i < 25; i++)
+            {
+                await Task.Delay(100);
+                scanBlocks = host.GetScanBlocks(0);
+                if (scanBlocks.Count > 0) break;
+            }
+            var layerRect = host.GetPopupLayerRect(0);
+            var targetBlock = scanBlocks.FirstOrDefault(b => b.Block.ScanText.Contains("危険", StringComparison.Ordinal));
+            var targetIdx = targetBlock?.Block.ScanText.IndexOf("危険", StringComparison.Ordinal) ?? -1;
+            var targetCell = targetBlock?.Cells.FirstOrDefault(c => c.Index == targetIdx) ?? default;
+            check(scanBlocks.Count > 0 && layerRect is not null && targetBlock is not null && targetCell.Right > targetCell.Left,
+                $"WebView2 controller mode extracts definition scan blocks and glyph rects (blocks={scanBlocks.Count}, cells={targetBlock?.Cells.Count ?? 0})");
+            if (targetBlock is not null && targetCell.Right > targetCell.Left)
+            {
+                host.SetControllerCursor([(targetCell.Left, targetCell.Top, targetCell.Right, targetCell.Bottom)], "#A89CE4");
+                host.ScanPopupAt(0, (targetCell.Left + targetCell.Right) * 0.5f, (targetCell.Top + targetCell.Bottom) * 0.5f);
+                for (var i = 0; i < 25 && host.VisibleCount < 2; i++)
+                    await Task.Delay(120);
+                check(host.VisibleCount >= 2, $"WebView2 controller dive opens a nested child popup (visibleCount={host.VisibleCount})");
+                host.CloseFrom(1);
+                for (var i = 0; i < 20 && host.VisibleCount > 1; i++)
+                    await Task.Delay(80);
+                check(host.VisibleCount == 1, $"WebView2 CloseFrom(1) closes nested child popup while keeping root open (visibleCount={host.VisibleCount})");
+            }
+            host.SetControllerCursor(null);
+            host.SetControllerMode(false);
+
             // End-to-end Crystal mine: verify full text box sentence (before + after word) AND all dictionaries arrive at Anki submit.
             backend.ResetSubmit();
             host.SendCommand("addNote");
@@ -622,6 +652,35 @@ internal static class WebViewChecks
         {
             if (type == "hd_lookup")
             {
+                var query = message["text"]?.ToString() ?? string.Empty;
+                if (query.StartsWith("危険", StringComparison.Ordinal))
+                {
+                    return Task.FromResult(JsonNode.Parse("""
+                    {
+                      "ok": true,
+                      "generation": 1,
+                      "dictionaryCount": 2,
+                      "results": [{
+                        "matched": "危険",
+                        "deinflected": "危険",
+                        "trace": [],
+                        "preprocessorSteps": 0,
+                        "term": {
+                          "expression": "危険",
+                          "reading": "きけん",
+                          "rules": "n",
+                          "score": 100,
+                          "furigana": [{"text":"危険","reading":"きけん"}],
+                          "glossaries": [
+                            { "dictionary": "Jitendex", "glossary": "[\"danger; peril; hazard\"]", "definitionTags": "n", "termTags": "common", "tags": [{"name":"n","category":"partOfSpeech","order":0,"score":0,"notes":"noun"}] }
+                          ],
+                          "frequencies": [],
+                          "pitches": []
+                        }
+                      }]
+                    }
+                    """)!.AsObject());
+                }
                 return Task.FromResult(JsonNode.Parse("""
                 {
                   "ok": true,
@@ -639,7 +698,7 @@ internal static class WebViewChecks
                       "score": 100,
                       "furigana": [{"text":"冒険者","reading":"ぼうけんしゃ"}],
                       "glossaries": [
-                        { "dictionary": "Jitendex", "glossary": "[\"adventurer\"]", "definitionTags": "n", "termTags": "common", "tags": [{"name":"n","category":"partOfSpeech","order":0,"score":0,"notes":"noun"}] },
+                        { "dictionary": "Jitendex", "glossary": "[\"adventurer (危険を冒す人)\"]", "definitionTags": "n", "termTags": "common", "tags": [{"name":"n","category":"partOfSpeech","order":0,"score":0,"notes":"noun"}] },
                         { "dictionary": "FFXIV", "glossary": "[\"Adventurer (Warrior of Light)\"]", "definitionTags": "", "termTags": "", "tags": [] }
                       ],
                       "frequencies": [{"dictionary":"BCCWJ","frequencies":[{"value":1200,"displayValue":"1200"}]}],

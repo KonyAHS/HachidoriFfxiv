@@ -908,6 +908,7 @@ public sealed class ConfigWindow : Window
                 DrawGifFieldControl();
                 Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v);
                 DrawAnkiConnectUrlControl();
+                DrawAnkiConnectApiKeyControl();
             }
         }
 
@@ -2016,6 +2017,15 @@ public sealed class ConfigWindow : Window
             config.Save();
     }
 
+    private void DrawAnkiConnectApiKeyControl()
+    {
+        var key = config.AnkiConnectApiKey;
+        if (ImGui.InputTextWithHint("AnkiConnect API key", "blank: use Hachidori's API key", ref key, 256, ImGuiInputTextFlags.Password))
+            config.AnkiConnectApiKey = key.Trim();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            config.Save();
+    }
+
     private void DrawControllerHoldButtonControl()
     {
         var ps = config.ControllerPlayStationLabels;
@@ -2333,6 +2343,7 @@ public sealed class ConfigWindow : Window
         Add("Mining", "AnkiConnect & Fields", "Animation may replace screenshot", "gif overwrite picture", true,
             () => Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v));
         Add("Mining", "AnkiConnect & Fields", "AnkiConnect address", "url port 8765 anki", true, DrawAnkiConnectUrlControl);
+        Add("Mining", "AnkiConnect & Fields", "AnkiConnect API key", "anki key auth token", true, DrawAnkiConnectApiKeyControl);
 
         // Controller
         Add("Controller", "Activation", "Controller reading mode", "gamepad pad xbox playstation dualsense", false,
