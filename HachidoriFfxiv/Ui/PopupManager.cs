@@ -17,7 +17,7 @@ namespace HachidoriFfxiv.Ui;
 /// popup) looks the text up from that character and opens a popup next to it. Popups nest: text
 /// inside popup N opens popup N+1, and moving away closes the deeper ones.
 /// </summary>
-public sealed class PopupManager : IDisposable
+public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
 {
     private readonly Configuration config;
     private readonly HachidoriService service;
@@ -261,6 +261,9 @@ public sealed class PopupManager : IDisposable
         if (depth < layers.Count)
             layers.RemoveRange(depth, layers.Count - depth);
     }
+
+    void Capture.INativeHoverSink.Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context, bool keepPrevious) =>
+        Report(hit, depth, context, forced: false, keepPrevious: keepPrevious);
 
     /// <summary>A text area reports the hovered character. Depth is 0 outside popups, N+1 inside popup N.</summary>
     public void Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context = null,
@@ -999,7 +1002,7 @@ public sealed class PopupManager : IDisposable
             if (entry.Decision?.ClientSpeech is { } speech)
                 request["clientSpeech"] = speech.DeepClone();
             // The Template maps {screenshot}: take the game picture now, without plugin windows.
-            Media.ScreenshotMedia? screenshot = null;
+            ScreenshotMedia? screenshot = null;
             string? screenshotWarning = null;
             if (Media is not null && config.CaptureScreenshot && entry.Decision?.Screenshot == true)
             {

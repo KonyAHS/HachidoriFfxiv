@@ -11,10 +11,19 @@ using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Rendering;
-using HachidoriFfxiv.Ui;
 using Vector2 = System.Numerics.Vector2;
 
 namespace HachidoriFfxiv.Capture;
+
+/// <summary>Narrow sink implemented by the popup UI so native hover never depends on UI types.</summary>
+public interface INativeHoverSink
+{
+    bool ContainsMouse(Vector2 mouse);
+
+    (int Start, int End)? HighlightFor(RichBlock block, int depth);
+
+    void Report(TextHit? hit, int depth, Func<RichBlock, int, ScanContext>? context = null, bool keepPrevious = true);
+}
 
 /// <summary>
 /// Invisible, click-through hover targets over the original game text. Native reads and
@@ -566,7 +575,7 @@ public sealed unsafe class NativeTextHover : IDisposable
         return list;
     }
 
-    public void Draw(PopupManager popups)
+    public void Draw(INativeHoverSink popups)
     {
         var viewport = ImGui.GetMainViewport();
         var mouse = ImGui.GetMousePos();

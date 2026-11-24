@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json.Nodes;
-using HachidoriFfxiv.Offline;
 
 namespace HachidoriFfxiv.Hachidori;
 
@@ -44,10 +43,14 @@ public static class FfxivDictionary
         return null;
     }
 
-    public static InstalledFfxivDictionary? FindInstalledOffline(IEnumerable<OfflineDictionary> dictionaries)
+    public static InstalledFfxivDictionary? FindInstalledOffline(IEnumerable<(string Title, string Revision)> dictionaries)
     {
-        var match = dictionaries.FirstOrDefault(d => IsCustomDictionaryTitle(d.Title));
-        return match is null ? null : new InstalledFfxivDictionary(match.Title, match.Revision, Enabled: true);
+        foreach (var d in dictionaries)
+        {
+            if (IsCustomDictionaryTitle(d.Title))
+                return new InstalledFfxivDictionary(d.Title, d.Revision, Enabled: true);
+        }
+        return null;
     }
 
     public static bool IsAllowedExternalUrl(string? url) =>

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Concentus.Oggfile;
+using HachidoriFfxiv;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Media;
 using NAudio.Wave;

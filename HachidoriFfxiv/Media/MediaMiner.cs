@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using HachidoriFfxiv.Capture;
+using HachidoriFfxiv.Hachidori;
 
 namespace HachidoriFfxiv.Media;
 

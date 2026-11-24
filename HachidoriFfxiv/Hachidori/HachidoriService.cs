@@ -7,7 +7,6 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
-using HachidoriFfxiv.Offline;
 
 namespace HachidoriFfxiv.Hachidori;
 
@@ -25,13 +24,11 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     private readonly ConcurrentDictionary<string, Task<byte[]?>> audioCache = new();
     private readonly ConcurrentDictionary<string, Task<IReadOnlyList<WordSpan>>> segmentCache = new();
     private readonly LiveBackend live;
-    private readonly LocalBackend? local;
-    private readonly Anki.OfflineAnkiMiner? offlineAnki;
+    private IOfflineDictionaryBackend? local;
+    private IOfflineAnkiMiner? offlineAnki;
     private string? lastCacheKey;
 
-    /// <param name="offlineRoot">Where offline mode keeps its copy; null leaves offline mode out.</param>
-    /// <param name="libraryDirectory">The folder holding hdw_native.dll.</param>
-    public HachidoriService(Configuration config, string? offlineRoot = null, string? libraryDirectory = null)
+    public HachidoriService(Configuration config)
     {
         this.config = config;
         Link = new HachidoriLink(() => new UriBuilder("ws", config.RelayHost, config.RelayPort, "/link").Uri,
@@ -40,29 +37,32 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         Link.SnapshotChanged += OnSnapshotChanged;
         Link.ConnectionChanged += OnConnectionChanged;
         live = new LiveBackend(Link, http, () => $"http://{config.RelayHost}:{config.ApiPort}/");
-        if (offlineRoot is not null && libraryDirectory is not null)
-        {
-            Offline = new OfflineMode(config, Link, offlineRoot, libraryDirectory);
-            Offline.Changed += ClearCache;
-            local = new LocalBackend(Offline, http, () => Options);
-        }
-        offlineAnki = new Anki.OfflineAnkiMiner(() => Snapshot, () => Offline is { Ready: true } o ? o.Loaded() : null, http);
+    }
+
+    internal HttpClient Http => http;
+
+    public void AttachOffline(IOfflineDictionaryBackend? localBackend, IOfflineAnkiMiner? ankiMiner)
+    {
+        if (local is not null)
+            local.Changed -= ClearCache;
+        local = localBackend;
+        if (local is not null)
+            local.Changed += ClearCache;
+        offlineAnki = ankiMiner;
     }
 
     public HachidoriLink Link { get; }
-
-    public OfflineMode? Offline { get; }
 
     /// <summary>
     /// Live Hachidori whenever it is linked; the offline copy only while it is
     /// not and offline mode is set up; otherwise live, which reports why it is unreachable.
     /// </summary>
-    public IDictionaryBackend Backend => !Link.Connected && local is not null && Offline!.Ready ? local : live;
+    public IDictionaryBackend Backend => !Link.Connected && local is { Ready: true } ? local : live;
 
     public bool UsingOffline => !Backend.IsLive;
 
     /// <summary>Hachidori's settings: the host's, or the copy offline mode saved when it is not linked.</summary>
-    public JsonObject Snapshot => Link.Connected || Link.Snapshot.Count > 0 || Offline?.Store.Snapshot is not { } saved
+    public JsonObject Snapshot => Link.Connected || Link.Snapshot.Count > 0 || local?.SavedSnapshot is not { } saved
         ? Link.Snapshot
         : saved;
 
@@ -366,7 +366,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         return await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
-    public async Task<AnkiDecision> AnkiSubmitAsync(JsonObject request, Media.ScreenshotMedia? screenshot = null)
+    public async Task<AnkiDecision> AnkiSubmitAsync(JsonObject request, ScreenshotMedia? screenshot = null)
     {
         if (UsingOffline && offlineAnki is not null)
             return await offlineAnki.SubmitAsync(request, screenshot).ConfigureAwait(false);
@@ -440,10 +440,9 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     {
         Link.SnapshotChanged -= OnSnapshotChanged;
         Link.ConnectionChanged -= OnConnectionChanged;
-        if (Offline is not null)
-            Offline.Changed -= ClearCache;
+        if (local is not null)
+            local.Changed -= ClearCache;
         offlineAnki?.Dispose();
-        Offline?.Dispose();
         Link.Dispose();
         http.Dispose();
     }

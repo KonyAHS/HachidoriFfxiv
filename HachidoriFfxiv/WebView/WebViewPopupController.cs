@@ -66,6 +66,7 @@ public sealed class WebViewPopupController : IDisposable
     public WebViewPopupController(
         Configuration config,
         HachidoriService service,
+        Offline.OfflineMode? offline,
         string configDirectory,
         Func<MediaMiner?> getMedia,
         Func<StatsTracker?> getStats,
@@ -79,7 +80,7 @@ public sealed class WebViewPopupController : IDisposable
         userDataRoot = Path.Combine(configDirectory, "webview2-data");
         Bundles = new HachidoriBundleManager(Path.Combine(configDirectory, "hachidori-web"));
         _ = Task.Run(() => PruneStaleSessionFolders(userDataRoot));
-        adapter = new HachidoriWebAdapter(config, service, getMedia, getStats, npcAvailable);
+        adapter = new HachidoriWebAdapter(config, service, offline, getMedia, getStats, npcAvailable);
         bridge = new HachidoriWebBridge(() => HachidoriWebAdapter.OptionsFrom(config), adapter)
         {
             OnNpcCaptureRequested = onNpcCapture,

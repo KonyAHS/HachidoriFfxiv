@@ -423,7 +423,7 @@ internal static class AnkiChecks
             ["configKey"] = status.ConfigKey,
             ["templateId"] = "default",
         };
-        var shot = new HachidoriFfxiv.Media.ScreenshotMedia("tok", "hachidori-screenshot-test.jpg", Convert.ToBase64String([0xFF, 0xD8, 0xFF, 0xE0]));
+        var shot = new HachidoriFfxiv.Hachidori.ScreenshotMedia("tok", "hachidori-screenshot-test.jpg", Convert.ToBase64String([0xFF, 0xD8, 0xFF, 0xE0]));
         var decision = await miner.SubmitAsync(req, shot);
         check(decision.State == "added" && decision.NoteIds.SequenceEqual([7777L])
               && multiSubValid && storedFiles.Contains("hachidori-screenshot-test.jpg"),

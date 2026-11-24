@@ -31,7 +31,7 @@ public sealed class AudioPlayer : IDisposable
     public string? LastError { get; private set; }
 
     /// <summary>Optional tracker notified whenever this player renders pronunciation audio.</summary>
-    public Media.PluginAudioTracker? PlaybackTracker { get; set; }
+    public IAudioPlaybackObserver? PlaybackTracker { get; set; }
 
     public void PlayTerm(HachidoriService service, string expression, string reading)
     {

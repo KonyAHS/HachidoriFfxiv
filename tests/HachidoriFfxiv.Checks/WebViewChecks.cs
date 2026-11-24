@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
+using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Media;
 using HachidoriFfxiv.WebView;
 using Microsoft.Web.WebView2.Core;

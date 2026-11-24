@@ -19,6 +19,7 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
 {
     private readonly Configuration config;
     private readonly HachidoriService service;
+    private readonly Offline.OfflineMode? offline;
     private readonly Func<MediaMiner?> getMedia;
     private readonly Func<StatsTracker?> getStats;
     private readonly Func<bool> npcAvailable;
@@ -26,12 +27,14 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
     public HachidoriWebAdapter(
         Configuration config,
         HachidoriService service,
+        Offline.OfflineMode? offline,
         Func<MediaMiner?> getMedia,
         Func<StatsTracker?> getStats,
         Func<bool> npcAvailable)
     {
         this.config = config;
         this.service = service;
+        this.offline = offline;
         this.getMedia = getMedia;
         this.getStats = getStats;
         this.npcAvailable = npcAvailable;
@@ -186,12 +189,12 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
         {
             return type switch
             {
-                "hd_lookup" => await Task.Run(() => service.Offline!.Loaded().Lookup(message), ct).ConfigureAwait(false),
-                "hd_kanji" => await Task.Run(() => service.Offline!.Loaded().Kanji(message), ct).ConfigureAwait(false),
-                "hd_segment" => await Task.Run(() => service.Offline!.Loaded().Segment(message), ct).ConfigureAwait(false),
+                "hd_lookup" => await Task.Run(() => offline!.Loaded().Lookup(message), ct).ConfigureAwait(false),
+                "hd_kanji" => await Task.Run(() => offline!.Loaded().Kanji(message), ct).ConfigureAwait(false),
+                "hd_segment" => await Task.Run(() => offline!.Loaded().Segment(message), ct).ConfigureAwait(false),
                 "hd_styles" => await Task.Run(() =>
                 {
-                    var loaded = service.Offline!.Loaded();
+                    var loaded = offline!.Loaded();
                     return new JsonObject
                     {
                         ["ok"] = true,
@@ -207,7 +210,7 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
                 {
                     var dict = message["dictionary"]?.ToString() ?? string.Empty;
                     var path = message["path"]?.ToString() ?? string.Empty;
-                    var bytes = service.Offline!.Loaded().Media(dict, path);
+                    var bytes = offline!.Loaded().Media(dict, path);
                     if (bytes is null || bytes.Length == 0)
                         return new JsonObject { ["ok"] = false, ["error"] = "Media not found." };
                     return new JsonObject
@@ -218,7 +221,7 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
                 }, ct).ConfigureAwait(false),
                 "hd_status" => await Task.Run(() =>
                 {
-                    var loaded = service.Offline!.Loaded();
+                    var loaded = offline!.Loaded();
                     return new JsonObject
                     {
                         ["ok"] = true,

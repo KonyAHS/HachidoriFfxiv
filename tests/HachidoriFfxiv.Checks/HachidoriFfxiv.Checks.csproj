@@ -16,7 +16,9 @@
     <Compile Include="../../HachidoriFfxiv/Hachidori/NpcImageDictionary.cs" Link="NpcImageDictionary.cs" />
     <Compile Include="../../HachidoriFfxiv/Hachidori/NpcPictureLibrary.cs" Link="NpcPictureLibrary.cs" />
     <Compile Include="../../HachidoriFfxiv/Hachidori/FfxivDictionary.cs" Link="FfxivDictionary.cs" />
-    <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs" Link="Offline/%(Filename)%(Extension)" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/ScreenshotMedia.cs" Link="ScreenshotMedia.cs" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/DictionaryBackends.cs" Link="DictionaryBackends.cs" />
+    <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs;../../HachidoriFfxiv/Offline/LocalBackend.cs" Link="Offline/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Anki/*.cs" Link="Anki/%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../HachidoriFfxiv/Anki/Data/*.json" LogicalName="HachidoriFfxiv.Anki.%(Filename).json" />
     <EmbeddedResource Include="../../HachidoriFfxiv/Offline/Data/*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />
@@ -27,6 +29,8 @@
     <Compile Include="../../HachidoriFfxiv/Host/DiagnosticLog.cs" Link="Host/DiagnosticLog.cs" />
     <Compile Include="../../HachidoriFfxiv/Capture/GameUiHeuristics.cs" Link="Capture/GameUiHeuristics.cs" />
     <Compile Include="../../HachidoriFfxiv/Host/PlatformInfo.cs" Link="Host/PlatformInfo.cs" />
+    <Compile Include="../../HachidoriFfxiv/Host/Ffmpeg.cs" Link="Host/Ffmpeg.cs" />
+    <Compile Include="../../HachidoriFfxiv/Audio/IAudioPlaybackObserver.cs" Link="Audio/IAudioPlaybackObserver.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/PronunciationDecoder.cs" Link="PronunciationDecoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/WinMmWaveOut.cs" Link="WinMmWaveOut.cs" />
     <Compile Include="../../HachidoriFfxiv/Rendering/*.cs" Link="Rendering/%(Filename)%(Extension)" />
@@ -44,7 +48,6 @@
     <Compile Include="../../HachidoriFfxiv/Ui/CursorMoves.cs" Link="Ui/CursorMoves.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="Media/ScreenshotMedia.cs" />
     <Compile Include="../../HachidoriFfxiv/Stats/*.cs" Exclude="../../HachidoriFfxiv/Stats/FfxivMsqResolver.cs" Link="Stats/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/WebView/HachidoriBundleManager.cs" Link="WebView/HachidoriBundleManager.cs" />
     <Compile Include="../../HachidoriFfxiv/WebView/HachidoriWebBridge.cs" Link="WebView/HachidoriWebBridge.cs" />
