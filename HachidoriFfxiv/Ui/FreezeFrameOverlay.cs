@@ -123,7 +123,7 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
         _ => key.ToString(),
     };
 
-    public void Toggle()
+    public new void Toggle()
     {
         if (Active) Exit();
         else Enter();

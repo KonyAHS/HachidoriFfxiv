@@ -46,7 +46,7 @@ public sealed class NpcImageCapture : Window, IDisposable
     }
 
     public bool Busy => capture is not null || save is { IsCompleted: false };
-    public bool Available => service.Link.Connected && service.Link.HostCapabilities.Contains(NpcImageDictionary.Capability);
+    public bool Available => service.Link.Connected && service.Link.HasCapability(NpcImageDictionary.Capability);
 
     /// <summary>Opens the picture list without capturing.</summary>
     public void Open()

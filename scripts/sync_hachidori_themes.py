@@ -25,7 +25,6 @@ for theme in themes:
     for extra in ("ATTRIBUTION.md", "LICENSE.Apache-2.0"):
         if (folder / extra).exists():
             shutil.copyfile(folder / extra, target / f"{slug}.{extra}")
-shutil.copyfile(source / "vendor" / "themes" / "index.json", target / "index.json")
 
 build = json.loads((source / "SOURCE.json").read_text(encoding="utf-8")) if (source / "SOURCE.json").exists() else {}
 (target / "SOURCE.txt").write_text(

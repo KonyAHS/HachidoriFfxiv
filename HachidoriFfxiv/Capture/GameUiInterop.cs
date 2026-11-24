@@ -10,7 +10,6 @@ internal readonly record struct UiInteropHealth(
     bool TalkVisible,
     bool TalkBodyResolved,
     bool TalkSpeakerResolved,
-    bool SubtitleVisible,
     bool ChatLogVisible,
     int ChatPanelCount,
     int SelectedChatTab);
@@ -145,9 +144,6 @@ internal static unsafe class GameUiInterop
         return panels;
     }
 
-    internal static bool IsTooltipAddon(string name) =>
-        GameUiHeuristics.IsTooltipAddon(name);
-
     internal static bool IsTooltipAddon(AtkUnitBase* unit, string name) =>
         GameUiHeuristics.IsTooltipAddon(name, unit != null ? unit->DepthLayer : null);
 
@@ -168,9 +164,6 @@ internal static unsafe class GameUiInterop
             }
         }
 
-        var subtitle = DalamudServices.GameGui.GetAddonByName("TalkSubtitle");
-        var subtitleVisible = !subtitle.IsNull && subtitle.IsVisible;
-
         var chatLog = DalamudServices.GameGui.GetAddonByName("ChatLog");
         var chatLogVisible = !chatLog.IsNull && chatLog.IsVisible;
         var selectedTab = chatLogVisible ? ((AddonChatLog*)chatLog.Address)->TabIndex : -1;
@@ -180,7 +173,6 @@ internal static unsafe class GameUiInterop
             TalkVisible: talkVisible,
             TalkBodyResolved: talkBodyResolved,
             TalkSpeakerResolved: talkSpeakerResolved,
-            SubtitleVisible: subtitleVisible,
             ChatLogVisible: chatLogVisible,
             ChatPanelCount: panelCount,
             SelectedChatTab: selectedTab);

@@ -59,8 +59,6 @@ public static class CssColor
         return (B(c.W) << 24) | (B(c.Z) << 16) | (B(c.Y) << 8) | B(c.X);
     }
 
-    public static Vector4 WithAlpha(Vector4 c, float alpha) => c with { W = c.W * alpha };
-
     /// <summary>color-mix(in srgb, a p, b) with premultiplied alpha, as CSS defines it.</summary>
     public static Vector4 Mix(Vector4 a, float pa, Vector4 b, float pb)
     {

@@ -138,16 +138,9 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
             ? WebView!.PopupRectScreen(depth)
             : depth < layers.Count && layers[depth].Visible ? (layers[depth].WindowPos, layers[depth].WindowPos + layers[depth].WindowSize) : null;
 
-    /// <summary>The scannable definition text of popup <paramref name="depth"/>, in reading order.</summary>
-    public List<RichBlock> ScanBlocks(int depth)
+    private List<RichBlock> ScanImGuiBlocks(int depth)
     {
         var blocks = new List<RichBlock>();
-        if (UsingWebView)
-        {
-            foreach (var (block, _) in WebView!.GetScanTargets(depth))
-                blocks.Add(block);
-            return blocks;
-        }
         if (depth >= layers.Count || layers[depth].Showing is not { } shown)
             return blocks;
         foreach (var entry in shown.Entries)
@@ -161,7 +154,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
     {
         if (UsingWebView)
             return WebView!.GetScanTargets(depth);
-        var blocks = ScanBlocks(depth);
+        var blocks = ScanImGuiBlocks(depth);
         if (blocks.Count == 0)
             return [];
         var result = new List<(RichBlock, IReadOnlyList<(int, Vector2, Vector2)>)>(blocks.Count);
@@ -176,7 +169,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
 
     /// <summary>True when popup <paramref name="depth"/> has scannable definition text the controller can dive into.</summary>
     public bool HasScanTargets(int depth) =>
-        UsingWebView ? WebView!.GetScanTargets(depth).Count > 0 : ScanBlocks(depth).Count > 0;
+        UsingWebView ? WebView!.GetScanTargets(depth).Count > 0 : ScanImGuiBlocks(depth).Count > 0;
 
     /// <summary>Updates or clears the controller cursor underline rendered on top of the WebView2 overlay.</summary>
     public void SetWebControllerCursor(IReadOnlyList<(Vector2 Min, Vector2 Max)>? segments, string? colorCss = null)
@@ -666,20 +659,18 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
         var depth = hit.Depth;
         if (depth < 0 || depth >= config.MaxPopupDepth || depth > layers.Count || string.IsNullOrEmpty(query))
             return;
-        if (layers.Count > depth)
-        {
-            var previous = layers[depth];
+        var previous = depth < layers.Count ? layers[depth] : null;
+        if (previous is not null)
             layers.RemoveRange(depth, layers.Count - depth);
-            // Keep showing the previous result at this spot until the new one arrives (no flicker).
-            var replacement = new PopupLayer(hit, query, hit.Kanji ? service.KanjiAsync(query[..Math.Min(query.Length, char.IsHighSurrogate(query[0]) ? 2 : 1)]) : service.LookupAsync(query))
-            {
-                Previous = hit.KeepPrevious && previous.Visible ? previous : null,
-            };
-            layers.Add(replacement);
-            return;
-        }
 
-        layers.Add(new PopupLayer(hit, query, hit.Kanji ? service.KanjiAsync(query[..Math.Min(query.Length, char.IsHighSurrogate(query[0]) ? 2 : 1)]) : service.LookupAsync(query)));
+        var lookup = hit.Kanji
+            ? service.KanjiAsync(query[..Math.Min(query.Length, char.IsHighSurrogate(query[0]) ? 2 : 1)])
+            : service.LookupAsync(query);
+        layers.Add(new PopupLayer(hit, lookup)
+        {
+            // Keep showing the previous result at this spot until the new one arrives (no flicker).
+            Previous = hit.KeepPrevious && previous is { Visible: true } ? previous : null,
+        });
     }
 
     private void RemoveDead()
@@ -771,7 +762,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
                         layer.ScrollToSelected = false;
                     }
 
-                    var entryHit = DrawEntry(theme, entry, depth, contentWidth, reply, shown.Context);
+                    var entryHit = DrawEntry(theme, entry, depth, contentWidth, reply);
                     if (entryHit is { } eh)
                     {
                         // Kanji lookup: hovering the headword while holding Alt (or clicking a kanji) opens kanji info.
@@ -825,11 +816,11 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
     }
 
     /// <summary>An entry, inside the theme's entry card when it has one (painted from last frame's height).</summary>
-    private TextHit? DrawEntry(PopupTheme theme, EntryView entry, int depth, float width, LookupReply reply, ScanContext context)
+    private TextHit? DrawEntry(PopupTheme theme, EntryView entry, int depth, float width, LookupReply reply)
     {
         var card = theme.IsPlugin || !theme.Entry.HasPaint ? null : theme.Entry;
         if (card is null)
-            return entry.Draw(this, depth + 1, width, service, audio, reply, context);
+            return entry.Draw(this, depth + 1, width, service, audio, reply);
 
         var scale = theme.Scale;
         var pad = card.Padding * scale;
@@ -838,7 +829,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
             ThemePainter.Paint(ImGui.GetWindowDrawList(), top, top + new Vector2(width, entry.CardHeight), card, scale);
         ImGui.Dummy(new Vector2(1, MathF.Max(pad.X, 2 * scale)));
         if (pad.W > 0) ImGui.Indent(pad.W);
-        var hit = entry.Draw(this, depth + 1, width - pad.W - pad.Y, service, audio, reply, context);
+        var hit = entry.Draw(this, depth + 1, width - pad.W - pad.Y, service, audio, reply);
         if (pad.W > 0) ImGui.Unindent(pad.W);
         ImGui.Dummy(new Vector2(1, MathF.Max(pad.Z, 2 * scale)));
         entry.CardHeight = ImGui.GetCursorScreenPos().Y - top.Y;
@@ -847,7 +838,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
 
     // ------------------------------------------------------------- lookups
 
-    internal void OnLoaded(PopupLayer layer, LookupState state)
+    private void OnLoaded(LookupState state)
     {
         if (state.Reply is not { } reply || state.Entries.Count == 0)
             return;
@@ -965,7 +956,6 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
         entry.Decision = decision;
         entry.Anki = decision.State switch
         {
-            "duplicate" when !decision.CanAdd => AnkiState.Duplicate,
             "duplicate" => AnkiState.Duplicate,
             "invalid" or "error" => AnkiState.Error,
             _ => decision.CanAdd ? AnkiState.Ready : AnkiState.Error,
@@ -1098,7 +1088,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
         private readonly LookupState state;
         private bool polled;
 
-        public PopupLayer(PendingHit hit, string query, Task<LookupReply> task)
+        public PopupLayer(PendingHit hit, Task<LookupReply> task)
         {
             this.task = task;
             Source = hit.Hit.Block;
@@ -1106,16 +1096,14 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
             TokenLength = hit.TokenEnd - hit.Hit.CharIndex;
             AnchorMin = hit.Hit.Min;
             AnchorMax = hit.Hit.Max;
-            Query = query;
             IsKanji = hit.Kanji;
             SustainedAt = DateTime.UtcNow;
-            state = new LookupState { Context = hit.Context with { MatchOffset = hit.Context.MatchOffset } };
+            state = new LookupState { Context = hit.Context };
         }
 
         public RichBlock Source { get; }
         public int SourceIndex { get; }
         private int? TokenLength { get; }
-        public string Query { get; }
         public bool IsKanji { get; }
         public Vector2 AnchorMin { get; private set; }
         public Vector2 AnchorMax { get; private set; }
@@ -1205,7 +1193,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
 
             state.Reply = reply;
             state.Entries = reply.Results.Select(r => new EntryView(r, manager.config, reply.IsKanji)).ToList();
-            manager.OnLoaded(this, state);
+            manager.OnLoaded(state);
         }
     }
 }

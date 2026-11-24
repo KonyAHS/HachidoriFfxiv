@@ -169,7 +169,6 @@ public sealed class WebViewPopupController : IDisposable
     }
 
     public void CloseAll() => host?.CloseAll();
-    public void CloseTop() => host?.CloseTop();
     public void CloseFrom(int depth) => host?.CloseFrom(depth);
     public void SendCommand(string action) => host?.SendCommand(action);
     public void ScrollPopup(int depth, float deltaY) => host?.ScrollPopup(depth, deltaY);

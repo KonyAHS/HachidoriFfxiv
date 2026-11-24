@@ -8,7 +8,6 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -114,8 +113,6 @@ public sealed class WebViewPopupHost : IDisposable
     private volatile int visibleCount;
     private volatile int matchedLength;
     private volatile uint systemCursorId;
-    private volatile string matchedExpression = string.Empty;
-    private volatile string matchedReading = string.Empty;
     private OverlayRect[] popupRects = [];
     private OverlayRect[] popupLayerRects = [];
     private readonly object rectsLock = new();
@@ -170,8 +167,6 @@ public sealed class WebViewPopupHost : IDisposable
     public int VisibleCount => visibleCount;
     public bool AnyOpen => visibleCount > 0;
     public int MatchedLength => matchedLength;
-    public string MatchedExpression => matchedExpression;
-    public string MatchedReading => matchedReading;
     public uint SystemCursorId => systemCursorId;
     public string? LoadedVersion => mappedBundleVersion;
     public bool SmokeTestPassed => smokeTestPassed;
@@ -400,12 +395,6 @@ public sealed class WebViewPopupHost : IDisposable
         Interlocked.Exchange(ref lookupPendingUntilUtcTicks, 0);
         if (!IsReady) return;
         PostJson(new JsonObject { ["kind"] = "closeAll" });
-    }
-
-    public void CloseTop()
-    {
-        if (!IsReady) return;
-        PostJson(new JsonObject { ["kind"] = "closeTop" });
     }
 
     public void CloseFrom(int depth)
@@ -894,8 +883,6 @@ public sealed class WebViewPopupHost : IDisposable
 
             case "match":
                 matchedLength = msg["length"] is JsonValue lv && lv.TryGetValue<int>(out var len) ? len : 0;
-                matchedExpression = msg["expression"]?.ToString() ?? string.Empty;
-                matchedReading = msg["reading"]?.ToString() ?? string.Empty;
                 return;
 
             case "npcCapture":

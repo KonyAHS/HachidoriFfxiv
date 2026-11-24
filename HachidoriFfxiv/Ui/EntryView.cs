@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
-using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Rendering;
@@ -132,7 +130,7 @@ public sealed class EntryView
     }
 
     /// <summary>Draws the entry; returns the hovered text (for nested lookups).</summary>
-    public TextHit? Draw(PopupManager manager, int depth, float width, HachidoriService service, Audio.AudioPlayer audio, LookupReply reply, ScanContext context)
+    public TextHit? Draw(PopupManager manager, int depth, float width, HachidoriService service, Audio.AudioPlayer audio, LookupReply reply)
     {
         TextHit? hit = null;
         var style = ImGui.GetStyle();
