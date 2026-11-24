@@ -49,6 +49,7 @@ await AnkiChecks.RunAsync(Check);
 StatsChecks.Run(Check);
 await WebViewChecks.RunAsync(Check);
 CheckFfxivDictionary(Check);
+CheckGameUiInterop(Check);
 
 Vector2 FixedMeasure(string s) => new(s.EnumerateRunes().Count() * 10, 12);
 var native = NativeTextLayout.Build("冒険\n者𠮷", 40, 40, 0, 12, 18, false, FixedMeasure);
@@ -260,6 +261,7 @@ else
     await using var app = builder.Build();
     app.UseWebSockets();
     var protocol = 1;
+    var byeMode = 0; // 0 = normal, 1 = clean bye + close, 2 = bye with stalled peer
     var connections = 0;
     var origins = new List<string>();
     app.Map("/link", async context =>
@@ -270,6 +272,20 @@ else
         try
         {
             await Receive(ws, context.RequestAborted);
+            if (byeMode > 0)
+            {
+                await Send(ws, new JsonObject { ["kind"] = "bye", ["reason"] = "Host rejected client" });
+                if (byeMode == 1)
+                {
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", context.RequestAborted);
+                }
+                else
+                {
+                    // Simulate a stalled peer that never sends a Close frame after bye.
+                    await Task.Delay(TimeSpan.FromSeconds(10), context.RequestAborted);
+                }
+                return;
+            }
             await Send(ws, new JsonObject { ["kind"] = "hello", ["protocol"] = protocol, ["name"] = "Test host", ["snapshot"] = new JsonObject() });
             while (ws.State == WebSocketState.Open)
             {
@@ -327,7 +343,24 @@ else
     using (var incompatible = new HachidoriLink(() => uri))
     {
         await Until(() => incompatible.Error?.Contains("handshake") == true);
-        Check(!incompatible.Connected, "incompatible handshake never marks the link ready");
+        Check(!incompatible.Connected && incompatible.Error!.Contains("999") && incompatible.Error.Contains("Offline Mode"),
+            "incompatible handshake surfaces peer protocol version and Offline Mode hint without marking link ready");
+    }
+    protocol = 1;
+    byeMode = 1;
+    using (var byeClean = new HachidoriLink(() => uri))
+    {
+        await Until(() => byeClean.Error?.Contains("Host rejected client") == true);
+        Check(!byeClean.Connected, "bye frame with peer close surfaces peer reason cleanly");
+    }
+    byeMode = 2;
+    var stalledCountBefore = connections;
+    using (var byeStalled = new HachidoriLink(() => uri))
+    {
+        await Until(() => byeStalled.Error?.Contains("Host rejected client") == true);
+        // Must recover and reconnect within ByeCloseTimeout (~2s) even if peer stalls closing.
+        await Until(() => connections >= stalledCountBefore + 2);
+        Check(!byeStalled.Connected, "bye frame with stalled peer times out cleanly instead of hanging receive loop");
     }
     await app.StopAsync();
 }
@@ -517,4 +550,42 @@ static void CheckFfxivDictionary(Action<bool, string> check)
 
     check(FfxivDictionary.FindInstalled([new JsonObject { ["title"] = "JMdict" }]) is null,
         "FFXIV dictionary detection ignores unrelated dictionaries");
+}
+
+static void CheckGameUiInterop(Action<bool, string> check)
+{
+    // Talk node geometry selection: speaker nameplate above multi-line body box.
+    var normalTalk = new HachidoriFfxiv.Capture.TalkTextNodeCandidate[]
+    {
+        new(0, 2, X: 20, Y: 10, Width: 220, Height: 24, Visible: true, MultiLine: false, WordWrap: false, HasText: true),
+        new(1, 3, X: 20, Y: 44, Width: 520, Height: 96, Visible: true, MultiLine: true, WordWrap: true, HasText: true),
+        new(2, 9, X: 480, Y: 140, Width: 60, Height: 18, Visible: true, MultiLine: false, WordWrap: false, HasText: true),
+    };
+    var (speakerNormal, bodyNormal) = HachidoriFfxiv.Capture.GameUiHeuristics.SelectTalkNodeIndices(normalTalk);
+    check(speakerNormal == 0 && bodyNormal == 1,
+        "GameUiHeuristics resolves Talk speaker and body nodes by geometry without offset-named fields");
+
+    // Empty body transition frame: body must STILL resolve to the dialogue box so speaker is never misread as dialogue.
+    var emptyTransition = new HachidoriFfxiv.Capture.TalkTextNodeCandidate[]
+    {
+        new(0, 2, X: 20, Y: 10, Width: 220, Height: 24, Visible: true, MultiLine: false, WordWrap: false, HasText: true),
+        new(1, 3, X: 20, Y: 44, Width: 520, Height: 96, Visible: true, MultiLine: true, WordWrap: true, HasText: false),
+    };
+    var (speakerEmpty, bodyEmpty) = HachidoriFfxiv.Capture.GameUiHeuristics.SelectTalkNodeIndices(emptyTransition);
+    check(speakerEmpty == 0 && bodyEmpty == 1,
+        "GameUiHeuristics keeps empty transition Talk body anchored instead of promoting speaker");
+
+    // Dynamic ChatLogPanel_* discovery supports 0..3 and future 4+.
+    check(HachidoriFfxiv.Capture.GameUiHeuristics.TryParseChatPanelIndex("ChatLogPanel_0", out var p0) && p0 == 0
+          && HachidoriFfxiv.Capture.GameUiHeuristics.TryParseChatPanelIndex("ChatLogPanel_5", out var p5) && p5 == 5
+          && !HachidoriFfxiv.Capture.GameUiHeuristics.TryParseChatPanelIndex("ChatLog", out _)
+          && !HachidoriFfxiv.Capture.GameUiHeuristics.TryParseChatPanelIndex("ChatLogPanel_abc", out _),
+        "GameUiHeuristics parses arbitrary ChatLogPanel_* indices dynamically");
+
+    // Tooltip classification by suffix and DepthLayer.
+    check(HachidoriFfxiv.Capture.GameUiHeuristics.IsTooltipAddon("ItemDetail")
+          && HachidoriFfxiv.Capture.GameUiHeuristics.IsTooltipAddon("CustomTooltip")
+          && HachidoriFfxiv.Capture.GameUiHeuristics.IsTooltipAddon("FutureHoverCard", HachidoriFfxiv.Capture.GameUiHeuristics.TooltipDepthLayer)
+          && !HachidoriFfxiv.Capture.GameUiHeuristics.IsTooltipAddon("Talk", 4),
+        "GameUiHeuristics classifies tooltips by name heuristics and UI depth layer");
 }

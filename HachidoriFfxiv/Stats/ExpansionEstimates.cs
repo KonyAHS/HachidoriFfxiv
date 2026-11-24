@@ -48,10 +48,11 @@ public static class ExpansionEstimates
     public const string AllMsqId = "all";
 
     /// <summary>
-    /// Live FFXIV expansion Japanese MSQ dialogue estimates derived from Japanese quest script data
+    /// Baseline FFXIV expansion Japanese MSQ dialogue estimates derived from Japanese quest script data
     /// (A Realm Reborn 2.0–2.55 through Dawntrail 7.0–7.x, excluding removed 2.0 quests).
+    /// Additional expansions (8.0+) are merged dynamically from live Lumina <c>ExVersion</c> sheets.
     /// </summary>
-    public static readonly IReadOnlyList<FfxivExpansion> All =
+    private static readonly IReadOnlyList<FfxivExpansion> Baseline =
     [
         new("arr", "2.x", "A Realm Reborn", "新生エオルゼア",     356_000, 2_298_000, 10_380, 0xFF56B8F5),
         new("hw",  "3.x", "Heavensward",    "蒼天のイシュガルド", 174_000, 1_055_000, 4_690,  0xFFFAAD5A),
@@ -61,9 +62,38 @@ public static class ExpansionEstimates
         new("dt",  "7.x", "Dawntrail",      "黄金のレガシー",     345_000, 1_122_000, 10_320, 0xFF68D698),
     ];
 
-    public static long TotalMsqChars { get; } = All.Sum(e => e.EstimatedMsqChars);
+    private static volatile IReadOnlyList<FfxivExpansion> current = Baseline;
 
-    public static long TotalAllQuestsChars { get; } = All.Sum(e => e.EstimatedAllQuestsChars);
+    public static IReadOnlyList<FfxivExpansion> All => current;
+
+    public static long TotalMsqChars => current.Sum(e => e.EstimatedMsqChars);
+
+    public static long TotalAllQuestsChars => current.Sum(e => e.EstimatedAllQuestsChars);
+
+    /// <summary>
+    /// Appends future expansions (8.0+) discovered from the player's installed FFXIV Excel sheets
+    /// while preserving the baseline ARR–Dawntrail entries.
+    /// </summary>
+    public static void RegisterExtraExpansions(IReadOnlyList<FfxivExpansion> extraExpansions)
+    {
+        if (extraExpansions.Count == 0)
+        {
+            current = Baseline;
+            return;
+        }
+
+        var merged = new List<FfxivExpansion>(Baseline.Count + extraExpansions.Count);
+        merged.AddRange(Baseline);
+        var existingIds = new HashSet<string>(Baseline.Select(e => e.Id), StringComparer.OrdinalIgnoreCase);
+        foreach (var exp in extraExpansions)
+        {
+            if (existingIds.Add(exp.Id))
+                merged.Add(exp);
+        }
+        current = merged;
+    }
+
+    internal static void ResetToBaseline() => current = Baseline;
 
     public static FfxivExpansion? FindById(string? id)
     {

@@ -271,6 +271,34 @@ internal static class StatsChecks
               && MsqQuestIndex.ComputeStartingOffset(byJa!, alreadyTrackedChars: 300_000) == 0,
             "MSQ quest name resolver matches Japanese/English/partial names and computes non-double-counted starting offsets");
 
+        // Future expansion (8.0+ / index >= 6) resilience: distinct IDs, genre filter above 81, dynamic expansion registration.
+        check(MsqQuestIndex.ExpansionIdFromIndex(6) == "ex6"
+              && MsqQuestIndex.ExpansionShortCodeFromIndex(6) == "8.x"
+              && MsqQuestIndex.IsMsqGenre(14, "メインクエスト（黄金）")
+              && MsqQuestIndex.IsMsqGenre(85, "メインクエスト（8.0）")
+              && MsqQuestIndex.IsMsqGenre(85, "", "Main Scenario (8.0)")
+              && !MsqQuestIndex.IsMsqGenre(0, "メインクエスト")
+              && !MsqQuestIndex.IsMsqGenre(79, "メインクエスト")
+              && !MsqQuestIndex.IsMsqGenre(81, "Main Scenario")
+              && !MsqQuestIndex.IsMsqGenre(14, "サブクエスト", "Sidequests"),
+            "MSQ resolver maps 8.0+ expansions to ex6/8.x and accepts MSQ genres above 81 in JP or EN");
+
+        try
+        {
+            var baseCount = ExpansionEstimates.All.Count;
+            ExpansionEstimates.RegisterExtraExpansions([
+                new FfxivExpansion("ex6", "8.x", "Future Expansion", "未来の拡張", 320_000, 960_000, 9_000, 0xFF7FD4E6),
+            ]);
+            check(ExpansionEstimates.All.Count == baseCount + 1
+                  && ExpansionEstimates.FindById("ex6") is { Name: "Future Expansion", ShortCode: "8.x" }
+                  && ExpansionEstimates.Compute(0, "ex6", 0, 5000, 10000).FocusTargetChars == 320_000,
+                "ExpansionEstimates dynamically merges 8.0+ expansions discovered from Lumina ExVersion");
+        }
+        finally
+        {
+            ExpansionEstimates.ResetToBaseline();
+        }
+
         // Ecosystem export & import round-trips (ExStatic/Rubi/GSM CSV, exSTATic Stats CSV, Kechimochi CSV, Tidepool SQLite, SubMiner SQLite)
         var dir = Path.Combine(Path.GetTempPath(), "hachidori-eco-checks-" + Guid.NewGuid().ToString("N"));
         try

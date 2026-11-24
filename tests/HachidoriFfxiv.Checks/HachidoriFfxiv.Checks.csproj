@@ -25,6 +25,7 @@
     <Compile Include="../../HachidoriFfxiv/Publishing/PublishGate.cs" Link="PublishGate.cs" />
     <Compile Include="../../HachidoriFfxiv/Publishing/TextWebSocketServer.cs" Link="TextWebSocketServer.cs" />
     <Compile Include="../../HachidoriFfxiv/DiagnosticLog.cs" Link="DiagnosticLog.cs" />
+    <Compile Include="../../HachidoriFfxiv/Capture/GameUiHeuristics.cs" Link="Capture/GameUiHeuristics.cs" />
     <Compile Include="../../HachidoriFfxiv/PlatformInfo.cs" Link="PlatformInfo.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/PronunciationDecoder.cs" Link="PronunciationDecoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/WinMmWaveOut.cs" Link="WinMmWaveOut.cs" />

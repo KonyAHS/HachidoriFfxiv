@@ -114,6 +114,9 @@ public sealed class FfxivMsqResolver
     {
         var qJa = dataManager.GetExcelSheet<Quest>(ClientLanguage.Japanese);
         var qEn = dataManager.GetExcelSheet<Quest>(ClientLanguage.English);
+        var exJa = dataManager.GetExcelSheet<ExVersion>(ClientLanguage.Japanese);
+        var exEn = dataManager.GetExcelSheet<ExVersion>(ClientLanguage.English);
+        var catEn = dataManager.GetExcelSheet<JournalCategory>(ClientLanguage.English);
         if (qJa is null)
             return new MsqQuestIndex([]);
 
@@ -126,13 +129,11 @@ public sealed class FfxivMsqResolver
                 continue;
 
             var gid = q.JournalGenre.RowId;
-            // Exclude Genre 0 (removed 2.0 quests) and optional side-story "Tales of..." genres (79–81).
-            if (gid == 0 || gid >= 79)
-                continue;
-
             var genre = q.JournalGenre.ValueNullable;
-            var catName = genre?.JournalCategory.ValueNullable?.Name.ExtractText() ?? string.Empty;
-            if (!catName.Contains("メインクエスト", StringComparison.Ordinal))
+            var catRef = genre?.JournalCategory;
+            var catNameJa = catRef?.ValueNullable?.Name.ExtractText() ?? string.Empty;
+            var catNameEn = catRef is { RowId: > 0 } cat ? catEn?.GetRowOrDefault(cat.RowId)?.Name.ExtractText() : null;
+            if (!MsqQuestIndex.IsMsqGenre(gid, catNameJa, catNameEn))
                 continue;
 
             var folder = (q.RowId / 100 % 1000).ToString("D3");
@@ -210,6 +211,34 @@ public sealed class FfxivMsqResolver
             expCumulative[item.Exp] = expBefore + item.Chars;
         }
 
-        return new MsqQuestIndex(entries);
+        var built = new MsqQuestIndex(entries);
+
+        // Dynamically register any future expansions (8.0+ / ExVersion >= 6) from live Lumina sheets.
+        var extraExpansions = new List<FfxivExpansion>();
+        foreach (var expIndex in expCumulative.Keys.Where(k => k > 5).OrderBy(k => k))
+        {
+            var expId = MsqQuestIndex.ExpansionIdFromIndex(expIndex);
+            var shortCode = MsqQuestIndex.ExpansionShortCodeFromIndex(expIndex);
+            var enName = exEn?.GetRowOrDefault(expIndex)?.Name.ExtractText();
+            var jaName = exJa?.GetRowOrDefault(expIndex)?.Name.ExtractText();
+            var msqChars = Math.Max(1L, expCumulative[expIndex]);
+            var questCount = entries.Count(e => string.Equals(e.ExpansionId, expId, StringComparison.OrdinalIgnoreCase));
+            extraExpansions.Add(new FfxivExpansion(
+                Id: expId,
+                ShortCode: shortCode,
+                Name: !string.IsNullOrWhiteSpace(enName) ? enName : $"Expansion {shortCode}",
+                JapaneseName: !string.IsNullOrWhiteSpace(jaName) ? jaName : shortCode,
+                EstimatedMsqChars: msqChars,
+                EstimatedAllQuestsChars: msqChars * 3,
+                EstimatedMsqLines: Math.Max(1, questCount * 80),
+                AccentRgba: 0xFF7FD4E6));
+        }
+        if (extraExpansions.Count > 0)
+        {
+            ExpansionEstimates.RegisterExtraExpansions(extraExpansions);
+            DiagnosticLog.Write("stats", $"Registered {extraExpansions.Count} dynamic post-7.x expansion(s): {string.Join(", ", extraExpansions.Select(e => $"{e.ShortCode} {e.Name}"))}");
+        }
+
+        return built;
     }
 }

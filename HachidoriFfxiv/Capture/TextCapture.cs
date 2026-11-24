@@ -175,8 +175,8 @@ public sealed unsafe class TextCapture : IDisposable
             return true;
         var (speaker, text) = addonName switch
         {
-            "TalkSubtitle" => (string.Empty, ReadSeString(((AddonTalkSubtitle*)addon.Address)->SubtitleText.AsSpan())),
-            "Talk" => ReadTalk((AddonTalk*)addon.Address),
+            "TalkSubtitle" => (string.Empty, ReadSeString(GameUiInterop.ReadTalkSubtitleRaw((AtkUnitBase*)addon.Address))),
+            "Talk" => ReadTalk((AtkUnitBase*)addon.Address),
             _ => ReadTexts((AtkUnitBase*)addon.Address),
         };
         if (text.Length == 0)
@@ -201,18 +201,16 @@ public sealed unsafe class TextCapture : IDisposable
         switch (addonName)
         {
             case "TalkSubtitle":
-                AppendRaw(((AddonTalkSubtitle*)unit)->SubtitleText.AsSpan());
+                AppendRaw(GameUiInterop.ReadTalkSubtitleRaw(unit));
                 break;
-            case "Talk" when ((AddonTalk*)unit)->AtkTextNode228 != null:
+            case "Talk" when GameUiInterop.TryGetTalkNodes(unit, out var talkSpeaker, out var talkBody) && talkBody != null:
             {
-                // ReadTalk: the text node, and the speaker node while it is visible.
-                var talk = (AddonTalk*)unit;
-                AppendRaw(talk->AtkTextNode228->NodeText.AsSpan());
-                var speaker = talk->AtkTextNode220;
-                var speakerVisible = speaker != null && speaker->IsVisible();
+                // ReadTalk: the dialogue body node, and the speaker node while it is visible.
+                AppendRaw(talkBody->NodeText.AsSpan());
+                var speakerVisible = talkSpeaker != null && talkSpeaker->IsVisible();
                 rawScratch.Write(speakerVisible ? (ReadOnlySpan<byte>)[1] : [0]);
                 if (speakerVisible)
-                    AppendRaw(speaker->NodeText.AsSpan());
+                    AppendRaw(talkSpeaker->NodeText.AsSpan());
                 break;
             }
             case "SelectYesno":
@@ -281,12 +279,10 @@ public sealed unsafe class TextCapture : IDisposable
     /// (はい) from being mistaken for the speaker, and a momentarily empty text node between
     /// lines from recording the speaker's name as a line of its own.
     /// </summary>
-    private static (string Speaker, string Text) ReadTalk(AddonTalk* talk)
+    private static (string Speaker, string Text) ReadTalk(AtkUnitBase* unit)
     {
-        var speakerNode = talk->AtkTextNode220;
-        var textNode = talk->AtkTextNode228;
-        if (textNode == null)
-            return ReadTexts(&talk->AtkUnitBase);
+        if (!GameUiInterop.TryGetTalkNodes(unit, out var speakerNode, out var textNode) || textNode == null)
+            return ReadTexts(unit);
         var text = ReadSeString(textNode->NodeText.AsSpan()).Trim();
         var speaker = speakerNode != null && speakerNode->IsVisible()
             ? ReadSeString(speakerNode->NodeText.AsSpan()).Trim()
