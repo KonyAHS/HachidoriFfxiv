@@ -36,18 +36,18 @@
     <Compile Include="../../HachidoriFfxiv/Rendering/*.cs" Link="Rendering/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Rendering/Css/*.cs" Exclude="../../HachidoriFfxiv/Rendering/Css/PopupThemeProvider.cs" Link="Rendering/Css/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Ui/ThemePainter.cs" Link="ThemePainter.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/AudioRing.cs" Link="Media/AudioRing.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/AudioClips.cs" Link="Media/AudioClips.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/ScdOstExtractor.cs" Link="Media/ScdOstExtractor.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/ScdVoiceExtractor.cs" Link="Media/ScdVoiceExtractor.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/PluginAudioTracker.cs" Link="Media/PluginAudioTracker.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/VoiceLineDetection.cs" Link="Media/VoiceLineDetection.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/GifEncoder.cs" Link="Media/GifEncoder.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/AnimationEncoder.cs" Link="Media/AnimationEncoder.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/TranslationPrompt.cs" Link="Media/TranslationPrompt.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Voice/AudioRing.cs" Link="Media/Voice/AudioRing.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Voice/AudioClips.cs" Link="Media/Voice/AudioClips.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Voice/ScdOstExtractor.cs" Link="Media/Voice/ScdOstExtractor.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Voice/ScdVoiceExtractor.cs" Link="Media/Voice/ScdVoiceExtractor.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Voice/PluginAudioTracker.cs" Link="Media/Voice/PluginAudioTracker.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Voice/VoiceLineDetection.cs" Link="Media/Voice/VoiceLineDetection.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Video/GifEncoder.cs" Link="Media/Video/GifEncoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Video/AnimationEncoder.cs" Link="Media/Video/AnimationEncoder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Translation/TranslationPrompt.cs" Link="Media/Translation/TranslationPrompt.cs" />
     <Compile Include="../../HachidoriFfxiv/Ui/CursorMoves.cs" Link="Ui/CursorMoves.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/GameAudioRecorder.cs" Link="Media/GameAudioRecorder.cs" />
+    <Compile Include="../../HachidoriFfxiv/Media/Voice/GameAudioRecorder.cs" Link="Media/Voice/GameAudioRecorder.cs" />
     <Compile Include="../../HachidoriFfxiv/Stats/*.cs" Exclude="../../HachidoriFfxiv/Stats/FfxivMsqResolver.cs" Link="Stats/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/WebView/HachidoriBundleManager.cs" Link="WebView/HachidoriBundleManager.cs" />
     <Compile Include="../../HachidoriFfxiv/WebView/HachidoriWebBridge.cs" Link="WebView/HachidoriWebBridge.cs" />

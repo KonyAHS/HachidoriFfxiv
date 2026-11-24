@@ -3,4 +3,3 @@
 # Regenerate after fixing debt: dotnet run --project tests/HachidoriFfxiv.ArchCheck -c Release -- --update-allow .deslop.allow
 
 long-file HachidoriFfxiv/Ui/ConfigWindow.cs
-wide-directory HachidoriFfxiv/Media
