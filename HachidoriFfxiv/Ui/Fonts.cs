@@ -90,7 +90,7 @@ public sealed class Fonts : IDisposable
         scales.Select(scale => (scale, Create(sizePx * scale))).ToArray();
 
     private static IFontHandle Create(float sizePx) =>
-        Plugin.PluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk =>
+        DalamudServices.PluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk =>
         {
             var font = tk.AddDalamudAssetFont(DalamudAsset.NotoSansCjkMedium, new SafeFontConfig
             {

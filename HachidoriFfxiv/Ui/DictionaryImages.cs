@@ -90,7 +90,7 @@ public sealed class DictionaryImages : IDisposable
                 }
                 return;
             }
-            var texture = await Plugin.TextureProvider.CreateFromImageAsync(bytes, "Hachidori for FFXIV dictionary image", slot.Cancel.Token).ConfigureAwait(false);
+            var texture = await DalamudServices.TextureProvider.CreateFromImageAsync(bytes, "Hachidori for FFXIV dictionary image", slot.Cancel.Token).ConfigureAwait(false);
             lock (slot.Gate)
             {
                 if (slot.Disposed) texture.Dispose();

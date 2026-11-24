@@ -12,9 +12,9 @@ public static class PlayerName
     /// <summary>Replacements for the current character, empty when disabled or logged out.</summary>
     public static IReadOnlyList<(string Latin, string Kana)> Replacements(Configuration config)
     {
-        if (!config.KatakanaPlayerName || !Plugin.PlayerState.IsLoaded)
+        if (!config.KatakanaPlayerName || !DalamudServices.PlayerState.IsLoaded)
             return [];
-        var name = Plugin.PlayerState.CharacterName;
+        var name = DalamudServices.PlayerState.CharacterName;
         var key = name + "\u0001" + config.PlayerNameKatakana;
         if (key != cachedKey)
         {
@@ -28,9 +28,9 @@ public static class PlayerName
     /// <summary>The automatic katakana for the current character, shown in settings.</summary>
     public static string Suggested()
     {
-        if (!Plugin.PlayerState.IsLoaded)
+        if (!DalamudServices.PlayerState.IsLoaded)
             return string.Empty;
-        var parts = Plugin.PlayerState.CharacterName.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        var parts = DalamudServices.PlayerState.CharacterName.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
         return string.Join('・', System.Array.ConvertAll(parts, NameKana.ToKatakana));
     }
 }

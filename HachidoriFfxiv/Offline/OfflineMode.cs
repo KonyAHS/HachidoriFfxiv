@@ -117,7 +117,7 @@ public sealed class OfflineMode : IDisposable
             loadedState = state;
             DiagnosticLog.Write("offline", $"Loaded {local.Loaded.Count} dictionaries ({local.DictionaryCount} kinds) in {(DateTime.UtcNow - started).TotalMilliseconds:0} ms; {local.Failures.Count} failed.");
             foreach (var (dictionary, error) in local.Failures)
-                Plugin.Log.Warning($"Offline dictionary {dictionary.Title} did not load: {error}");
+                DalamudServices.Log.Warning($"Offline dictionary {dictionary.Title} did not load: {error}");
         }
         Changed?.Invoke();
         return local;
@@ -190,7 +190,7 @@ public sealed class OfflineMode : IDisposable
         {
             LastSyncError = ex.Message;
             DiagnosticLog.Write("offline", $"Sync failed: {ex.Message}");
-            Plugin.Log.Warning(ex, "Offline dictionary sync failed");
+            DalamudServices.Log.Warning(ex, "Offline dictionary sync failed");
         }
     }
 

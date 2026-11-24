@@ -137,7 +137,7 @@ internal static unsafe class GameUiInterop
         for (var i = 0; i < 4; i++)
         {
             var name = $"ChatLogPanel_{i}";
-            var addon = Plugin.GameGui.GetAddonByName(name);
+            var addon = DalamudServices.GameGui.GetAddonByName(name);
             if (!addon.IsNull && addon.IsVisible)
                 panels.Add((i, name, addon.Address));
         }
@@ -157,7 +157,7 @@ internal static unsafe class GameUiInterop
         var talkVisible = false;
         var talkBodyResolved = false;
         var talkSpeakerResolved = false;
-        var talk = Plugin.GameGui.GetAddonByName("Talk");
+        var talk = DalamudServices.GameGui.GetAddonByName("Talk");
         if (!talk.IsNull && talk.IsVisible)
         {
             talkVisible = true;
@@ -168,10 +168,10 @@ internal static unsafe class GameUiInterop
             }
         }
 
-        var subtitle = Plugin.GameGui.GetAddonByName("TalkSubtitle");
+        var subtitle = DalamudServices.GameGui.GetAddonByName("TalkSubtitle");
         var subtitleVisible = !subtitle.IsNull && subtitle.IsVisible;
 
-        var chatLog = Plugin.GameGui.GetAddonByName("ChatLog");
+        var chatLog = DalamudServices.GameGui.GetAddonByName("ChatLog");
         var chatLogVisible = !chatLog.IsNull && chatLog.IsVisible;
         var selectedTab = chatLogVisible ? ((AddonChatLog*)chatLog.Address)->TabIndex : -1;
         var panelCount = GetVisibleChatPanels().Count;

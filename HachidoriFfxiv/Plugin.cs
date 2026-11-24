@@ -1,10 +1,6 @@
-using Dalamud.Game;
 using Dalamud.Game.Command;
-using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
-using Dalamud.IoC;
 using Dalamud.Plugin;
-using Dalamud.Plugin.Services;
 using HachidoriFfxiv.Audio;
 using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Hachidori;
@@ -19,22 +15,6 @@ public sealed class Plugin : IDalamudPlugin
 {
     private const string Command = "/hachidori";
     private const string LegacyCommand = "/hoshi";
-
-    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
-    [PluginService] internal static IFramework Framework { get; private set; } = null!;
-    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
-    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
-    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-    [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
-    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
-    [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
-    [PluginService] internal static IGamepadState Gamepad { get; private set; } = null!;
-    [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
-    [PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
-    [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
-    [PluginService] internal static IGameInteropProvider GameInterop { get; private set; } = null!;
 
     private readonly WindowSystem windows = new("HachidoriFfxiv");
     private readonly Configuration config;
@@ -57,18 +37,19 @@ public sealed class Plugin : IDalamudPlugin
     private readonly StatsWindow statsWindow;
     private readonly ConfigWindow configWindow;
 
-    public Plugin()
+    public Plugin(IDalamudPluginInterface pluginInterface)
     {
+        DalamudServices.Initialize(pluginInterface);
         DiagnosticLog.Write("plugin", $"Starting plugin on {PlatformInfo.Current.DisplayName} (wine={PlatformInfo.Current.IsWine}, steamDeck={PlatformInfo.Current.IsSteamDeck}, gamescope={PlatformInfo.Current.IsGamescope}, dcomp={PlatformInfo.Current.IsDirectCompositionAvailable}).");
         // Floating subtitles are shown in cutscenes, when Dalamud normally hides
         // plugin drawing. Keep dictionary popups usable there; retain user/Gpose hiding.
-        PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
+        DalamudServices.PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
         config = LoadConfiguration();
         if (config.Migrate())
             config.Save();
         service = new HachidoriService(config,
-            System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "offline"),
-            PluginInterface.AssemblyLocation.DirectoryName);
+            System.IO.Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "offline"),
+            DalamudServices.PluginInterface.AssemblyLocation.DirectoryName);
         audio = new AudioPlayer(config);
         fonts = new Fonts(config);
         capture = new TextCapture(config);
@@ -78,7 +59,7 @@ public sealed class Plugin : IDalamudPlugin
         media = new Media.MediaMiner(config, capture, () => !string.IsNullOrWhiteSpace(config.AnkiConnectApiKey) ? config.AnkiConnectApiKey.Trim() : service.AnkiApiKey);
         audio.PlaybackTracker = media.PluginAudio;
         stats = new StatsTracker(
-            System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "stats"),
+            System.IO.Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "stats"),
             text => service.Link.Connected || (service.Offline?.Ready == true)
                 ? service.SegmentAsync(text)
                 : System.Threading.Tasks.Task.FromResult<System.Collections.Generic.IReadOnlyList<WordSpan>>([]),
@@ -91,14 +72,14 @@ public sealed class Plugin : IDalamudPlugin
                 WriteTidepoolSqlite = () => config.StatsWriteTidepoolSqlite,
             });
         capture.LineCaptured += OnLineCapturedForStats;
-        msqResolver = new FfxivMsqResolver(DataManager);
+        msqResolver = new FfxivMsqResolver(DalamudServices.DataManager);
         ankiFeed = new AnkiCardFeed(media.Anki);
         popups.Media = media;
         popups.Stats = stats;
         webView = new WebViewPopupController(
             config,
             service,
-            PluginInterface.GetPluginConfigDirectory(),
+            DalamudServices.PluginInterface.GetPluginConfigDirectory(),
             () => media,
             () => stats,
             () => popups.NpcImages.Available,
@@ -126,25 +107,25 @@ public sealed class Plugin : IDalamudPlugin
         windows.AddWindow(popups.NpcImages);
         windows.AddWindow(freezeFrame);
 
-        CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
+        DalamudServices.CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
             HelpMessage = "Open Hachidori for FFXIV settings. /hachidori help lists more commands.",
         });
-        CommandManager.AddHandler(LegacyCommand, new CommandInfo(OnCommand)
+        DalamudServices.CommandManager.AddHandler(LegacyCommand, new CommandInfo(OnCommand)
         {
             HelpMessage = "Alias for /hachidori.", ShowInHelp = false,
         });
 
-        PluginInterface.UiBuilder.Draw += Draw;
-        PluginInterface.UiBuilder.OpenConfigUi += configWindow.Toggle;
+        DalamudServices.PluginInterface.UiBuilder.Draw += Draw;
+        DalamudServices.PluginInterface.UiBuilder.OpenConfigUi += configWindow.Toggle;
     }
 
     private static Configuration LoadConfiguration()
     {
-        var current = PluginInterface.GetPluginConfig() as Configuration;
+        var current = DalamudServices.PluginInterface.GetPluginConfig() as Configuration;
         if (current is not null) return current;
-        var legacy = System.IO.Path.Combine(PluginInterface.ConfigFile.DirectoryName!, "Hoshidori.json");
-        if (System.IO.File.Exists(legacy) && !PluginInterface.ConfigFile.Exists)
+        var legacy = System.IO.Path.Combine(DalamudServices.PluginInterface.ConfigFile.DirectoryName!, "Hoshidori.json");
+        if (System.IO.File.Exists(legacy) && !DalamudServices.PluginInterface.ConfigFile.Exists)
         {
             try
             {
@@ -153,11 +134,11 @@ public sealed class Plugin : IDalamudPlugin
                     new Newtonsoft.Json.JsonSerializerSettings { TypeNameHandling = Newtonsoft.Json.TypeNameHandling.None });
                 if (migrated is not null)
                 {
-                    PluginInterface.SavePluginConfig(migrated);
+                    DalamudServices.PluginInterface.SavePluginConfig(migrated);
                     return migrated;
                 }
             }
-            catch (System.Exception ex) { Log.Warning(ex, "Could not migrate the previous plugin settings."); }
+            catch (System.Exception ex) { DalamudServices.Log.Warning(ex, "Could not migrate the previous plugin settings."); }
         }
         return new Configuration();
     }
@@ -170,34 +151,6 @@ public sealed class Plugin : IDalamudPlugin
         if (!config.TokenizedHover) return;
         foreach (var line in lines)
             _ = service.SegmentAsync(line);
-    }
-
-    internal static void NotifyAnkiCardCreated(Configuration config, string expression, string reading, bool updated = false)
-    {
-        if (!config.NotifyOnAnkiMine || NotificationManager is null)
-            return;
-        var word = string.IsNullOrWhiteSpace(expression)
-            ? "Card saved"
-            : !string.IsNullOrWhiteSpace(reading) && !string.Equals(reading, expression, System.StringComparison.Ordinal)
-                ? $"{expression} ({reading})"
-                : expression;
-        var title = updated ? "Anki card updated" : "Anki card created";
-        try
-        {
-            NotificationManager.AddNotification(new Notification
-            {
-                Title = title,
-                Content = word,
-                MinimizedText = $"{title}: {word}",
-                Type = NotificationType.Success,
-                InitialDuration = System.TimeSpan.FromSeconds(3),
-                RespectUiHidden = false,
-            });
-        }
-        catch (System.Exception ex)
-        {
-            DiagnosticLog.Write("anki", $"Notification skipped: {ex.Message}");
-        }
     }
 
     private void Draw()
@@ -259,11 +212,11 @@ public sealed class Plugin : IDalamudPlugin
                 PrintDiagnostics();
                 return;
             case "help":
-                ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori diag · /hachidori logs");
+                DalamudServices.ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori diag · /hachidori logs");
                 return;
             case "logs":
-                try { ChatGui.Print($"Hachidori for FFXIV debug log: {ExportLogs()}"); }
-                catch (System.Exception ex) { ChatGui.PrintError($"Hachidori for FFXIV log export failed: {ex.Message}"); }
+                try { DalamudServices.ChatGui.Print($"Hachidori for FFXIV debug log: {ExportLogs()}"); }
+                catch (System.Exception ex) { DalamudServices.ChatGui.PrintError($"Hachidori for FFXIV log export failed: {ex.Message}"); }
                 return;
             default:
                 search.SetText(text);
@@ -274,10 +227,10 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        PluginInterface.UiBuilder.Draw -= Draw;
-        PluginInterface.UiBuilder.OpenConfigUi -= configWindow.Toggle;
-        CommandManager.RemoveHandler(Command);
-        CommandManager.RemoveHandler(LegacyCommand);
+        DalamudServices.PluginInterface.UiBuilder.Draw -= Draw;
+        DalamudServices.PluginInterface.UiBuilder.OpenConfigUi -= configWindow.Toggle;
+        DalamudServices.CommandManager.RemoveHandler(Command);
+        DalamudServices.CommandManager.RemoveHandler(LegacyCommand);
         windows.RemoveAllWindows();
         capture.LineCaptured -= OnLineCapturedForStats;
         nativeHover.ChatLinesChanged -= OnChatLinesChanged;
@@ -327,7 +280,7 @@ public sealed class Plugin : IDalamudPlugin
         };
         foreach (var line in lines)
         {
-            ChatGui.Print(line);
+            DalamudServices.ChatGui.Print(line);
             DiagnosticLog.Write("diag", line);
         }
     }
@@ -393,10 +346,10 @@ public sealed class Plugin : IDalamudPlugin
             ["talkVisible"] = capture.TalkVisible,
             ["floatingSubtitleVisible"] = nativeHover.SubtitleVisible,
             ["battleTalkVisible"] = capture.BattleTalkVisible,
-            ["cutsceneDrawingEnabled"] = PluginInterface.UiBuilder.DisableCutsceneUiHide,
+            ["cutsceneDrawingEnabled"] = DalamudServices.PluginInterface.UiBuilder.DisableCutsceneUiHide,
             ["lastCapturedSource"] = capture.Current?.Source.ToString(),
             ["lastCapturedCharacterCount"] = capture.Current?.Text.Length ?? 0,
         };
-        return DiagnosticLog.Export(System.IO.Path.Combine(PluginInterface.GetPluginConfigDirectory(), "logs"), context);
+        return DiagnosticLog.Export(System.IO.Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "logs"), context);
     }
 }

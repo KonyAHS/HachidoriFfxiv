@@ -39,7 +39,7 @@ public sealed class NpcImageCapture : Window, IDisposable
     public NpcImageCapture(HachidoriService service) : base("NPC pictures##hachidori-ffxiv-npc-picture")
     {
         this.service = service;
-        library = new NpcPictureLibrary(Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "npc-pictures"),
+        library = new NpcPictureLibrary(Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "npc-pictures"),
             service, ShrinkAsync);
         Size = new Vector2(800, 580);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -78,7 +78,7 @@ public sealed class NpcImageCapture : Window, IDisposable
         dragStart = null;
         try
         {
-            capture = Plugin.TextureProvider.CreateFromImGuiViewportAsync(new ImGuiViewportTextureArgs
+            capture = DalamudServices.TextureProvider.CreateFromImGuiViewportAsync(new ImGuiViewportTextureArgs
             {
                 ViewportId = ImGui.GetMainViewport().ID, AutoUpdate = false, TakeBeforeImGuiRender = true,
             }, "Hachidori for FFXIV NPC capture", lifetime.Token);
@@ -231,7 +231,7 @@ public sealed class NpcImageCapture : Window, IDisposable
     {
         var (width, height) = NpcImageDictionary.Fit(
             Math.Max(1, (int)Math.Round((uv1.X - uv0.X) * source.Width)), Math.Max(1, (int)Math.Round((uv1.Y - uv0.Y) * source.Height)));
-        using var crop = await Plugin.TextureProvider.CreateFromExistingTextureAsync(source,
+        using var crop = await DalamudServices.TextureProvider.CreateFromExistingTextureAsync(source,
             new TextureModificationArgs { Uv0 = uv0, Uv1 = uv1, NewWidth = width, NewHeight = height }, leaveWrapOpen: true,
             debugName: "Hachidori for FFXIV NPC crop", cancellationToken: lifetime.Token).ConfigureAwait(false);
         return new NpcPicture(term, termReading, await EncodeAsync(crop, lifetime.Token).ConfigureAwait(false), crop.Width, crop.Height);
@@ -242,8 +242,8 @@ public sealed class NpcImageCapture : Window, IDisposable
     {
         var (width, height) = NpcImageDictionary.Fit(picture.Width, picture.Height);
         if (width == picture.Width && height == picture.Height) return picture;
-        using var original = await Plugin.TextureProvider.CreateFromImageAsync(picture.Png, "Hachidori for FFXIV NPC merge", ct).ConfigureAwait(false);
-        using var resized = await Plugin.TextureProvider.CreateFromExistingTextureAsync(original,
+        using var original = await DalamudServices.TextureProvider.CreateFromImageAsync(picture.Png, "Hachidori for FFXIV NPC merge", ct).ConfigureAwait(false);
+        using var resized = await DalamudServices.TextureProvider.CreateFromExistingTextureAsync(original,
             new TextureModificationArgs { NewWidth = width, NewHeight = height }, leaveWrapOpen: true,
             debugName: "Hachidori for FFXIV NPC merge resize", cancellationToken: ct).ConfigureAwait(false);
         return picture with { Png = await EncodeAsync(resized, ct).ConfigureAwait(false), Width = resized.Width, Height = resized.Height };
@@ -252,7 +252,7 @@ public sealed class NpcImageCapture : Window, IDisposable
     private static async Task<byte[]> EncodeAsync(IDalamudTextureWrap texture, CancellationToken ct)
     {
         using var png = new MemoryStream();
-        await Plugin.TextureReadback.SaveToStreamAsync(texture, PngFormat, png,
+        await DalamudServices.TextureReadback.SaveToStreamAsync(texture, PngFormat, png,
             leaveWrapOpen: true, leaveStreamOpen: true, cancellationToken: ct).ConfigureAwait(false);
         return png.ToArray();
     }

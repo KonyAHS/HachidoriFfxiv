@@ -35,8 +35,8 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     {
         this.config = config;
         Link = new HachidoriLink(() => new UriBuilder("ws", config.RelayHost, config.RelayPort, "/link").Uri,
-            ex => Plugin.Log.Warning(ex, "Dropped a sharing frame"),
-            logWarning: msg => Plugin.Log.Warning("HachidoriFfxiv: {Message}", msg));
+            ex => DalamudServices.Log.Warning(ex, "Dropped a sharing frame"),
+            logWarning: msg => DalamudServices.Log.Warning("HachidoriFfxiv: {Message}", msg));
         Link.SnapshotChanged += OnSnapshotChanged;
         Link.ConnectionChanged += OnConnectionChanged;
         live = new LiveBackend(Link, http, () => $"http://{config.RelayHost}:{config.ApiPort}/");

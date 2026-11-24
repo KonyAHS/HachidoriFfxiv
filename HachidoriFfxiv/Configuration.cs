@@ -423,5 +423,5 @@ public sealed class Configuration : IPluginConfiguration
         DocumentTitle = d.DocumentTitle;
     }
 
-    public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
+    public void Save() => DalamudServices.PluginInterface.SavePluginConfig(this);
 }

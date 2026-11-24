@@ -160,7 +160,7 @@ public sealed unsafe class BgmTracker
         {
             var track = cache.GetOrAdd(snapshot.FilePath, snapshot.SoundNumber, () =>
             {
-                var scd = Plugin.DataManager.GetFile<ScdFile>(snapshot.FilePath);
+                var scd = DalamudServices.DataManager.GetFile<ScdFile>(snapshot.FilePath);
                 if (scd is null)
                 {
                     DiagnosticLog.Write("ost", $"Could not load SCD file: {snapshot.FilePath}");
@@ -360,7 +360,7 @@ public sealed unsafe class BgmTracker
         string? resolved = null;
         try
         {
-            var sheet = Plugin.DataManager.GetExcelSheet<BGM>();
+            var sheet = DalamudServices.DataManager.GetExcelSheet<BGM>();
             if (sheet is not null && sheet.TryGetRow(bgmId, out var row))
                 resolved = NormalizePath(row.File.ExtractText());
         }

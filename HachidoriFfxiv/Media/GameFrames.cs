@@ -46,7 +46,7 @@ public sealed class GameFrames : IDisposable
 
         if (viewport is null && Stopwatch.GetTimestamp() < retryAfter)
             return;
-        viewport ??= Plugin.TextureProvider.CreateFromImGuiViewportAsync(new ImGuiViewportTextureArgs
+        viewport ??= DalamudServices.TextureProvider.CreateFromImGuiViewportAsync(new ImGuiViewportTextureArgs
         {
             ViewportId = ImGui.GetMainViewport().ID,
             TakeBeforeImGuiRender = true,
@@ -81,7 +81,7 @@ public sealed class GameFrames : IDisposable
         {
             var width = Math.Clamp(config.GifWidth, 160, 1280);
             var height = Math.Max(2, (int)Math.Round(width * source.Height / (double)Math.Max(1, source.Width)) & ~1);
-            var (spec, data) = await Plugin.TextureReadback.GetRawImageAsync(source, new TextureModificationArgs
+            var (spec, data) = await DalamudServices.TextureReadback.GetRawImageAsync(source, new TextureModificationArgs
             {
                 NewWidth = width,
                 NewHeight = height,
@@ -195,7 +195,7 @@ public sealed class GameFrames : IDisposable
         {
             if (source.Width > maxWidth)
             {
-                scaled = await Plugin.TextureProvider.CreateFromExistingTextureAsync(source, new TextureModificationArgs
+                scaled = await DalamudServices.TextureProvider.CreateFromExistingTextureAsync(source, new TextureModificationArgs
                 {
                     NewWidth = maxWidth,
                     NewHeight = (int)Math.Round(maxWidth * source.Height / (double)source.Width),
@@ -204,7 +204,7 @@ public sealed class GameFrames : IDisposable
             }
 
             using var stream = new MemoryStream();
-            await Plugin.TextureReadback.SaveToStreamAsync(scaled ?? source, JpegContainer, stream,
+            await DalamudServices.TextureReadback.SaveToStreamAsync(scaled ?? source, JpegContainer, stream,
                 new Dictionary<string, object> { ["ImageQuality"] = Math.Clamp(config.ScreenshotQuality, 0.4f, 1f) },
                 true, true).ConfigureAwait(false);
             return stream.ToArray();

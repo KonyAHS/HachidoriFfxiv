@@ -1359,7 +1359,7 @@ public sealed class StatsWindow : Window
 
     private static string GetExportDirectory()
     {
-        var dir = Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "exports");
+        var dir = Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "exports");
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -1862,7 +1862,7 @@ public sealed class StatsWindow : Window
 
     private static void Icon(FontAwesomeIcon icon, Vector4 color)
     {
-        using (Plugin.PluginInterface.UiBuilder.IconFontHandle.Push())
+        using (DalamudServices.PluginInterface.UiBuilder.IconFontHandle.Push())
             ImGui.TextColored(color, icon.ToIconString());
     }
 

@@ -224,7 +224,7 @@ public sealed class EntryView
     private void DrawButtons(PopupManager manager, HachidoriService service, Audio.AudioPlayer audio)
     {
         var term = Result.Term;
-        using (Plugin.PluginInterface.UiBuilder.IconFontHandle.Push())
+        using (DalamudServices.PluginInterface.UiBuilder.IconFontHandle.Push())
         {
             if (Button(FontAwesomeIcon.VolumeUp, "Play pronunciation (Hachidori audio sources)"))
                 audio.PlayTerm(service, term.Expression, term.Reading);
@@ -275,7 +275,7 @@ public sealed class EntryView
         var clicked = ImGui.Button(icon.ToIconString(), new Vector2(ImGui.GetFrameHeight()));
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
-            using (Plugin.PluginInterface.UiBuilder.DefaultFontHandle.Push())
+            using (DalamudServices.PluginInterface.UiBuilder.DefaultFontHandle.Push())
                 ImGui.SetTooltip(tooltip);
         }
 
@@ -332,7 +332,7 @@ public sealed class EntryView
                 ImGui.Dummy(new Vector2(total, size * 1.35f));
                 if (ImGui.IsItemHovered() && group.Dictionary.Length > 0)
                 {
-                    using (Plugin.PluginInterface.UiBuilder.DefaultFontHandle.Push())
+                    using (DalamudServices.PluginInterface.UiBuilder.DefaultFontHandle.Push())
                         ImGui.SetTooltip(group.Dictionary);
                 }
 
