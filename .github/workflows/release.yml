@@ -68,4 +68,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" dist/* --verify-tag --title "Hachidori for FFXIV $RELEASE_TAG" --generate-notes
+        run: |
+          tag_type="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.type')"
+          if [ "$tag_type" = "tag" ]; then
+            tag_sha="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+            gh api "repos/$GH_REPO/git/tags/$tag_sha" --jq '.message' > release-notes.md
+          fi
+          if grep -q '[^[:space:]]' release-notes.md 2>/dev/null; then
+            gh release create "$RELEASE_TAG" dist/* --verify-tag --title "Hachidori for FFXIV $RELEASE_TAG" --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" dist/* --verify-tag --title "Hachidori for FFXIV $RELEASE_TAG" --generate-notes
+          fi
