@@ -2,4 +2,3 @@
 # Do not add new entries casually; fix new violations from first principles.
 # Regenerate after fixing debt: dotnet run --project tests/HachidoriFfxiv.ArchCheck -c Release -- --update-allow .deslop.allow
 
-long-file HachidoriFfxiv/Ui/ConfigWindow.cs
