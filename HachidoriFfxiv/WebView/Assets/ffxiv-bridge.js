@@ -20,16 +20,23 @@
     }
   };
 
-  // Capture the shadow root attached to <hachidori-host> so we can measure popup
-  // rects, inject the themed NPC picture action button, and drive controller nav.
+  // Capture the shadow root attached to <hachidori-host> (or fallback to any custom element
+  // inside this dedicated host page if upstream renames the tag) so we can measure popup rects,
+  // inject the themed NPC picture action button, and drive controller nav.
   let hachidoriShadow = null;
   let hachidoriHostEl = null;
+  let usedFallbackHostTag = false;
+  let usedFallbackPopupSelector = false;
+  let smokeTestActive = false;
   const nativeAttachShadow = Element.prototype.attachShadow;
   Element.prototype.attachShadow = function (init) {
     const root = nativeAttachShadow.call(this, init);
-    if (this.localName === HOST_TAG) {
+    const isExpectedHost = this.localName === HOST_TAG;
+    const isFallbackHost = !hachidoriShadow && typeof this.localName === "string" && this.localName.includes("-");
+    if (isExpectedHost || isFallbackHost) {
       hachidoriHostEl = this;
       hachidoriShadow = root;
+      usedFallbackHostTag = !isExpectedHost;
       observeShadow(root);
     }
     return root;
@@ -108,6 +115,7 @@
   let manifest = { manifest_version: 3, name: "Hachidori", version: "0.0.0", content_scripts: [] };
   let storageState = { options: {}, dictionaryState: null, lookupStats: null, wordStatusOverrides: null };
   let npcPicturesAvailable = false;
+  let bundleCacheKey = "";
   let readerApi = null;
   let audioService = null;
   let audioServicePromise = null;
@@ -209,9 +217,53 @@
     }
   }
 
+  function syntheticSmokeRpcReply(message) {
+    const type = message?.type;
+    const requestId = message?.requestId;
+    if (type === "hd_lookup") {
+      return {
+        ok: true,
+        type: "hd_lookup_result",
+        requestId,
+        generation: 1,
+        dictionaryCount: 1,
+        results: [{
+          matched: "テスト",
+          deinflected: "テスト",
+          trace: [],
+          preprocessorSteps: 0,
+          term: {
+            expression: "テスト",
+            reading: "てすと",
+            rules: "n",
+            score: 100,
+            furigana: [{ text: "テスト", reading: "てすと" }],
+            glossaries: [
+              { dictionary: "SmokeTest", glossary: "[\"test\"]", definitionTags: "n", termTags: "", tags: [] },
+            ],
+            frequencies: [],
+            pitches: [],
+          },
+        }],
+      };
+    }
+    if (type === "hd_styles") return { ok: true, requestId, generation: 1, styles: [] };
+    if (type === "hd_anki_status") return { ok: true, requestId, available: false, configKey: "" };
+    if (type === "hd_anki_preflight" || type === "hd_anki_view") {
+      return { ok: true, requestId, state: "unavailable", canAdd: false, screenshot: false, noteIds: [] };
+    }
+    if (type === "hd_lookup_stats_read" || type === "hd_lookup_stats_record") {
+      return { ok: true, requestId, descriptor: { generation: "smoke", revision: 1 }, statistics: { term: "テスト", reading: "てすと", lookupCount: 1 } };
+    }
+    return { ok: true, requestId };
+  }
+
   async function handleSendMessage(message) {
     if (!message || typeof message !== "object") {
       return { ok: false, error: "empty message" };
+    }
+    if (smokeTestActive) {
+      return syntheticSmokeRpcReply(message);
     }
     const { target, type, requestId } = message;
 
@@ -338,7 +390,27 @@
 
   function visiblePopups() {
     if (!hachidoriShadow) return [];
-    return [...hachidoriShadow.querySelectorAll(".gsm-hoshidicts-popup")].filter((el) => !el.hidden);
+    const primary = [...hachidoriShadow.querySelectorAll(".gsm-hoshidicts-popup, [data-hachidori-role='popup']")].filter((el) => !el.hidden);
+    if (primary.length > 0) {
+      usedFallbackPopupSelector = false;
+      return primary;
+    }
+    // Structural fallback if upstream renames .gsm-hoshidicts-popup: detect visible dialog/card containers
+    // inside the dedicated shadow root so hit-testing and mouse input stay functional.
+    const candidates = [...hachidoriShadow.querySelectorAll("[role='dialog'], :scope > div, :scope > section, :scope > aside")];
+    const structural = [];
+    for (const el of candidates) {
+      if (el.hidden) continue;
+      if (el.matches(".gsm-hoshidicts-image-hover-preview, .gsm-hoshidicts-audio-menu")) continue;
+      const st = window.getComputedStyle(el);
+      if (st.display === "none" || st.visibility === "hidden" || Number(st.opacity) === 0) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width >= 40 && r.height >= 20) structural.push(el);
+    }
+    if (structural.length > 0) {
+      usedFallbackPopupSelector = true;
+    }
+    return structural;
   }
 
   function computeRects() {
@@ -569,6 +641,7 @@
       window.clearTimeout(rectsTimer);
       rectsTimer = 0;
     }
+    if (smokeTestActive) return;
     injectNpcCameraButtons();
     const state = computeRects();
     const json = JSON.stringify(state);
@@ -685,12 +758,14 @@
     shadowResizeObserver?.disconnect();
     shadowObserver = new MutationObserver(() => {
       if (shadowResizeObserver) {
-        for (const el of root.querySelectorAll(".gsm-hoshidicts-popup")) {
+        for (const el of visiblePopups()) {
           shadowResizeObserver.observe(el);
         }
       }
-      injectNpcCameraButtons();
-      scheduleRectsSync();
+      if (!smokeTestActive) {
+        injectNpcCameraButtons();
+        scheduleRectsSync();
+      }
     });
     shadowObserver.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "style", "class", "data-hoshidicts-renderer"] });
     if (typeof ResizeObserver === "function") {
@@ -837,6 +912,7 @@
       case "init": {
         if (typeof msg.audioVolume === "number") audioVolume = msg.audioVolume;
         if (typeof msg.npcPicturesAvailable === "boolean") npcPicturesAvailable = msg.npcPicturesAvailable;
+        if (typeof msg.bundleKey === "string") bundleCacheKey = msg.bundleKey;
         applySnapshot(msg.snapshot, booted);
         if (!booted) void bootHachidori();
         return;
@@ -979,22 +1055,83 @@
     });
   }
 
+  async function runBootSmokeTest() {
+    if (!readerApi || typeof readerApi.act !== "function") {
+      throw new Error("Boot smoke test failed: HDReaderReady did not expose readerApi.act().");
+    }
+    smokeTestActive = true;
+    try {
+      showLookup({
+        sentence: "テスト",
+        charIndex: 0,
+        anchorRect: { left: 40, top: 40, width: 24, height: 24 },
+        documentTitle: "hachidori-boot-smoke-test",
+        tokenLength: 3,
+      });
+
+      const deadline = Date.now() + 2500;
+      let popups = [];
+      let state = { rects: [], layerRects: [], visibleCount: 0 };
+      while (Date.now() < deadline) {
+        popups = visiblePopups();
+        state = computeRects();
+        if (hachidoriShadow && popups.length > 0 && state.rects.length > 0) {
+          const text = (popups[0].textContent || "").trim();
+          if (text.length > 0) break;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 25));
+      }
+
+      if (!hachidoriShadow) {
+        throw new Error(`Boot smoke test failed: no shadow root captured (expected <${HOST_TAG}>).`);
+      }
+      if (popups.length === 0 || state.rects.length === 0) {
+        throw new Error(`Boot smoke test failed: lookup rendered no measurable popup rects (popups=${popups.length}, rects=${state.rects.length}).`);
+      }
+      const rootText = (popups[0].textContent || "").trim();
+      if (rootText.length === 0) {
+        throw new Error("Boot smoke test failed: rendered popup contained no text.");
+      }
+    } finally {
+      try {
+        closeAllPopups();
+      } catch { /* ignore */ }
+      lastRectsJson = "";
+      lastReportedMatch = "";
+      currentMatchLength = 0;
+      smokeTestActive = false;
+    }
+  }
+
+  function cacheBust(url) {
+    if (!bundleCacheKey) return url;
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}_hdv=${encodeURIComponent(bundleCacheKey)}`;
+  }
+
   async function bootHachidori() {
     if (booted) return;
     booted = true;
     try {
-      const resp = await fetch(runtime.getURL("manifest.json"));
+      const resp = await fetch(cacheBust(runtime.getURL("manifest.json")), { cache: "no-store" });
       if (!resp.ok) throw new Error(`manifest.json HTTP ${resp.status}`);
       manifest = await resp.json();
       const [cs] = manifest.content_scripts ?? [];
       for (const css of cs?.css ?? []) {
-        await loadCss(runtime.getURL(css));
+        await loadCss(cacheBust(runtime.getURL(css)));
       }
       for (const js of cs?.js ?? []) {
-        await loadScript(runtime.getURL(js));
+        await loadScript(cacheBust(runtime.getURL(js)));
       }
       readerApi = await globalThis.HDReaderReady;
-      postToHost({ kind: "ready", version: manifest.version || "unknown" });
+      await runBootSmokeTest();
+      postToHost({
+        kind: "ready",
+        version: manifest.version || "unknown",
+        hostTag: hachidoriHostEl?.localName ?? "",
+        usedFallbackHostTag,
+        usedFallbackSelector: usedFallbackPopupSelector,
+      });
     } catch (error) {
       console.error("hachidori-ffxiv: boot failed", error);
       postToHost({ kind: "bootError", error: error?.stack || error?.message || String(error) });

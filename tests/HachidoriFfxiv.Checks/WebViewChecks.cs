@@ -19,6 +19,7 @@ internal static class WebViewChecks
         CheckBundleFiltering(check);
         CheckBundleLifecycleAndRollback(check);
         await CheckBridgeProjectionAndRpcAsync(check);
+        await CheckSmokeTestAndDomFallbackAsync(check);
         await CheckLiveWebViewThemesAsync(check);
     }
 
@@ -298,6 +299,129 @@ internal static class WebViewChecks
               && backend.SubmittedRequest?["matchOffset"]?.GetValue<int>() == 0,
             "bridge preserves definition sentence when mining from a nested popup");
         bridge.ClearActiveLookupContext();
+    }
+
+    private static async Task CheckSmokeTestAndDomFallbackAsync(Action<bool, string> check)
+    {
+        if (!WebViewPopupHost.IsRuntimeAvailable(out _))
+        {
+            Console.WriteLine("SKIP: WebView2 boot smoke-test & DOM fallback check (WebView2 runtime not installed)");
+            return;
+        }
+
+        var temp = Path.Combine(Path.GetTempPath(), "hachidori-wv-smoke-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            // 1. Renamed host tag + renamed popup class -> structural fallback keeps hit-test rects working.
+            var renamedDir = Path.Combine(temp, "src-renamed");
+            WriteSyntheticBundle(renamedDir, "1.0.0", """
+                (function () {
+                  const host = document.createElement("renamed-dict-host");
+                  document.body.appendChild(host);
+                  const shadow = host.attachShadow({ mode: "closed" });
+                  let popup = null;
+                  globalThis.HDReaderReady = Promise.resolve({
+                    act(cmd) {
+                      if (cmd === "scanTextAtSelection") {
+                        chrome.runtime.sendMessage({ target: "hoshidicts-offscreen", type: "hd_lookup", text: "テスト" }).then((reply) => {
+                          if (!popup) {
+                            popup = document.createElement("div");
+                            popup.setAttribute("role", "dialog");
+                            popup.style.cssText = "position:fixed;left:24px;top:24px;width:260px;height:110px;background:#222;color:#fff;";
+                            shadow.appendChild(popup);
+                          }
+                          popup.hidden = false;
+                          popup.textContent = reply?.results?.[0]?.term?.expression || "テスト";
+                        });
+                        return true;
+                      }
+                      if (cmd === "close" && popup && !popup.hidden) {
+                        popup.hidden = true;
+                        return true;
+                      }
+                      return false;
+                    }
+                  });
+                }());
+                """);
+
+            using var fallbackBundles = new HachidoriBundleManager(Path.Combine(temp, "cache-fallback"));
+            fallbackBundles.InstallFromDirectory(renamedDir, "test");
+            var mockBackend = new MockBackend(new JsonObject { ["options"] = new JsonObject() });
+            var bridge = new HachidoriWebBridge(() => new WebBridgeOptions(), mockBackend);
+
+            using (var host = new WebViewPopupHost(Path.Combine(temp, "wv-fallback"), bridge, fallbackBundles, headless: true, initialWidth: 800, initialHeight: 600))
+            {
+                var ok = await host.WaitUntilReadyAsync(TimeSpan.FromSeconds(20));
+                check(ok && host.SmokeTestPassed && host.UsedFallbackSelector && host.HostTagName == "renamed-dict-host",
+                    $"WebView2 structural fallback survives renamed host tag & popup class (ok={ok}, hostTag={host.HostTagName}, fallback={host.UsedFallbackSelector})");
+            }
+
+            // 2. Broken upstream bundle (boots HDReaderReady cleanly, but renders no popup rects) triggers automatic rollback.
+            var goodDir = Path.Combine(temp, "src-v1-good");
+            WriteSyntheticBundle(goodDir, "1.0.0", """
+                (function () {
+                  const host = document.createElement("hachidori-host");
+                  document.body.appendChild(host);
+                  const shadow = host.attachShadow({ mode: "closed" });
+                  let popup = null;
+                  globalThis.HDReaderReady = Promise.resolve({
+                    act(cmd) {
+                      if (cmd === "scanTextAtSelection") {
+                        chrome.runtime.sendMessage({ target: "hoshidicts-offscreen", type: "hd_lookup", text: "テスト" }).then(() => {
+                          if (!popup) {
+                            popup = document.createElement("div");
+                            popup.className = "gsm-hoshidicts-popup";
+                            popup.style.cssText = "position:fixed;left:24px;top:24px;width:240px;height:90px;background:#222;color:#fff;";
+                            shadow.appendChild(popup);
+                          }
+                          popup.hidden = false;
+                          popup.textContent = "テスト";
+                        });
+                        return true;
+                      }
+                      if (cmd === "close" && popup && !popup.hidden) {
+                        popup.hidden = true;
+                        return true;
+                      }
+                      return false;
+                    }
+                  });
+                }());
+                """);
+
+            var brokenDir = Path.Combine(temp, "src-v2-broken");
+            WriteSyntheticBundle(brokenDir, "2.0.0", """
+                (function () {
+                  // Resolves HDReaderReady cleanly without throwing, but renders nothing (silent breakage).
+                  globalThis.HDReaderReady = Promise.resolve({
+                    act() { return true; }
+                  });
+                }());
+                """);
+
+            using var rollbackBundles = new HachidoriBundleManager(Path.Combine(temp, "cache-rollback"));
+            rollbackBundles.InstallFromDirectory(goodDir, "test");
+            rollbackBundles.MarkBootSuccess("1.0.0");
+            rollbackBundles.InstallFromDirectory(brokenDir, "test");
+
+            using (var host = new WebViewPopupHost(Path.Combine(temp, "wv-rollback"), bridge, rollbackBundles, headless: true, initialWidth: 800, initialHeight: 600))
+            {
+                var ok = await host.WaitUntilReadyAsync(TimeSpan.FromSeconds(25));
+                check(ok && host.LoadedVersion == "1.0.0" && rollbackBundles.ActiveVersion == "1.0.0" && host.SmokeTestPassed,
+                    $"WebView2 boot smoke test catches silent DOM breakage in v2.0.0 and rolls back to v1.0.0 (ok={ok}, loaded={host.LoadedVersion})");
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(temp, recursive: true); } catch { }
+        }
+    }
+
+    private static void WriteSyntheticBundle(string dir, string version, string contentJs)
+    {
+        WriteMinimalBundle(dir, version, ["default"]);
+        File.WriteAllText(Path.Combine(dir, "content.js"), contentJs, Encoding.UTF8);
     }
 
     private static async Task CheckLiveWebViewThemesAsync(Action<bool, string> check)

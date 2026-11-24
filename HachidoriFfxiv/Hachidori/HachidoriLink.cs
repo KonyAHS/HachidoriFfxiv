@@ -20,8 +20,11 @@ namespace HachidoriFfxiv.Hachidori;
 /// </summary>
 public sealed class HachidoriLink : IDisposable
 {
-    public const int ProtocolVersion = 1;
+    public const int MinProtocolVersion = 1;
+    public const int MaxProtocolVersion = 1;
+    public const int ProtocolVersion = MaxProtocolVersion;
     private const string NativeOrigin = "hoshi://hoshidicts";
+    private static readonly TimeSpan ByeCloseTimeout = TimeSpan.FromSeconds(2);
     private static readonly string[] Capabilities = ["linked-anki-v1", "linked-anki-v2", "linked-import-v1"];
 
     private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonNode?>> pending = new();
@@ -29,16 +32,18 @@ public sealed class HachidoriLink : IDisposable
     private readonly SemaphoreSlim sendLock = new(1, 1);
     private readonly Func<Uri> address;
     private readonly Action<Exception>? logFrameError;
+    private readonly Action<string>? logWarning;
     private readonly TimeSpan requestTimeout;
     private ClientWebSocket? socket;
     private TaskCompletionSource ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private long nextId;
     private int attempt;
 
-    public HachidoriLink(Func<Uri> address, Action<Exception>? logFrameError = null, TimeSpan? requestTimeout = null)
+    public HachidoriLink(Func<Uri> address, Action<Exception>? logFrameError = null, TimeSpan? requestTimeout = null, Action<string>? logWarning = null)
     {
         this.address = address;
         this.logFrameError = logFrameError;
+        this.logWarning = logWarning;
         this.requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(30);
         _ = Task.Run(RunAsync);
     }
@@ -47,8 +52,12 @@ public sealed class HachidoriLink : IDisposable
     public string? Error { get; private set; }
     public string HostName { get; private set; } = string.Empty;
     public string HostVersion { get; private set; } = string.Empty;
+    public int? PeerProtocolVersion { get; private set; }
     public int DictionaryCount { get; private set; }
     public string[] HostCapabilities { get; private set; } = [];
+
+    public bool HasCapability(string capability) =>
+        Array.Exists(HostCapabilities, c => string.Equals(c, capability, StringComparison.Ordinal));
 
     /// <summary>The host's shared storage (options, dictionaryState, lookupStats, ...).</summary>
     public JsonObject Snapshot { get; private set; } = new();
@@ -250,8 +259,10 @@ public sealed class HachidoriLink : IDisposable
             message.SetLength(0);
             try
             {
-                await HandleFrameAsync(ws, text).ConfigureAwait(false);
-                if (Connected)
+                var expectingPeerClose = await HandleFrameAsync(ws, text).ConfigureAwait(false);
+                if (expectingPeerClose)
+                    handshakeDeadline.CancelAfter(ByeCloseTimeout);
+                else if (Connected)
                     handshakeDeadline.CancelAfter(Timeout.InfiniteTimeSpan);
             }
             catch (Exception ex)
@@ -261,26 +272,47 @@ public sealed class HachidoriLink : IDisposable
         }
     }
 
-    private async Task HandleFrameAsync(ClientWebSocket ws, string text)
+    private async Task<bool> HandleFrameAsync(ClientWebSocket ws, string text)
     {
         if (JsonNode.Parse(text) is not JsonObject frame)
-            return;
+            return false;
         switch (frame["kind"]?.GetValue<string>())
         {
             case "hello":
-                if (frame["protocol"]?.ToString() != ProtocolVersion.ToString() || frame["snapshot"] is not JsonObject)
+                var rawProto = frame["protocol"]?.ToString() ?? "<missing>";
+                var protoParsed = frame["protocol"] is JsonValue pv && pv.TryGetValue<int>(out var peerProto)
+                    ? peerProto
+                    : int.TryParse(rawProto, out var parsedProto) ? parsedProto : -1;
+                var supportedRange = MinProtocolVersion == MaxProtocolVersion
+                    ? $"v{MaxProtocolVersion}"
+                    : $"v{MinProtocolVersion}–v{MaxProtocolVersion}";
+                var protoOk = protoParsed >= MinProtocolVersion && protoParsed <= MaxProtocolVersion;
+                var hasSnapshot = frame["snapshot"] is JsonObject;
+                if (!protoOk || !hasSnapshot)
                 {
-                    Error = "Unsupported or malformed Hachidori sharing handshake. Update Hachidori and the relay.";
+                    var peerName = frame["name"]?.ToString() ?? string.Empty;
+                    var peerVersion = frame["version"]?.ToString() ?? string.Empty;
+                    var peerCaps = frame["capabilities"] is JsonArray rejectedCaps
+                        ? string.Join(",", rejectedCaps.Select(c => c?.ToString() ?? string.Empty))
+                        : string.Empty;
+                    DiagnosticLog.Write("relay",
+                        $"Handshake rejected: peerProtocol={rawProto}, supported={supportedRange}, hasSnapshot={hasSnapshot}, host='{peerName}' v{peerVersion}, caps=[{peerCaps}]");
+                    logWarning?.Invoke(
+                        $"Incompatible Hachidori sharing handshake (peer protocol={rawProto}, supported={supportedRange}, hasSnapshot={hasSnapshot}, host={peerVersion}).");
+                    Error = !protoOk
+                        ? $"Unsupported Hachidori sharing handshake (host protocol {rawProto}, plugin supports {supportedRange}). Update Hachidori or the plugin, or use Offline Mode."
+                        : "Malformed Hachidori sharing handshake (missing snapshot). Update Hachidori and the relay.";
                     ws.Abort();
-                    return;
+                    return false;
                 }
+                PeerProtocolVersion = protoParsed;
                 HostName = frame["name"]?.ToString() ?? string.Empty;
                 HostVersion = frame["version"]?.ToString() ?? string.Empty;
                 DictionaryCount = frame["dictionaryCount"] is JsonValue dc && dc.TryGetValue<int>(out var count) ? count : 0;
-                DiagnosticLog.Write("relay", $"Host connected: version={HostVersion}, dictionaries={DictionaryCount}");
                 HostCapabilities = frame["capabilities"] is JsonArray caps
                     ? caps.Select(c => c?.ToString() ?? string.Empty).ToArray()
                     : [];
+                DiagnosticLog.Write("relay", $"Host connected: protocol=v{protoParsed}, version={HostVersion}, dictionaries={DictionaryCount}, capabilities={HostCapabilities.Length}");
                 Snapshot = frame["snapshot"] as JsonObject is { } snapshot ? (JsonObject)snapshot.DeepClone() : new JsonObject();
                 Connected = true;
                 Error = null;
@@ -325,10 +357,12 @@ public sealed class HachidoriLink : IDisposable
                 break;
             case "bye":
                 Error = frame["reason"]?.ToString() is { Length: > 0 } reason ? reason : "Hachidori refused the connection.";
-                // The receive loop must keep running to observe the peer's close frame.
+                DiagnosticLog.Write("relay", $"Host sent bye: {Error}");
+                // Keep the receive loop running to observe the peer's close frame, bounded by ByeCloseTimeout.
                 await ws.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, lifetime.Token).ConfigureAwait(false);
-                break;
+                return true;
         }
+        return false;
     }
 
     public void Dispose()

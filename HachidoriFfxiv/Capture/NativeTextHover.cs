@@ -113,9 +113,7 @@ public sealed unsafe class NativeTextHover : IDisposable
     }
 
     internal static bool IsTooltipAddon(string name) =>
-        name is "ItemDetail" or "ActionDetail" or "Tooltip"
-        || name.EndsWith("Detail", StringComparison.Ordinal)
-        || name.EndsWith("Tooltip", StringComparison.Ordinal);
+        GameUiInterop.IsTooltipAddon(name);
 
     private void Update(IFramework framework)
     {
@@ -245,7 +243,7 @@ public sealed unsafe class NativeTextHover : IDisposable
         {
             var start = tempRegions.Count;
             ReadAddon(unit, name, tempRegions, visited, seen, ignoreMouse: true);
-            var isTooltip = IsTooltipAddon(name);
+            var isTooltip = GameUiInterop.IsTooltipAddon(unit, name);
             for (var i = start; i < tempRegions.Count; i++)
             {
                 var r = tempRegions[i];
@@ -353,7 +351,7 @@ public sealed unsafe class NativeTextHover : IDisposable
     private void ReadAddon(AtkUnitBase* addon, string name, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse)
     {
         // Talk has a dedicated dialogue node; the speaker's name node sits above it.
-        bodyNode = name == "Talk" ? ((AddonTalk*)addon)->AtkTextNode228 : null;
+        bodyNode = name == "Talk" && GameUiInterop.TryGetTalkNodes(addon, out _, out var talkBody) ? talkBody : null;
         try
         {
             ReadNodes(&addon->UldManager, name, 0, next, visited, seen, ignoreMouse);
@@ -374,16 +372,17 @@ public sealed unsafe class NativeTextHover : IDisposable
             || (hovered != null && hovered->HostId == chatLog->Id));
         AddonChatLogPanel* target = null;
         var targetName = string.Empty;
-        for (var i = 0; i < ChatPanels.Length; i++)
+        var panels = GameUiInterop.GetVisibleChatPanels();
+        for (var i = 0; i < panels.Count; i++)
         {
-            var panelAddon = Plugin.GameGui.GetAddonByName(ChatPanels[i]);
-            if (panelAddon.IsNull || !panelAddon.IsVisible) continue;
-            var panel = (AddonChatLogPanel*)panelAddon.Address;
+            var (panelIndex, panelName, panelAddr) = panels[i];
+            var panel = (AddonChatLogPanel*)panelAddr;
+            if (panel == null) continue;
             var attached = chatLog != null && panel->HostId == chatLog->Id;
             // Inactive tabs retain their text and can still report visible.
             if (attached)
             {
-                if (i != selectedTab || (hovered != null && !hoverInMain)) continue;
+                if (panelIndex != selectedTab || (hovered != null && !hoverInMain)) continue;
             }
             else if (hovered != null && hovered != &panel->AtkUnitBase) continue;
 
@@ -399,7 +398,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                 if (target != null && target->DrawOrderIndex >= panel->DrawOrderIndex) continue;
             }
             target = panel;
-            targetName = ChatPanels[i];
+            targetName = panelName;
         }
 
         var before = next.Count;
@@ -502,8 +501,6 @@ public sealed unsafe class NativeTextHover : IDisposable
         foreach (var part in cached.Parts)
             next.Add(new Region(name, part, min, max, clipMin, clipMax, scale, body));
     }
-
-    private static readonly string[] ChatPanels = ["ChatLogPanel_0", "ChatLogPanel_1", "ChatLogPanel_2", "ChatLogPanel_3"];
 
     private static bool IsChat(string name) => name.StartsWith("ChatLog", StringComparison.Ordinal);
 

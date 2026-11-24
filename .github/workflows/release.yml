@@ -18,8 +18,11 @@ jobs:
       - name: Download Dalamud development assemblies
         shell: pwsh
         run: |
+          $csproj = Get-Content -LiteralPath 'HachidoriFfxiv/HachidoriFfxiv.csproj' -Raw
+          if ($csproj -notmatch 'Dalamud\.NET\.Sdk/(\d+)\.') { throw 'Could not read Dalamud.NET.Sdk major version from HachidoriFfxiv.csproj.' }
+          $expectedApi = $Matches[1]
           $version = Invoke-RestMethod https://raw.githubusercontent.com/goatcorp/dalamud-distrib/main/version
-          if ($version.AssemblyVersion -notlike '15.*') { throw 'Dalamud has moved beyond API 15; update the plugin SDK before releasing.' }
+          if ($version.AssemblyVersion -notlike "$expectedApi.*") { throw "Dalamud has moved beyond API $expectedApi (live: $($version.AssemblyVersion)); update Dalamud.NET.Sdk in HachidoriFfxiv.csproj before releasing." }
           Invoke-WebRequest https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile "$env:RUNNER_TEMP/dalamud.zip"
           Expand-Archive "$env:RUNNER_TEMP/dalamud.zip" -DestinationPath "$env:APPDATA/XIVLauncher/addon/Hooks/dev" -Force
       # The offline engine takes a few minutes to compile; reuse it while its

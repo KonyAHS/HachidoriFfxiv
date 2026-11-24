@@ -123,6 +123,8 @@ public sealed class WebViewPopupController : IDisposable
     public int MatchedLength => Active ? host!.MatchedLength : 0;
 
     public string? LoadedVersion => host?.LoadedVersion ?? Bundles.ActiveVersion;
+    public bool SmokeTestPassed => host?.SmokeTestPassed ?? false;
+    public bool UsedFallbackSelector => host?.UsedFallbackSelector ?? false;
 
     /// <summary>Marks plugin settings dirty so the projected snapshot pushes to WebView2 on the next frame.</summary>
     public void NotifySettingsChanged()
@@ -587,6 +589,7 @@ public sealed class WebViewPopupController : IDisposable
                 host = new WebViewPopupHost(sessionFolder, bridge, Bundles, headless: false)
                 {
                     OnAudioPlaybackChanged = playing => getMedia()?.PluginAudio.SetExternalPlaying(playing),
+                    OnWarning = msg => Plugin.Log.Warning("HachidoriFfxiv: {Message}", msg),
                 };
                 if (controllerMode)
                     host.SetControllerMode(true);

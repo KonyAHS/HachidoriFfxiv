@@ -93,7 +93,7 @@ public sealed class MsqQuestIndex
         3 => "shb",
         4 => "ew",
         5 => "dt",
-        _ => "dt",
+        _ => $"ex{expansionIndex}",
     };
 
     public static string ExpansionShortCodeFromIndex(uint expansionIndex) => expansionIndex switch
@@ -106,6 +106,24 @@ public sealed class MsqQuestIndex
         5 => "7.x",
         _ => $"{expansionIndex + 2}.x",
     };
+
+    /// <summary>
+    /// Filters FFXIV <c>JournalGenre</c>/<c>JournalCategory</c> rows for Main Scenario Quests.
+    /// Excludes only removed 2.0 quests (0) and the "Tales of..." side-story genres (79–81)
+    /// so future expansion MSQ genres allocated above 81 remain included.
+    /// </summary>
+    public static bool IsMsqGenre(uint genreId, string? japaneseCategoryName, string? englishCategoryName = null)
+    {
+        if (genreId is 0 or 79 or 80 or 81)
+            return false;
+        if (!string.IsNullOrEmpty(japaneseCategoryName)
+            && japaneseCategoryName.Contains("メインクエスト", StringComparison.Ordinal))
+            return true;
+        if (!string.IsNullOrEmpty(englishCategoryName)
+            && englishCategoryName.Contains("Main Scenario", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
 
     private static int ScoreMatch(MsqQuestEntry q, string needle)
     {

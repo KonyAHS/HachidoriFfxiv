@@ -99,12 +99,16 @@ public sealed class WebViewPopupHost : IDisposable
     private CoreWebView2? webView;
     private string? mappedBundlePath;
     private string? mappedBundleVersion;
+    private int bundleNavigationSeq;
     private int nextInspectId;
     private bool disposed;
 
     private volatile bool initialized;
     private volatile bool ready;
     private volatile bool failed;
+    private volatile bool smokeTestPassed;
+    private volatile bool usedFallbackSelector;
+    private volatile string hostTagName = string.Empty;
     private volatile string? lastError;
     private volatile string statusText = "Starting WebView2…";
     private volatile int visibleCount;
@@ -170,10 +174,16 @@ public sealed class WebViewPopupHost : IDisposable
     public string MatchedReading => matchedReading;
     public uint SystemCursorId => systemCursorId;
     public string? LoadedVersion => mappedBundleVersion;
+    public bool SmokeTestPassed => smokeTestPassed;
+    public bool UsedFallbackSelector => usedFallbackSelector;
+    public string HostTagName => hostTagName;
     internal nint OverlayHwnd => hwnd;
 
     /// <summary>Invoked whenever WebView2 starts or stops playing pronunciation audio.</summary>
     public Action<bool>? OnAudioPlaybackChanged { get; set; }
+
+    /// <summary>Optional warning callback (wired to <c>Plugin.Log.Warning</c> in Dalamud).</summary>
+    public Action<string>? OnWarning { get; set; }
 
     public Task<bool> WaitUntilReadyAsync(TimeSpan timeout) =>
         readyTcs.Task.WaitAsync(timeout);
@@ -780,13 +790,22 @@ public sealed class WebViewPopupHost : IDisposable
             lastError = bundles.LastError ?? "Waiting for Hachidori Web bundle sync…";
             return;
         }
+        if (string.Equals(mappedBundlePath, bundlePath, StringComparison.OrdinalIgnoreCase))
+            return;
 
         ready = false;
+        smokeTestPassed = false;
+        usedFallbackSelector = false;
+        hostTagName = string.Empty;
         mappedBundlePath = bundlePath;
         mappedBundleVersion = bundles.ActiveVersion;
+        var seq = Interlocked.Increment(ref bundleNavigationSeq);
         webView.SetVirtualHostNameToFolderMapping(AssetHost, bundlePath, CoreWebView2HostResourceAccessKind.Allow);
         DiagnosticLog.Write("webview", $"Loading Hachidori Web v{mappedBundleVersion} from {bundlePath}");
-        webView.Navigate(HostPageUrl);
+        if (seq == 1 || !string.Equals(webView.Source, HostPageUrl, StringComparison.OrdinalIgnoreCase))
+            webView.Navigate(HostPageUrl);
+        else
+            webView.Reload();
         await Task.CompletedTask;
     }
 
@@ -813,6 +832,7 @@ public sealed class WebViewPopupHost : IDisposable
                     ["snapshot"] = bridge.BuildProjectedSnapshot(),
                     ["audioVolume"] = bridge.AudioVolume,
                     ["npcPicturesAvailable"] = bridge.NpcPicturesAvailable?.Invoke() ?? false,
+                    ["bundleKey"] = $"{mappedBundleVersion ?? "0"}-{bundleNavigationSeq}",
                 });
                 return;
 
@@ -821,8 +841,13 @@ public sealed class WebViewPopupHost : IDisposable
                 failed = false;
                 lastError = null;
                 statusText = "Ready";
+                smokeTestPassed = true;
+                usedFallbackSelector = BoolVal(msg["usedFallbackSelector"]) || BoolVal(msg["usedFallbackHostTag"]);
+                hostTagName = msg["hostTag"]?.ToString() ?? string.Empty;
                 bundles.MarkBootSuccess(mappedBundleVersion);
-                DiagnosticLog.Write("webview", $"Hachidori Web v{msg["version"]} popup host ready.");
+                DiagnosticLog.Write("webview", $"Hachidori Web v{msg["version"]} popup host ready (hostTag={hostTagName}, fallbackSelector={usedFallbackSelector}).");
+                if (usedFallbackSelector)
+                    OnWarning?.Invoke($"Hachidori Web v{msg["version"]} required structural DOM fallback (hostTag={hostTagName}); upstream CSS/tag names may have changed.");
                 if (controllerMode)
                     PostJson(new JsonObject { ["kind"] = "controllerMode", ["active"] = true });
                 readyTcs.TrySetResult(true);
@@ -831,11 +856,14 @@ public sealed class WebViewPopupHost : IDisposable
             case "bootError":
                 var err = msg["error"]?.ToString() ?? "Unknown boot error.";
                 DiagnosticLog.Write("webview", $"Hachidori Web v{mappedBundleVersion} boot error: {err}");
+                OnWarning?.Invoke($"Hachidori Web v{mappedBundleVersion} failed boot/smoke test: {err}");
+                var previousPath = mappedBundlePath;
                 if (bundles.MarkBootFailure(mappedBundleVersion, err) && bundles.ActivePath is not null
-                    && !string.Equals(bundles.ActivePath, mappedBundlePath, StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(bundles.ActivePath, previousPath, StringComparison.OrdinalIgnoreCase))
                 {
                     DiagnosticLog.Write("webview", $"Rolled back to Hachidori Web v{bundles.ActiveVersion}; reloading.");
-                    _ = NavigateActiveBundleAsync();
+                    if (!string.Equals(mappedBundlePath, bundles.ActivePath, StringComparison.OrdinalIgnoreCase))
+                        _ = NavigateActiveBundleAsync();
                 }
                 else
                 {

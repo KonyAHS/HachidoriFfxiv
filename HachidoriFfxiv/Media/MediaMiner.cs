@@ -25,7 +25,7 @@ public sealed class MediaMiner : IDisposable
         this.config = config;
         this.capture = capture;
         Frames = new GameFrames(config);
-        Voices = new VoiceLineTracker();
+        Voices = new VoiceLineTracker(config.VoiceLoadSoundFileSigOverride, config.VoicePlaySpecificSoundSigOverride);
         Tts = new TtsClient(config);
         Anki = new AnkiConnect(() => config.AnkiConnectUrl, ankiApiKey);
         Translator = new Translator(config);

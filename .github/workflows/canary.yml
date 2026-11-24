@@ -1,0 +1,87 @@
+name: Patch-day Canary
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dalamud-staging:
+    name: Build against Dalamud staging
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Download Dalamud staging assemblies
+        shell: pwsh
+        run: |
+          $csproj = Get-Content -LiteralPath 'HachidoriFfxiv/HachidoriFfxiv.csproj' -Raw
+          if ($csproj -notmatch 'Dalamud\.NET\.Sdk/(\d+)\.') { throw 'Could not read Dalamud.NET.Sdk major version.' }
+          $expectedApi = $Matches[1]
+          $channel = 'stg'
+          try {
+            $version = Invoke-RestMethod "https://raw.githubusercontent.com/goatcorp/dalamud-distrib/$channel/version"
+            $zipUrl = "https://goatcorp.github.io/dalamud-distrib/$channel/latest.zip"
+            Invoke-WebRequest $zipUrl -OutFile "$env:RUNNER_TEMP/dalamud.zip"
+          } catch {
+            Write-Warning "Dalamud staging channel unavailable; checking main channel instead."
+            $channel = 'main'
+            $version = Invoke-RestMethod 'https://raw.githubusercontent.com/goatcorp/dalamud-distrib/main/version'
+            Invoke-WebRequest 'https://goatcorp.github.io/dalamud-distrib/latest.zip' -OutFile "$env:RUNNER_TEMP/dalamud.zip"
+          }
+          Write-Host "Dalamud ($channel) version: $($version.AssemblyVersion) (expected API $expectedApi.*)"
+          if ($version.AssemblyVersion -notlike "$expectedApi.*") {
+            Write-Error "Dalamud ($channel) moved to $($version.AssemblyVersion); plugin targets API $expectedApi."
+            exit 1
+          }
+          Expand-Archive "$env:RUNNER_TEMP/dalamud.zip" -DestinationPath "$env:APPDATA/XIVLauncher/addon/Hooks/dev" -Force
+      - name: Cache the offline engine
+        uses: actions/cache@v4
+        with:
+          path: |
+            native/bin
+            native/src
+          key: hdw-native-v2-${{ runner.os }}-${{ hashFiles('native/sources.json', 'native/CMakeLists.txt', 'native/*.cpp', 'native/build.ps1', 'native/patches/**', 'native/compat/**') }}
+      - name: Build and verify
+        shell: pwsh
+        run: ./build.ps1 -Verify
+
+  hachidori-upstream:
+    name: Verify latest upstream Hachidori Web bundle
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Download Dalamud assemblies
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile "$env:RUNNER_TEMP/dalamud.zip"
+          Expand-Archive "$env:RUNNER_TEMP/dalamud.zip" -DestinationPath "$env:APPDATA/XIVLauncher/addon/Hooks/dev" -Force
+      - name: Download latest bee-san/hachidori Chrome bundle
+        shell: pwsh
+        run: |
+          $release = Invoke-RestMethod 'https://api.github.com/repos/bee-san/hachidori/releases/latest' -Headers @{ 'User-Agent' = 'HachidoriFfxiv-Canary' }
+          $asset = $release.assets | Where-Object { $_.name -like '*-chrome.zip' } | Select-Object -First 1
+          if (-not $asset) { throw 'No *-chrome.zip asset found in latest bee-san/hachidori release.' }
+          Write-Host "Testing upstream Hachidori $($release.tag_name) ($($asset.name))"
+          $zipPath = Join-Path $env:RUNNER_TEMP 'hachidori-chrome.zip'
+          $extractDir = Join-Path $env:RUNNER_TEMP 'hachidori-bundle'
+          Invoke-WebRequest $asset.browser_download_url -OutFile $zipPath
+          Expand-Archive $zipPath -DestinationPath $extractDir -Force
+          $manifest = Get-ChildItem -Path $extractDir -Recurse -Filter 'manifest.json' | Select-Object -First 1
+          if (-not $manifest) { throw 'manifest.json not found in extracted Hachidori archive.' }
+          "HACHIDORI_TEST_BUNDLE=$($manifest.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Cache the offline engine
+        uses: actions/cache@v4
+        with:
+          path: |
+            native/bin
+            native/src
+          key: hdw-native-v2-${{ runner.os }}-${{ hashFiles('native/sources.json', 'native/CMakeLists.txt', 'native/*.cpp', 'native/build.ps1', 'native/patches/**', 'native/compat/**') }}
+      - name: Build and verify with live WebView2
+        shell: pwsh
+        run: ./build.ps1 -Verify

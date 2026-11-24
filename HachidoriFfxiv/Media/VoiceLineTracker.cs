@@ -24,7 +24,9 @@ public sealed unsafe class VoiceLineTracker : IDisposable
     private const string LoadSoundFileSigFallback = "E8 ?? ?? ?? ?? 48 85 C0 75 05 40 B7 F6";
     private const string PlaySpecificSoundSig = "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 33 F6 8B DA 48 8B F9 0F BA E2 0F";
 
-    private const long PollIntervalMs = 100;
+    // Poll SoundManager.SoundDataPool at ~25 Hz so ClientStructs-backed voice detection remains
+    // responsive and accurate even if raw byte signatures drift on patch day.
+    private const long PollIntervalMs = 40;
     private const double DuplicateFireWindowSeconds = 0.12;
 
     private delegate nint LoadSoundFileDelegate(nint resourceHandlePtr, uint arg2);
@@ -46,36 +48,44 @@ public sealed unsafe class VoiceLineTracker : IDisposable
     private long lastPlayedTicks;
     private long lastPollTicks;
     private volatile string? lastVoicePath;
+    private volatile bool poolAvailable;
     private volatile bool disposed;
 
-    public VoiceLineTracker()
+    public VoiceLineTracker(string? loadSigOverride = null, string? playSigOverride = null)
     {
         try
         {
             if (Plugin.SigScanner is not null && Plugin.GameInterop is not null)
             {
-                if (Plugin.SigScanner.TryScanText(LoadSoundFileSigPrimary, out var loadPtr)
-                    || Plugin.SigScanner.TryScanText(LoadSoundFileSigFallback, out loadPtr))
+                if (TryScanFirst(out var loadPtr, loadSigOverride, LoadSoundFileSigPrimary, LoadSoundFileSigFallback))
                 {
                     loadSoundFileHook = Plugin.GameInterop.HookFromAddress<LoadSoundFileDelegate>(loadPtr, LoadSoundFileDetour);
                     loadSoundFileHook.Enable();
                 }
 
-                if (Plugin.SigScanner.TryScanText(PlaySpecificSoundSig, out var playPtr))
+                if (TryScanFirst(out var playPtr, playSigOverride, PlaySpecificSoundSig))
                 {
                     playSpecificSoundHook = Plugin.GameInterop.HookFromAddress<PlaySpecificSoundDelegate>(playPtr, PlaySpecificSoundDetour);
                     playSpecificSoundHook.Enable();
                 }
 
                 if (HooksActive)
+                {
                     DiagnosticLog.Write("voice", "Hooked LoadSoundFile and PlaySpecificSound for native game voice detection.");
+                }
                 else
-                    DiagnosticLog.Write("voice", $"Native voice hooks partial/unavailable (load={loadSoundFileHook is not null}, play={playSpecificSoundHook is not null}); falling back to SoundManager/volume detection.");
+                {
+                    var message = $"Native voice hooks partial/unavailable (load={LoadHookActive}, play={PlayHookActive}); using SoundManager.SoundDataPool + loudness fallback.";
+                    DiagnosticLog.Write("voice", message);
+                    Plugin.Log?.Warning("HachidoriFfxiv: {Message}", message);
+                }
             }
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Write("voice", $"Could not initialize native voice hooks: {ex.Message}");
+            var message = $"Could not initialize native voice hooks: {ex.Message}";
+            DiagnosticLog.Write("voice", message);
+            Plugin.Log?.Warning(ex, "HachidoriFfxiv: {Message}", message);
             loadSoundFileHook?.Dispose();
             playSpecificSoundHook?.Dispose();
             loadSoundFileHook = null;
@@ -83,11 +93,35 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         }
     }
 
+    private static bool TryScanFirst(out nint address, params string?[] signatures)
+    {
+        address = nint.Zero;
+        foreach (var raw in signatures)
+        {
+            var sig = raw?.Trim();
+            if (string.IsNullOrEmpty(sig))
+                continue;
+            if (Plugin.SigScanner.TryScanText(sig, out address))
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>Raised whenever FFXIV starts playing a voice-acted dialogue .scd file.</summary>
     public event Action<VoicePlaybackEvent>? VoicePlayed;
 
     /// <summary>Whether both native game sound hooks are installed and active.</summary>
     public bool HooksActive => loadSoundFileHook is not null && playSpecificSoundHook is not null;
+
+    public bool LoadHookActive => loadSoundFileHook is not null;
+    public bool PlayHookActive => playSpecificSoundHook is not null;
+    public bool PoolAvailable => poolAvailable;
+
+    /// <summary>Human-readable summary of which voice detection tier is active.</summary>
+    public string DetectionModeSummary =>
+        HooksActive ? "Native hooks + SoundManager pool"
+        : poolAvailable ? "SoundManager pool (native hooks unavailable)"
+        : "Loudness fallback (native hooks & SoundManager pool unavailable)";
 
     /// <summary>The most recently played voice .scd path (for diagnostics).</summary>
     public string? LastVoicePath => lastVoicePath;
@@ -110,7 +144,11 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         {
             var soundManager = SoundManager.Instance();
             if (soundManager == null || soundManager->SoundDataPool == null)
+            {
+                poolAvailable = false;
                 return;
+            }
+            poolAvailable = true;
 
             var entries = soundManager->SoundDataPool->Entries;
             HashSet<string>? activeNow = null;

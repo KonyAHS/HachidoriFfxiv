@@ -400,7 +400,8 @@ public sealed class StatsWindow : Window
 
     private static void DrawExpansionJourneyStrip(ExpansionJourneySummary journey, float width, float scale)
     {
-        ImGui.TextUnformatted(journey.FocusExpansion is { } f ? $"{f.Name} MSQ" : "Full MSQ (ARR to Dawntrail)");
+        var lastExpName = journey.Expansions.Count > 0 ? journey.Expansions[^1].Expansion.Name : "Dawntrail";
+        ImGui.TextUnformatted(journey.FocusExpansion is { } f ? $"{f.Name} MSQ" : $"Full MSQ (ARR to {lastExpName})");
 
         var pos = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();

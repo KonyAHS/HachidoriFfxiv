@@ -166,6 +166,8 @@ public sealed class Configuration : IPluginConfiguration
     public float VoiceDetectionRatio { get; set; } = 2f;
     public int MaxLineSeconds { get; set; } = 20;
     public int VoiceBufferSeconds { get; set; } = 120;
+    public string VoiceLoadSoundFileSigOverride { get; set; } = string.Empty;
+    public string VoicePlaySpecificSoundSigOverride { get; set; } = string.Empty;
     public Media.TtsMode TtsMode { get; set; } = Media.TtsMode.Off;
     public string TtsUrl { get; set; } = "http://127.0.0.1:50021";
     public string TtsSpeaker { get; set; } = "1";
@@ -307,6 +309,8 @@ public sealed class Configuration : IPluginConfiguration
         VoiceDetectionRatio = d.VoiceDetectionRatio;
         MaxLineSeconds = d.MaxLineSeconds;
         VoiceBufferSeconds = d.VoiceBufferSeconds;
+        VoiceLoadSoundFileSigOverride = d.VoiceLoadSoundFileSigOverride;
+        VoicePlaySpecificSoundSigOverride = d.VoicePlaySpecificSoundSigOverride;
         TtsMode = d.TtsMode;
         TtsUrl = d.TtsUrl;
         TtsSpeaker = d.TtsSpeaker;

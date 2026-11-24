@@ -254,8 +254,12 @@ public sealed class Plugin : IDalamudPlugin
             case "reconnect":
                 service.Link.Reconnect();
                 return;
+            case "diag":
+            case "health":
+                PrintDiagnostics();
+                return;
             case "help":
-                ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori logs");
+                ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori diag · /hachidori logs");
                 return;
             case "logs":
                 try { ChatGui.Print($"Hachidori for FFXIV debug log: {ExportLogs()}"); }
@@ -291,6 +295,43 @@ public sealed class Plugin : IDalamudPlugin
         DiagnosticLog.Write("plugin", "Plugin stopped.");
     }
 
+    private void PrintDiagnostics()
+    {
+        var ui = GameUiInterop.InspectHealth();
+        var talkSummary = ui.TalkVisible
+            ? $"Talk visible (body={ui.TalkBodyResolved}, speaker={ui.TalkSpeakerResolved})"
+            : "Talk hidden";
+        var chatSummary = ui.ChatLogVisible
+            ? $"ChatLog visible (tab={ui.SelectedChatTab}, panels={ui.ChatPanelCount})"
+            : $"ChatLog hidden (panels={ui.ChatPanelCount})";
+        var relaySummary = service.Link.Connected
+            ? $"connected v{service.Link.HostVersion} (proto v{service.Link.PeerProtocolVersion}, dicts={service.Link.DictionaryCount}, caps={service.Link.HostCapabilities.Length})"
+            : $"disconnected ({service.Link.Error ?? "not linked"}; backend={service.Backend.Name})";
+        var webViewSummary = webView.Active
+            ? $"active v{webView.LoadedVersion} (smokeTest={webView.SmokeTestPassed}, fallbackSelector={webView.UsedFallbackSelector})"
+            : $"inactive ({webView.LastError ?? webView.StatusText})";
+        var msqIndex = msqResolver.Index;
+        var msqSummary = msqIndex is not null
+            ? $"{msqIndex.Quests.Count} quests across {ExpansionEstimates.All.Count} expansions"
+            : msqResolver.LoadError is { } err
+                ? $"error: {err}"
+                : msqResolver.IsLoading ? "loading" : "not loaded";
+
+        var lines = new[]
+        {
+            $"[Hachidori Diag] UI: {talkSummary}; {chatSummary}; hoverRegions={nativeHover.RegionCount}{(nativeHover.LastError is { } he ? $"; err={he}" : "")}",
+            $"[Hachidori Diag] Voice: {media.Voices.DetectionModeSummary} (hooks={media.Voices.LoadHookActive}/{media.Voices.PlayHookActive}, pool={media.Voices.PoolAvailable})",
+            $"[Hachidori Diag] WebView2: {webViewSummary}",
+            $"[Hachidori Diag] Relay: {relaySummary}",
+            $"[Hachidori Diag] MSQ: {msqSummary}",
+        };
+        foreach (var line in lines)
+        {
+            ChatGui.Print(line);
+            DiagnosticLog.Write("diag", line);
+        }
+    }
+
     private string ExportLogs()
     {
         var platform = PlatformInfo.Current;
@@ -306,6 +347,8 @@ public sealed class Plugin : IDalamudPlugin
             ["supportsProcessAudioLoopback"] = platform.SupportsProcessAudioLoopback,
             ["audioRecorderMode"] = media.Recorder?.Mode.ToString() ?? "Off",
             ["voiceHooksActive"] = media.Voices.HooksActive,
+            ["voicePoolAvailable"] = media.Voices.PoolAvailable,
+            ["voiceDetectionMode"] = media.Voices.DetectionModeSummary,
             ["lastVoicePath"] = media.Voices.LastVoicePath,
             ["ttsInjectOst"] = config.TtsInjectOst,
             ["ttsOstVolume"] = config.TtsOstVolume,
@@ -314,6 +357,7 @@ public sealed class Plugin : IDalamudPlugin
             ["bgmEngineClock"] = media.Bgm.LastSnapshot?.FromEngineClock,
             ["bgmMuted"] = media.Bgm.BgmMutedInGame,
             ["connected"] = service.Link.Connected,
+            ["peerProtocolVersion"] = service.Link.PeerProtocolVersion,
             ["hostVersion"] = service.Link.HostVersion,
             ["dictionaryCount"] = service.Link.DictionaryCount,
             ["backend"] = service.Backend.Name,
@@ -327,6 +371,8 @@ public sealed class Plugin : IDalamudPlugin
             ["webViewRuntime"] = webView.RuntimeAvailable,
             ["webViewVersion"] = webView.LoadedVersion,
             ["webViewBundleSource"] = webView.Bundles.ActiveSource,
+            ["webViewSmokeTestPassed"] = webView.SmokeTestPassed,
+            ["webViewUsedFallbackSelector"] = webView.UsedFallbackSelector,
             ["webViewError"] = webView.LastError,
             ["linkError"] = service.Link.Error is null ? null : "See relay events below",
             ["relayPort"] = config.RelayPort,
