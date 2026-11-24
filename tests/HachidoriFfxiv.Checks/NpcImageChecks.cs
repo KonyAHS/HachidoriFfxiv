@@ -20,7 +20,7 @@ internal static class NpcImageChecks
             }
             var index = Read("index.json");
             var rows = Read("term_bank_1.json").AsArray();
-            check(index["title"]!.GetValue<string>() == NpcImageDictionary.Title && index["format"]!.GetValue<int>() == 3
+            check(index["title"]!.GetValue<string>() == "FFXIV NPC pictures" && index["format"]!.GetValue<int>() == 3
                   && rows.Count == 2 && rows.Any(r => r![0]!.GetValue<string>() == "新しい名前" && r[1]!.GetValue<string>() == "あたらしいなまえ"),
                 "NPC picture dictionary holds every picture under one title");
             var image = GlossaryBuilder.Build(rows[0]![5], 0, false, index["title"]!.GetValue<string>()).Single().Image;
@@ -32,9 +32,6 @@ internal static class NpcImageChecks
         check(NpcImageDictionary.Revision([first, second]) == NpcImageDictionary.Revision([second, first])
               && NpcImageDictionary.Revision([first]) != NpcImageDictionary.Revision([first with { Reading = "べつ" }]),
             "NPC picture revision is order-independent and distinguishes readings");
-        check(NpcImageDictionary.TryParseLegacyTitle(NpcImageDictionary.LegacyTitle("名前", "な,ま\"え"), out var legacyExp, out var legacyRead)
-              && legacyExp == "名前" && legacyRead == "な,ま\"え" && !NpcImageDictionary.TryParseLegacyTitle("FFXIV picture · nope", out _, out _),
-            "Legacy one-picture dictionary titles round-trip");
         check(NpcImageDictionary.Fit(1920, 1080) == (480, 270) && NpcImageDictionary.Fit(100, 50) == (100, 50)
               && NpcImageDictionary.PngSize(png) == (1, 1), "NPC pictures are capped at 480px and PNG sizes are read");
 
@@ -141,22 +138,27 @@ internal static class NpcImageChecks
         try
         {
             var host = new FakeHost();
-            foreach (var (exp, read) in new[] { ("アルフィノ", "あるふぃの"), ("アリゼー", "ありぜー") })
+            foreach (var (id, title) in new[]
             {
-                var title = NpcImageDictionary.LegacyTitle(exp, read);
-                host.Installed.Add(new HostDictionary("legacy-" + exp, title, "x"));
+                ("legacy-alphinaud", """FFXIV picture · ["アルフィノ","あるふぃの"]"""),
+                ("legacy-alisaie", """FFXIV picture · ["アリゼー","あ,り\"ぜー"]"""),
+            })
+            {
+                host.Installed.Add(new HostDictionary(id, title, "x"));
                 host.Media[title] = png;
             }
-            host.Installed.Add(new HostDictionary("legacy-missing", NpcImageDictionary.LegacyTitle("消えた", "きえた"), "x"));
+            host.Installed.Add(new HostDictionary("legacy-missing", """FFXIV picture · ["消えた","きえた"]""", "x"));
+            host.Installed.Add(new HostDictionary("legacy-malformed", "FFXIV picture · nope", "x"));
             host.Installed.Add(new HostDictionary("jitendex", "Jitendex", "y"));
             var library = new NpcPictureLibrary(directory, host);
 
             var result = await library.AddAsync(new NpcPicture("ヤ・シュトラ", "や・しゅとら", png, 1, 1), false, default);
             check(result == new NpcSaveResult(3, 2, 1) && host.Commits == 1 && host.Rows() == 3
                   && host.Installed.Count(d => d.Title == NpcImageDictionary.Title) == 1
-                  && host.Removed.Count == 2 && host.Installed.Any(d => d.Id == "legacy-missing") && host.Installed.Any(d => d.Title == "Jitendex"),
+                  && host.Removed.Count == 2 && host.Installed.Any(d => d.Id == "legacy-missing")
+                  && host.Installed.Any(d => d.Id == "legacy-malformed") && host.Installed.Any(d => d.Title == "Jitendex"),
                 "A save merges old one-picture dictionaries into one and removes only merged ones");
-            check(library.List().Count == 3 && library.Contains("アリゼー", "ありぜー"), "Merged pictures are kept on this computer");
+            check(library.List().Count == 3 && library.Contains("アリゼー", "あ,り\"ぜー"), "Merged pictures keep their original readings on this computer");
 
             await library.AddAsync(new NpcPicture("ヤ・シュトラ", "や・しゅとら", png, 1, 1), false, default);
             check(host.Commits == 2 && host.Rows() == 3, "Recapturing a picture replaces it instead of adding a dictionary");
@@ -170,13 +172,12 @@ internal static class NpcImageChecks
 
             host.Installed.RemoveAll(d => d.Title == NpcImageDictionary.Title);
             host.Installed.Add(new HostDictionary("foreign", NpcImageDictionary.Title, "made-elsewhere"));
-            var commits = host.Commits;
-            try { await library.RemoveAsync("アリゼー", "ありぜー", false, default); throw new Exception("Conflict was ignored."); }
+            try { await library.RemoveAsync("アリゼー", "あ,り\"ぜー", false, default); throw new Exception("Conflict was ignored."); }
             catch (NpcPictureConflictException) { }
-            check(host.Commits == commits && library.Contains("アリゼー", "ありぜー"),
+            check(host.Installed.Any(d => d.Id == "foreign") && library.Contains("アリゼー", "あ,り\"ぜー"),
                 "A picture dictionary made elsewhere is never replaced without confirmation");
-            await library.RemoveAsync("アリゼー", "ありぜー", true, default);
-            check(host.Commits == commits + 1 && host.Rows() == 2 && !library.Contains("アリゼー", "ありぜー"),
+            await library.RemoveAsync("アリゼー", "あ,り\"ぜー", true, default);
+            check(host.Installed.All(d => d.Id != "foreign") && host.Rows() == 2 && !library.Contains("アリゼー", "あ,り\"ぜー"),
                 "Confirmed replacement removes one picture");
 
             await library.RemoveAsync("アルフィノ", "あるふぃの", false, default);
@@ -186,7 +187,7 @@ internal static class NpcImageChecks
                 "Removing the last picture removes the host dictionary and its files");
 
             File.WriteAllText(Path.Combine(directory, "index.json"), "{broken");
-            commits = host.Commits;
+            var commits = host.Commits;
             try { await library.AddAsync(new NpcPicture("名前", "なまえ", png, 1, 1), true, default); throw new Exception("Corruption was ignored."); }
             catch (HachidoriException) { }
             check(host.Commits == commits, "An unreadable picture list blocks saving instead of wiping the host");

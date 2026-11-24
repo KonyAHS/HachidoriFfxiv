@@ -244,8 +244,7 @@ internal static class StatsChecks
             startingOffsetChars: ExpansionEstimates.CumulativeBefore("hw"),
             charsPerHour: 10_000,
             dailyCharGoal: 5_000);
-        check(ExpansionEstimates.All.Count == 6 && ExpansionEstimates.TotalMsqChars > 1_800_000
-              && journey.FocusExpansion?.Id == "hw"
+        check(journey.FocusExpansion?.Id == "hw"
               && journey.FocusCurrentChars == 87_000
               && Math.Abs(journey.FocusPercent - 50.0) < 0.5
               && journey.Expansions[0].Completed
@@ -285,18 +284,17 @@ internal static class StatsChecks
 
         try
         {
-            var baseCount = ExpansionEstimates.All.Count;
             ExpansionEstimates.RegisterExtraExpansions([
                 new FfxivExpansion("ex6", "8.x", "Future Expansion", "未来の拡張", 320_000, 960_000, 9_000, 0xFF7FD4E6),
             ]);
-            check(ExpansionEstimates.All.Count == baseCount + 1
-                  && ExpansionEstimates.FindById("ex6") is { Name: "Future Expansion", ShortCode: "8.x" }
-                  && ExpansionEstimates.Compute(0, "ex6", 0, 5000, 10000).FocusTargetChars == 320_000,
+            var futureJourney = ExpansionEstimates.Compute(0, "ex6", 0, 5000, 10000);
+            check(futureJourney.FocusExpansion is { Name: "Future Expansion", ShortCode: "8.x" }
+                  && futureJourney.FocusTargetChars == 320_000 && futureJourney.Expansions.Any(e => e.Expansion.Id == "arr"),
                 "ExpansionEstimates dynamically merges 8.0+ expansions discovered from Lumina ExVersion");
         }
         finally
         {
-            ExpansionEstimates.ResetToBaseline();
+            ExpansionEstimates.RegisterExtraExpansions([]);
         }
 
         // Ecosystem export & import round-trips (ExStatic/Rubi/GSM CSV, exSTATic Stats CSV, Kechimochi CSV, Tidepool SQLite, SubMiner SQLite)

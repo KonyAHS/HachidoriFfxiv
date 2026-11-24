@@ -32,19 +32,17 @@ static class CursorChecks
         var blockA = new object();
         var blockB = new object();
         var scan = new ControllerScanState();
-        check(!scan.Active, "manual scan starts inactive so entering controller mode does not pop up immediately");
         check(!scan.OnStopChanged(blockA, 0) && !scan.Active, "moving cursor before scanning keeps scan inactive");
 
         // Press shared Scan/Mine button (e.g. A/Cross) when no popup is open -> opens popup and consumes press.
         check(scan.HandleScanButton(blockA, 2, popupVisibleAtLevel: false, sharedWithPopupAction: true) == ControllerScanPress.Open
-              && scan.Active && !scan.PopupObserved,
+              && scan.Active,
             "pressing Scan when no popup is open activates manual scan");
         // While lookup is still in flight (popup not yet visible), SyncVisibility does not cancel it.
         scan.SyncVisibility(false);
         check(scan.Active, "in-flight manual scan stays active before popup becomes visible");
         // Popup appears.
         scan.SyncVisibility(true);
-        check(scan.Active && scan.PopupObserved, "observing popup records PopupObserved");
         // Pressing shared Scan/Mine button while popup is open passes through so Mine can run.
         check(scan.HandleScanButton(blockA, 2, popupVisibleAtLevel: true, sharedWithPopupAction: true) == ControllerScanPress.PassThrough
               && scan.Active,
@@ -78,8 +76,10 @@ static class CursorChecks
 
         // Backing out of a nested popup restores parent popup scan state.
         scan.RestoreParent(blockA, 2, parentPopupVisible: true);
-        check(scan.Active && scan.PopupObserved && !scan.OnStopChanged(blockA, 2),
+        check(!scan.OnStopChanged(blockA, 2) && scan.Active,
             "backing out of nested popup keeps parent popup active");
+        scan.SyncVisibility(false);
+        check(!scan.Active, "dismissing the restored parent popup clears manual scan state");
 
         // Parsed-word underline rectangles (single-line and line-wrapped).
         var wordCells = new List<(int Index, Vector2 Min, Vector2 Max)>
@@ -105,10 +105,10 @@ static class CursorChecks
         check(!trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0), "hold trigger does not fire immediately");
         check(!trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(0.5)), "hold trigger waits for full hold duration");
         check(trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(0.6)), "hold trigger fires on reaching hold duration");
-        check(!trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(1.5)) && trigger.WaitingForRelease,
+        check(!trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(1.5)),
             "continuing to hold after entering does not immediately exit");
-        check(!trigger.Update(false, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(1.6)) && !trigger.WaitingForRelease,
-            "releasing clears WaitingForRelease");
+        check(!trigger.Update(false, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(1.6)),
+            "releasing the hold trigger does not toggle controller mode");
         check(!trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(2.0)), "holding to exit waits for hold duration");
         check(trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(2.6)), "holding the same trigger exits gamepad mode");
         check(!trigger.Update(true, ControllerTriggerMode.Hold, 0.6, t0.AddSeconds(3.5)),

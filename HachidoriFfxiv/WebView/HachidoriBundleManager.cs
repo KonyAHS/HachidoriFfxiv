@@ -283,7 +283,7 @@ public sealed class HachidoriBundleManager : IDisposable
     }
 
     /// <summary>Filters out heavy engine-only files (WASM binaries, language transform tables, video encoders) not needed by the popup UI.</summary>
-    public static bool ShouldIncludeBundleEntry(string relativeUnixPath)
+    private static bool ShouldIncludeBundleEntry(string relativeUnixPath)
     {
         var path = relativeUnixPath.Replace('\\', '/').TrimStart('/');
         if (path.Length == 0 || path.EndsWith('/') || path.Contains("..", StringComparison.Ordinal))

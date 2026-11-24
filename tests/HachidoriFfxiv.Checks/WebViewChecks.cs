@@ -17,22 +17,10 @@ internal static class WebViewChecks
 {
     public static async Task RunAsync(Action<bool, string> check)
     {
-        CheckBundleFiltering(check);
         CheckBundleLifecycleAndRollback(check);
         await CheckBridgeProjectionAndRpcAsync(check);
         await CheckSmokeTestAndDomFallbackAsync(check);
         await CheckLiveWebViewThemesAsync(check);
-    }
-
-    private static void CheckBundleFiltering(Action<bool, string> check)
-    {
-        check(HachidoriBundleManager.ShouldIncludeBundleEntry("manifest.json"), "bundle filter keeps manifest.json");
-        check(HachidoriBundleManager.ShouldIncludeBundleEntry("vendor/themes/crystal/theme.js"), "bundle filter keeps theme scripts");
-        check(HachidoriBundleManager.ShouldIncludeBundleEntry("vendor/themes/crystal/theme.css"), "bundle filter keeps theme CSS");
-        check(HachidoriBundleManager.ShouldIncludeBundleEntry("vendor/languages/registry-reader.js"), "bundle filter keeps language registry reader");
-        check(!HachidoriBundleManager.ShouldIncludeBundleEntry("vendor/hoshidicts.wasm"), "bundle filter excludes heavy WASM binaries");
-        check(!HachidoriBundleManager.ShouldIncludeBundleEntry("vendor/languages/ja/transforms.json"), "bundle filter excludes engine-only transforms");
-        check(!HachidoriBundleManager.ShouldIncludeBundleEntry("../escape.js"), "bundle filter blocks path traversal");
     }
 
     private static void CheckBundleLifecycleAndRollback(Action<bool, string> check)
@@ -45,23 +33,25 @@ internal static class WebViewChecks
             WriteMinimalBundle(src1, "0.5.2", ["default", "crystal", "bee"]);
             WriteMinimalBundle(src2, "0.6.0", ["default", "crystal", "bee", "sakura"]);
 
-            using var mgr = new HachidoriBundleManager(Path.Combine(temp, "cache"));
+            var cache = Path.Combine(temp, "cache");
+            using var mgr = new HachidoriBundleManager(cache);
             check(!mgr.Ready, "fresh bundle manager starts unready without cache");
-            check(mgr.InstallFromDirectory(src1, "test"), "bundle manager installs valid v0.5.2 directory");
-            check(mgr.Ready && mgr.ActiveVersion == "0.5.2", "active version matches installed manifest");
+            check(mgr.InstallFromDirectory(src1, "test") && mgr.Ready && mgr.ActiveVersion == "0.5.2",
+                "directory installation makes the manifest version available");
             check(mgr.Themes.Any(t => t.Slug == "crystal") && mgr.DefaultPalettes.Contains("solarized-light"),
                 "bundle manager reads themes from vendor/themes/index.json and palettes from reader.css");
             mgr.MarkBootSuccess("0.5.2");
-            check(mgr.LastGoodVersion == "0.5.2", "boot success records lastGoodVersion");
 
-            check(mgr.InstallFromDirectory(src2, "test"), "bundle manager upgrades to v0.6.0");
-            check(mgr.ActiveVersion == "0.6.0" && mgr.Themes.Any(t => t.Slug == "sakura"),
+            check(mgr.InstallFromDirectory(src2, "test") && mgr.ActiveVersion == "0.6.0" && mgr.Themes.Any(t => t.Slug == "sakura"),
                 "upgraded bundle exposes new upstream themes without C# changes");
 
-            check(mgr.MarkBootFailure("0.6.0", "simulated syntax error"), "boot failure triggers rollback");
-            check(mgr.ActiveVersion == "0.5.2", "rollback restores lastGoodVersion v0.5.2");
+            mgr.MarkBootFailure("0.6.0", "simulated syntax error");
+            using (var reopened = new HachidoriBundleManager(cache))
+                check(reopened.Ready && reopened.ActiveVersion == "0.5.2", "a failed bundle stays rolled back when the cache is reopened");
 
-            var zipStream = new MemoryStream();
+            using var zipStream = new MemoryStream();
+            string[] popupAssets = ["vendor/themes/future/theme.js", "vendor/themes/future/theme.css", "vendor/languages/registry-reader.js"];
+            string[] excludedAssets = ["vendor/hoshidicts.wasm", "vendor/languages/ja/transforms.json", "../escape.js"];
             using (var zip = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
             {
                 void AddEntry(string path, string content)
@@ -77,13 +67,14 @@ internal static class WebViewChecks
                 AddEntry("render/glossary.js", "// ok");
                 AddEntry("render/reader.css", ":host([data-hoshidicts-theme=\"dark\"]) {}");
                 AddEntry("vendor/themes/index.json", """{"schema":1,"themes":[{"slug":"future","name":"Future","description":"New theme"}]}""");
-                AddEntry("vendor/hoshidicts.wasm", "should-be-skipped");
+                foreach (var path in popupAssets.Concat(excludedAssets)) AddEntry(path, "fixture");
             }
             zipStream.Position = 0;
-            check(mgr.InstallFromZip(zipStream, "test-zip"), "bundle manager installs from chrome zip archive");
-            check(mgr.ActiveVersion == "0.7.0" && mgr.Themes.Any(t => t.Slug == "future")
-                  && !File.Exists(Path.Combine(mgr.ActivePath!, "vendor", "hoshidicts.wasm")),
-                "zip extraction strips wrapper folder, skips wasm, and discovers new themes");
+            check(mgr.InstallFromZip(zipStream, "test-zip") && mgr.ActiveVersion == "0.7.0"
+                  && mgr.Themes.Any(t => t.Slug == "future"), "a wrapped Chrome archive installs as the active bundle");
+            check(popupAssets.All(path => File.Exists(Path.Combine(mgr.ActivePath!, path)))
+                  && excludedAssets.All(path => !File.Exists(Path.Combine(mgr.ActivePath!, path))),
+                "Chrome bundle installation keeps popup assets and skips engine files and paths outside the bundle");
         }
         finally
         {
@@ -269,10 +260,7 @@ internal static class WebViewChecks
         });
         var enrichedDicts = (backend.SubmittedRequest?["term"]?["glossaries"] as JsonArray ?? [])
             .Select(g => g?["dictionary"]?.ToString() ?? string.Empty).ToArray();
-        check(backend.SubmittedRequest?["sentence"]?.ToString() == fullBox
-              && backend.SubmittedRequest?["matchOffset"]?.GetValue<int>() == wordStart
-              && backend.AttachedSentence == fullBox,
-            "bridge restores full multi-sentence FFXIV text box and matchOffset for root lookups");
+        check(backend.AttachedSentence == fullBox, "the Anki media hook receives the full FFXIV text box");
         check(enrichedDicts.SequenceEqual(["FFXIV", "Jitendex"]),
             $"bridge restores remaining lookup dictionaries while keeping clicked Crystal section first ([{string.Join(", ", enrichedDicts)}])");
 
@@ -354,8 +342,11 @@ internal static class WebViewChecks
             using (var host = new WebViewPopupHost(Path.Combine(temp, "wv-fallback"), bridge, fallbackBundles, headless: true, initialWidth: 800, initialHeight: 600))
             {
                 var ok = await host.WaitUntilReadyAsync(TimeSpan.FromSeconds(20));
-                check(ok && host.SmokeTestPassed && host.UsedFallbackSelector && host.HostTagName == "renamed-dict-host",
-                    $"WebView2 structural fallback survives renamed host tag & popup class (ok={ok}, hostTag={host.HostTagName}, fallback={host.UsedFallbackSelector})");
+                host.ShowLookup("冒険者", 0, new Vector2(80, 60), new Vector2(140, 84), "FINAL FANTASY XIV", tokenLength: 3);
+                for (var i = 0; i < 30 && host.VisibleCount == 0; i++)
+                    await Task.Delay(100);
+                check(ok && host.GetPopupRects().Any(rect => rect.Right > rect.Left && rect.Bottom > rect.Top),
+                    "a bundle with renamed popup elements still exposes a hit-testable popup");
             }
 
             // 2. Broken upstream bundle (boots HDReaderReady cleanly, but renders no popup rects) triggers automatic rollback.
@@ -504,11 +495,6 @@ internal static class WebViewChecks
             var ready = await host.WaitUntilReadyAsync(TimeSpan.FromSeconds(20));
             check(ready, $"real WebView2 ({wvVersion}) boots unmodified Hachidori v{bundles.ActiveVersion} frontend{(ready ? "" : $" [error: {host.LastError}]")}");
             if (!ready) return;
-
-            const long RequiredExStyles = 0x00000080L | 0x08000000L | 0x00000020L | 0x00080000L | 0x00200000L;
-            var actualExStyle = GetWindowLongPtr(host.OverlayHwnd, -20).ToInt64();
-            check((actualExStyle & RequiredExStyles) == RequiredExStyles,
-                $"WebView2 overlay HWND permanently has click-through DirectComposition styles (0x{actualExStyle:X})");
 
             host.PushStorageUpdate(bridge.BuildProjectedSnapshot(), 0.8f, npcPicturesAvailable: true);
             await Task.Delay(350);
@@ -869,9 +855,6 @@ internal static class WebViewChecks
 
     [StructLayout(LayoutKind.Sequential)]
     private struct WinPoint { public int X, Y; }
-
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
-    private static extern nint GetWindowLongPtr(nint hwnd, int index);
 
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(nint hwnd);

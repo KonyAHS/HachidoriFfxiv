@@ -16,27 +16,7 @@ internal static class SelfTest
             passed++;
         }
 
-        // 1. Clean layered namespaces produce zero diagnostics.
-        {
-            var model = ModelBuilder.BuildFromSources("App", [
-                ("App/Core/Types.cs", """
-                    namespace App.Core;
-                    public sealed class Item { public int Value { get; } }
-                    """),
-                ("App/Feature/Service.cs", """
-                    using App.Core;
-                    namespace App.Feature;
-                    public sealed class Service
-                    {
-                        public int Read(Item item) => item.Value;
-                    }
-                    """),
-            ]);
-            var diags = Lints.CheckAll(model);
-            Assert(diags.Count == 0, "clean layered namespaces produce zero errors");
-        }
-
-        // 2. Sibling namespace cycle is caught as module-cycle.
+        // Sibling namespace cycle is caught as module-cycle.
         {
             var model = ModelBuilder.BuildFromSources("App", [
                 ("App/Alpha/A.cs", """
@@ -57,7 +37,7 @@ internal static class SelfTest
                 "mutually referencing types across namespaces report tangle");
         }
 
-        // 3. Unused `using` directive does not fabricate a module-cycle.
+        // A one-way dependency remains valid even with an unused using in the other direction.
         {
             var model = ModelBuilder.BuildFromSources("App", [
                 ("App/Alpha/A.cs", """
@@ -72,11 +52,10 @@ internal static class SelfTest
                     """),
             ]);
             var diags = Lints.CheckAll(model);
-            Assert(!diags.Any(d => d.Lint == "module-cycle"),
-                "unused using directive does not trigger false module-cycle");
+            Assert(diags.Count == 0, "one-way namespace dependencies pass even with unused using directives");
         }
 
-        // 4. Parent <-> child namespace type cycle is a tangle, NOT a sibling module-cycle.
+        // Parent and child namespaces can form a type tangle without a sibling module-cycle.
         {
             var model = ModelBuilder.BuildFromSources("App", [
                 ("App/Host.cs", """
@@ -96,7 +75,7 @@ internal static class SelfTest
                 "parent-child mutual type reference is caught as tangle");
         }
 
-        // 5. Small same-namespace type cycle (<= 7) is allowed; > 7 is a tangle.
+        // Small same-namespace type cycles are allowed. A cycle of 8 types is a tangle.
         {
             var smallCycle = ModelBuilder.BuildFromSources("App", [
                 ("App/Core/Small.cs", """
@@ -125,15 +104,18 @@ internal static class SelfTest
                 "cycle of 8 types in one namespace triggers tangle");
         }
 
-        // 6. Nested types and partial classes do not falsely tangle with themselves.
+        // Eight types would exceed the tangle limit if nested types were counted as peers.
         {
             var model = ModelBuilder.BuildFromSources("App", [
                 ("App/Core/PartA.cs", """
                     namespace App.Core;
                     public partial class Container
                     {
-                        public Inner? Child;
-                        public sealed class Inner { public Container? Owner; }
+                        public Inner1? Child;
+                        public sealed class Inner1 { public Inner2? Next; }
+                        public sealed class Inner2 { public Inner3? Next; }
+                        public sealed class Inner3 { public Inner4? Next; }
+                        public sealed class Inner4 { public Inner5? Next; }
                     }
                     """),
                 ("App/Core/PartB.cs", """
@@ -141,6 +123,9 @@ internal static class SelfTest
                     public partial class Container
                     {
                         public int Count => Child is null ? 0 : 1;
+                        public sealed class Inner5 { public Inner6? Next; }
+                        public sealed class Inner6 { public Inner7? Next; }
+                        public sealed class Inner7 { public Container? Owner; }
                     }
                     """),
             ]);
@@ -148,7 +133,7 @@ internal static class SelfTest
                 "nested types and partial classes never self-tangle");
         }
 
-        // 7. wide-directory (> 15 members) and long-file (> 2000 lines).
+        // wide-directory (> 15 members) and long-file (> 2000 lines).
         {
             var sources = new List<(string, string)>();
             for (var i = 0; i < 16; i++)
@@ -167,7 +152,7 @@ internal static class SelfTest
                 "file over 2000 lines triggers long-file");
         }
 
-        // 8. AllowList suppresses known debt and detects fixed entries.
+        // The allowlist suppresses known debt and detects fixed entries.
         {
             var d1 = new ArchDiagnostic("long-file", "App/A.cs", "long", "App/A.cs:1", []);
             var d2 = new ArchDiagnostic("wide-directory", "App/B", "wide", "App/B", []);

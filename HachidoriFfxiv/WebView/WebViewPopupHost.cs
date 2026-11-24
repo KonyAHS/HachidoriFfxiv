@@ -107,7 +107,6 @@ public sealed class WebViewPopupHost : IDisposable
     private volatile bool failed;
     private volatile bool smokeTestPassed;
     private volatile bool usedFallbackSelector;
-    private volatile string hostTagName = string.Empty;
     private volatile string? lastError;
     private volatile string statusText = "Starting WebView2…";
     private volatile int visibleCount;
@@ -171,7 +170,6 @@ public sealed class WebViewPopupHost : IDisposable
     public string? LoadedVersion => mappedBundleVersion;
     public bool SmokeTestPassed => smokeTestPassed;
     public bool UsedFallbackSelector => usedFallbackSelector;
-    public string HostTagName => hostTagName;
     internal nint OverlayHwnd => hwnd;
 
     /// <summary>Invoked whenever WebView2 starts or stops playing pronunciation audio.</summary>
@@ -785,7 +783,6 @@ public sealed class WebViewPopupHost : IDisposable
         ready = false;
         smokeTestPassed = false;
         usedFallbackSelector = false;
-        hostTagName = string.Empty;
         mappedBundlePath = bundlePath;
         mappedBundleVersion = bundles.ActiveVersion;
         var seq = Interlocked.Increment(ref bundleNavigationSeq);
@@ -832,7 +829,7 @@ public sealed class WebViewPopupHost : IDisposable
                 statusText = "Ready";
                 smokeTestPassed = true;
                 usedFallbackSelector = BoolVal(msg["usedFallbackSelector"]) || BoolVal(msg["usedFallbackHostTag"]);
-                hostTagName = msg["hostTag"]?.ToString() ?? string.Empty;
+                var hostTagName = msg["hostTag"]?.ToString() ?? string.Empty;
                 bundles.MarkBootSuccess(mappedBundleVersion);
                 DiagnosticLog.Write("webview", $"Hachidori Web v{msg["version"]} popup host ready (hostTag={hostTagName}, fallbackSelector={usedFallbackSelector}).");
                 if (usedFallbackSelector)

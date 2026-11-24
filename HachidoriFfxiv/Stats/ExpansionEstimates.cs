@@ -87,8 +87,6 @@ public static class ExpansionEstimates
         current = merged;
     }
 
-    internal static void ResetToBaseline() => current = Baseline;
-
     public static FfxivExpansion? FindById(string? id)
     {
         if (string.IsNullOrWhiteSpace(id))
