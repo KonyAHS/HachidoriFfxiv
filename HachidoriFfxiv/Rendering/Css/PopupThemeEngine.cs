@@ -249,9 +249,6 @@ public static partial class PopupThemeEngine
     [GeneratedRegex(@"\[\s*(?<name>[\w-]+)\s*=\s*[""']?(?<value>[^""'\]]*)[""']?\s*\]")]
     private static partial Regex AttributeEquals();
 
-    [GeneratedRegex(@"\s*(>|\+|~)\s*|\s+")]
-    private static partial Regex Combinator();
-
     /// <summary>The popup parts a selector styles, if it styles one in its resting state.</summary>
     private static IEnumerable<Match> Analyze(string selector, Dictionary<string, string> attributes)
     {

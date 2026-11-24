@@ -139,7 +139,7 @@
   function callHostRpc(message) {
     return new Promise((resolve, reject) => {
       const id = nextRpcId++;
-      pendingRpc.set(id, { resolve, reject, type: message?.type, requestId: message?.requestId });
+      pendingRpc.set(id, { resolve, reject, type: message?.type });
       postToHost({ kind: "rpc", id, message });
     });
   }
@@ -937,11 +937,6 @@
       }
       case "closeAll": {
         closeAllPopups();
-        return;
-      }
-      case "closeTop": {
-        readerApi?.act("close");
-        scheduleRectsSync();
         return;
       }
       case "closeFrom": {

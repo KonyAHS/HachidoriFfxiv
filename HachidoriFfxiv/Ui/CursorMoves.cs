@@ -280,15 +280,16 @@ public enum ControllerScanPress
 /// </summary>
 public sealed class ControllerScanState
 {
+    private bool popupObserved;
+
     public bool Active { get; private set; }
-    public bool PopupObserved { get; private set; }
     public object? ScannedBlock { get; private set; }
     public int ScannedIndex { get; private set; } = -1;
 
     public void Reset()
     {
         Active = false;
-        PopupObserved = false;
+        popupObserved = false;
         ScannedBlock = null;
         ScannedIndex = -1;
     }
@@ -299,8 +300,8 @@ public sealed class ControllerScanState
         if (!Active)
             return;
         if (popupVisibleAtLevel)
-            PopupObserved = true;
-        else if (PopupObserved)
+            popupObserved = true;
+        else if (popupObserved)
             Reset();
     }
 
@@ -332,7 +333,7 @@ public sealed class ControllerScanState
         if (parentPopupVisible && block is not null)
         {
             Active = true;
-            PopupObserved = true;
+            popupObserved = true;
             ScannedBlock = block;
             ScannedIndex = index;
         }
@@ -357,7 +358,7 @@ public sealed class ControllerScanState
             if (block is null)
                 return ControllerScanPress.None;
             Active = true;
-            PopupObserved = false;
+            popupObserved = false;
             ScannedBlock = block;
             ScannedIndex = index;
             return ControllerScanPress.Open;

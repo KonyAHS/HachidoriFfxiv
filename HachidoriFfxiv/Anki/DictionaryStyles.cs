@@ -69,7 +69,6 @@ public static partial class DictionaryStyles
         public string Selector { get; set; } = Selector;
     }
     private sealed record GroupRule(string Name, string Condition, List<CssRule> Rules) : CssRule;
-    private sealed record OtherRule : CssRule;
 
     private static string StripComments(string css) => Regex.Replace(css, @"/\*[\s\S]*?\*/", string.Empty);
 
@@ -87,8 +86,7 @@ public static partial class DictionaryStyles
             if (stop >= css.Length) break;
             if (at == ';')
             {
-                // A statement at-rule (@import, @charset...) or stray text.
-                rules.Add(new OtherRule());
+                // Skip statement at-rules (@import, @charset...) and stray text.
                 i = stop + 1;
                 continue;
             }
@@ -100,9 +98,8 @@ public static partial class DictionaryStyles
                 var nameEnd = 1;
                 while (nameEnd < prelude.Length && (char.IsAsciiLetterOrDigit(prelude[nameEnd]) || prelude[nameEnd] == '-')) nameEnd++;
                 var name = prelude[1..nameEnd].ToLowerInvariant();
-                rules.Add(GroupRules.Contains(name)
-                    ? new GroupRule(name, Collapse(prelude[nameEnd..].Trim()), Parse(body))
-                    : new OtherRule());
+                if (GroupRules.Contains(name))
+                    rules.Add(new GroupRule(name, Collapse(prelude[nameEnd..].Trim()), Parse(body)));
             }
             else if (prelude.Length > 0)
             {

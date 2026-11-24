@@ -369,7 +369,7 @@ public sealed class SvgImage
     }
 
     /// <summary>A path's subpaths as polylines, curves flattened.</summary>
-    public static List<(List<Vector2> Points, bool Closed)> PathData(string d)
+    private static List<(List<Vector2> Points, bool Closed)> PathData(string d)
     {
         var subpaths = new List<(List<Vector2>, bool)>();
         List<Vector2>? current = null;
@@ -532,7 +532,7 @@ public sealed class SvgImage
     }
 
     /// <summary>Ear clipping: triangle vertex indices for a simple polygon.</summary>
-    public static List<int> Triangulate(IReadOnlyList<Vector2> polygon)
+    private static List<int> Triangulate(IReadOnlyList<Vector2> polygon)
     {
         var triangles = new List<int>();
         var n = polygon.Count;

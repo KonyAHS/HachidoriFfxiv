@@ -22,8 +22,6 @@ public sealed unsafe class NativeEngine : IDisposable
     private readonly delegate* unmanaged[Cdecl]<byte*> lastError;
     private readonly delegate* unmanaged[Cdecl]<void> reset;
     private readonly delegate* unmanaged[Cdecl]<byte*, int, int, int, int> addDict;
-    private readonly delegate* unmanaged[Cdecl]<byte*, int> removeDict;
-    private readonly delegate* unmanaged[Cdecl]<byte*, int> setDictOrder;
     private readonly delegate* unmanaged[Cdecl]<byte*, int, int, byte*, byte*> lookup;
     private readonly delegate* unmanaged[Cdecl]<byte*, int, byte*, byte*> segment;
     private readonly delegate* unmanaged[Cdecl]<byte*, byte*> kanji;
@@ -31,7 +29,6 @@ public sealed unsafe class NativeEngine : IDisposable
     private readonly delegate* unmanaged[Cdecl]<byte*> styles;
     private readonly delegate* unmanaged[Cdecl]<byte*, byte*, int> media;
     private readonly delegate* unmanaged[Cdecl]<byte*> mediaData;
-    private readonly delegate* unmanaged[Cdecl]<byte*> version;
     private readonly delegate* unmanaged[Cdecl]<byte*, byte*, int, byte*> import;
     private bool disposed;
 
@@ -43,8 +40,6 @@ public sealed unsafe class NativeEngine : IDisposable
             lastError = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_last_error");
             reset = (delegate* unmanaged[Cdecl]<void>)Export("hdw_reset");
             addDict = (delegate* unmanaged[Cdecl]<byte*, int, int, int, int>)Export("hdw_add_dict");
-            removeDict = (delegate* unmanaged[Cdecl]<byte*, int>)Export("hdw_remove_dict");
-            setDictOrder = (delegate* unmanaged[Cdecl]<byte*, int>)Export("hdw_set_dict_order");
             lookup = (delegate* unmanaged[Cdecl]<byte*, int, int, byte*, byte*>)Export("hdw_lookup");
             segment = (delegate* unmanaged[Cdecl]<byte*, int, byte*, byte*>)Export("hdw_segment");
             kanji = (delegate* unmanaged[Cdecl]<byte*, byte*>)Export("hdw_kanji");
@@ -52,7 +47,7 @@ public sealed unsafe class NativeEngine : IDisposable
             styles = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_styles");
             media = (delegate* unmanaged[Cdecl]<byte*, byte*, int>)Export("hdw_media");
             mediaData = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_media_data");
-            version = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_native_version");
+            var version = (delegate* unmanaged[Cdecl]<byte*>)Export("hdw_native_version");
             import = (delegate* unmanaged[Cdecl]<byte*, byte*, int, byte*>)Export("hdw_import");
             var init = (delegate* unmanaged[Cdecl]<int>)Export("hdw_native_init");
             if (init() != 1)
@@ -77,18 +72,6 @@ public sealed unsafe class NativeEngine : IDisposable
 
     // ------------------------------------------------------------------ calls
 
-    public string LastError
-    {
-        get
-        {
-            lock (Gate)
-            {
-                ThrowIfDisposed();
-                return Utf8(lastError());
-            }
-        }
-    }
-
     public void Reset()
     {
         lock (Gate)
@@ -109,26 +92,6 @@ public sealed unsafe class NativeEngine : IDisposable
                 // Mapped entries and index: the OS pages the files in on demand.
                 return addDict(p, (int)kind, 0, 0) == 1 ? null : NonEmpty(Utf8(lastError()), "the engine rejected the dictionary");
             }
-        }
-    }
-
-    public int RemoveDictionary(string path)
-    {
-        lock (Gate)
-        {
-            ThrowIfDisposed();
-            fixed (byte* p = Utf8Z(path))
-                return removeDict(p);
-        }
-    }
-
-    public bool SetDictionaryOrder(JsonArray paths)
-    {
-        lock (Gate)
-        {
-            ThrowIfDisposed();
-            fixed (byte* p = Utf8Z(paths.ToJsonString()))
-                return setDictOrder(p) == 1;
         }
     }
 

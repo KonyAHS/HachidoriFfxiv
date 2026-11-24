@@ -8,10 +8,7 @@ namespace HachidoriFfxiv;
 
 public static class Ffmpeg
 {
-    public readonly record struct Caps(string? Av1, bool Webp)
-    {
-        public bool Any => Av1 is not null || Webp;
-    }
+    public readonly record struct Caps(string? Av1, bool Webp);
 
     private static readonly Dictionary<string, Caps> Known = new(StringComparer.OrdinalIgnoreCase);
 

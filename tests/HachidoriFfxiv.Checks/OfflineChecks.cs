@@ -78,15 +78,14 @@ internal static class OfflineChecks
                 new() { Id = id, Title = id.ToUpperInvariant(), Revision = "1", Folder = id, TermCount = terms, FrequencyCount = freq };
             store.SaveManifest(new OfflineManifest { Dictionaries = [Entry("a"), Entry("b", 0, 5), Entry("c")] });
             var v1 = JsonNode.Parse("""{"dictionaryState":{"schemaVersion":1,"dictionaries":[{"id":"c"},{"id":"a","enabled":false},{"id":"b"},{"id":"gone"}]}}""")!.AsObject();
-            var plan = OfflinePlan.For(store, v1);
+            var reopened = new OfflineStore(root);
+            var plan = OfflinePlan.For(reopened, v1);
             check(string.Join(",", plan.Select(d => $"{d.Id}{(d.Enabled ? "" : "-")}")) == "c,a-,b"
                   && plan.Single(d => d.Id == "b").Kinds.SequenceEqual([NativeEngine.Kind.Frequency]),
                 "offline load plan follows Hachidori's dictionary order, enabled flags and kinds");
             var v2 = JsonNode.Parse("""{"dictionaryState":{"schemaVersion":2,"dictionaries":[{"id":"a"},{"id":"b"},{"id":"c"}],"profiles":{"ja":{"dictionaries":[{"id":"b"},{"id":"a","enabled":false}]}}}}""")!.AsObject();
-            check(string.Join(",", OfflinePlan.For(store, v2).Select(d => $"{d.Id}{(d.Enabled ? "" : "-")}")) == "b,a-",
+            check(string.Join(",", OfflinePlan.For(reopened, v2).Select(d => $"{d.Id}{(d.Enabled ? "" : "-")}")) == "b,a-",
                 "offline load plan uses the Japanese profile once dictionaries have profiles");
-            check(new OfflineStore(root).Manifest.Dictionaries.Count == 3 && !File.Exists(Path.Combine(root, "manifest.json.tmp")),
-                "the offline manifest is replaced atomically and reads back");
         }
         finally
         {

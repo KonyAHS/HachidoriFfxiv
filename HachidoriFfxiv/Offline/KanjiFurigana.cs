@@ -159,7 +159,7 @@ public sealed class KanjiFurigana
     // ------------------------------------------------------------ kanji runs
 
     private static IReadOnlyList<FuriganaSegment> SplitKanjiRuns(List<FuriganaSegment> segments,
-        Func<string, IReadOnlySet<string>> readings, Kanwa? kanwa)
+        Func<string, IReadOnlySet<string>> readings, Kanwa kanwa)
     {
         var split = new List<FuriganaSegment>();
         foreach (var segment in segments)
@@ -172,7 +172,7 @@ public sealed class KanjiFurigana
             }
             var reading = ToHiragana(segment.Reading);
             var bounds = ReadKanjiRun(characters, reading, readings)?.Select(b => (int?)b).ToList()
-                ?? (kanwa is null ? null : ReadKanwaRun(characters, reading, kanwa));
+                ?? ReadKanwaRun(characters, reading, kanwa);
             if (bounds is not { Count: > 0 })
             {
                 split.Add(segment);

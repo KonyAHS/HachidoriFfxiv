@@ -24,7 +24,6 @@ internal sealed class TouchpadReader : IDisposable
     private volatile bool stopping;
     private float accumX;
     private float accumY;
-    private bool touching;
 
     public bool Active => handle is { IsInvalid: false, IsClosed: false };
 
@@ -48,14 +47,13 @@ internal sealed class TouchpadReader : IDisposable
     }
 
     /// <summary>Consumes accumulated touchpad movement in touchpad units (1920×1080 space).</summary>
-    public Vector2 ConsumeDelta(out bool isTouching)
+    public Vector2 ConsumeDelta()
     {
         lock (gate)
         {
             var delta = new Vector2(accumX, accumY);
             accumX = 0;
             accumY = 0;
-            isTouching = touching;
             return delta;
         }
     }
@@ -78,7 +76,6 @@ internal sealed class TouchpadReader : IDisposable
         {
             accumX = 0;
             accumY = 0;
-            touching = false;
         }
     }
 
@@ -112,7 +109,6 @@ internal sealed class TouchpadReader : IDisposable
 
                 lock (gate)
                 {
-                    touching = down;
                     if (down && prevTouching && id == prevId)
                     {
                         var dx = x - prevX;

@@ -158,7 +158,7 @@ public sealed class StatsWindow : Window
         DrawStatsTab("Words###words", () => DrawWordsTab(snap, scale));
         DrawStatsTab($"Anki ({snap.RecentMinedCards.Count})###anki", () => DrawAnkiTab(snap, scale));
         DrawStatsTab("Achievements###achievements", () => DrawAchievementsTab(snap, scale));
-        DrawStatsTab("Data###data", () => DrawEcosystemTab(snap, scale));
+        DrawStatsTab("Data###data", () => DrawEcosystemTab(scale));
     }
 
     private static void DrawStatsTab(string label, Action drawBody)
@@ -1041,7 +1041,7 @@ public sealed class StatsWindow : Window
 
     // -------------------------------------------------------------- Data (export, import, sync)
 
-    private void DrawEcosystemTab(StatsSnapshot snap, float scale)
+    private void DrawEcosystemTab(float scale)
     {
         var changed = false;
         var sqliteOk = NativeSqlite.IsAvailable;

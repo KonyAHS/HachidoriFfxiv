@@ -23,7 +23,6 @@
     <EmbeddedResource Include="../../HachidoriFfxiv/Anki/Data/*.json" LogicalName="HachidoriFfxiv.Anki.%(Filename).json" />
     <EmbeddedResource Include="../../HachidoriFfxiv/Offline/Data/*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />
     <None Include="../../native/bin/hdw_native.dll" Link="hdw_native.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../../HachidoriFfxiv/Publishing/PublishGate.cs" Link="PublishGate.cs" />
     <Compile Include="../../HachidoriFfxiv/Publishing/TextWebSocketServer.cs" Link="TextWebSocketServer.cs" />
     <Compile Include="../../HachidoriFfxiv/Host/DiagnosticLog.cs" Link="Host/DiagnosticLog.cs" />

@@ -6,8 +6,6 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using HachidoriFfxiv.Hachidori;
-using HachidoriFfxiv.Media;
-using HachidoriFfxiv.Stats;
 
 namespace HachidoriFfxiv.WebView;
 

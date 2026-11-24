@@ -121,9 +121,6 @@ public sealed unsafe class NativeTextHover : IDisposable
         }
     }
 
-    internal static bool IsTooltipAddon(string name) =>
-        GameUiInterop.IsTooltipAddon(name);
-
     private void Update(IFramework framework)
     {
         if (pendingFreezeCallback is { } freezeCb)

@@ -276,7 +276,7 @@ public static unsafe class RichText
         var fontId = (nint)font.Handle;
         if (layout is null || layout.Font != fontId || MathF.Abs(layout.Width - width) > 0.5f || MathF.Abs(layout.BaseSize - baseSize) > 0.01f || layout.LadderVersion != ladderVersion)
         {
-            layout = BuildLayout(block, font, fontId, baseSize, width);
+            layout = BuildLayout(block, fontId, baseSize, width);
             block.CachedLayout = layout;
         }
 
@@ -342,7 +342,7 @@ public static unsafe class RichText
             drawList.AddText(segFont, seg.Size, pos, color, text);
             if (run.Bold)
                 drawList.AddText(segFont, seg.Size, pos + new Vector2(MathF.Max(1f, MathF.Round(seg.Size / 28f)), 0), color, text);
-            if (run.Underline || run.Link || run.Strike)
+            if (run.Underline || run.Strike)
             {
                 var w = 0f;
                 foreach (var g in layout.Glyphs)
@@ -352,8 +352,7 @@ public static unsafe class RichText
                 }
 
                 var ly = run.Strike ? y + seg.Size * 0.55f : y + seg.Size * 1.02f;
-                if (run.Underline || run.Strike)
-                    drawList.AddLine(new Vector2(pos.X, ly), new Vector2(pos.X + w, ly), color, MathF.Max(1f, seg.Size / 18f));
+                drawList.AddLine(new Vector2(pos.X, ly), new Vector2(pos.X + w, ly), color, MathF.Max(1f, seg.Size / 18f));
             }
         }
 
@@ -464,7 +463,7 @@ public static unsafe class RichText
         public float W;
     }
 
-    private static RichBlock.Layout BuildLayout(RichBlock block, ImFontPtr font, nint fontId, float baseSize, float width)
+    private static RichBlock.Layout BuildLayout(RichBlock block, nint fontId, float baseSize, float width)
     {
         var layout = new RichBlock.Layout { Width = width, BaseSize = baseSize, Font = fontId, LadderVersion = ladderVersion };
         var units = new List<Unit>();

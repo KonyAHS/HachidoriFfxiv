@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using HachidoriFfxiv.Hachidori;
 using Lumina.Text.Payloads;
 using Lumina.Text.ReadOnly;
 

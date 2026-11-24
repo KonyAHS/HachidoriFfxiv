@@ -6,7 +6,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -41,17 +40,6 @@ public static class NpcImageDictionary
 
     public static bool IsPictureDictionary(string title) =>
         title == Title || title.StartsWith(LegacyTitlePrefix, StringComparison.Ordinal);
-
-    public static string LegacyTitle(string expression, string reading)
-    {
-        // A quoted tuple avoids delimiter collisions while keeping the host's
-        // dictionary list readable. Identity is independent of the picture.
-        var identity = new JsonArray(expression, reading).ToJsonString(new JsonSerializerOptions
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        });
-        return LegacyTitlePrefix + identity;
-    }
 
     /// <summary>The headword and reading a legacy per-picture dictionary title names.</summary>
     public static bool TryParseLegacyTitle(string title, out string expression, out string reading)

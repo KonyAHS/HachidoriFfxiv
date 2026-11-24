@@ -30,17 +30,13 @@ public sealed record ExpansionProgressItem(
     bool Active);
 
 public sealed record ExpansionJourneySummary(
-    long EffectiveChars,
     long TotalMsqChars,
-    double TotalMsqPercent,
     FfxivExpansion? FocusExpansion,
     long FocusTargetChars,
     long FocusCurrentChars,
-    long FocusRemainingChars,
     double FocusPercent,
     double? EstimatedHoursRemaining,
     double? EstimatedDaysAtGoal,
-    string FunComparison,
     IReadOnlyList<ExpansionProgressItem> Expansions);
 
 public static class ExpansionEstimates
@@ -68,8 +64,6 @@ public static class ExpansionEstimates
 
     public static long TotalMsqChars => current.Sum(e => e.EstimatedMsqChars);
 
-    public static long TotalAllQuestsChars => current.Sum(e => e.EstimatedAllQuestsChars);
-
     /// <summary>
     /// Appends future expansions (8.0+) discovered from the player's installed FFXIV Excel sheets
     /// while preserving the baseline ARR–Dawntrail entries.
@@ -92,8 +86,6 @@ public static class ExpansionEstimates
         }
         current = merged;
     }
-
-    internal static void ResetToBaseline() => current = Baseline;
 
     public static FfxivExpansion? FindById(string? id)
     {
@@ -173,36 +165,14 @@ public static class ExpansionEstimates
         double? hoursLeft = remaining > 0 && charsPerHour >= 100 ? remaining / charsPerHour : null;
         double? daysLeft = remaining > 0 && dailyCharGoal > 0 ? (double)remaining / dailyCharGoal : null;
 
-        var totalPct = TotalMsqChars > 0 ? Math.Clamp(100.0 * effective / TotalMsqChars, 0.0, 100.0) : 0.0;
-        var fun = FormatFunComparison(safeChars);
-
         return new ExpansionJourneySummary(
-            EffectiveChars: effective,
             TotalMsqChars: TotalMsqChars,
-            TotalMsqPercent: totalPct,
             FocusExpansion: focus,
             FocusTargetChars: focusTarget,
             FocusCurrentChars: focusCurrent,
-            FocusRemainingChars: remaining,
             FocusPercent: focusPct,
             EstimatedHoursRemaining: hoursLeft,
             EstimatedDaysAtGoal: daysLeft,
-            FunComparison: fun,
             Expansions: items);
-    }
-
-    public static string FormatFunComparison(long japaneseChars)
-    {
-        if (japaneseChars <= 0)
-            return "Ready for Eorzea";
-        if (japaneseChars < 20_000)
-            return $"≈ {100.0 * japaneseChars / All[1].EstimatedMsqChars:0.0}% of Heavensward MSQ";
-        if (japaneseChars < All[1].EstimatedMsqChars)
-            return $"≈ {100.0 * japaneseChars / All[1].EstimatedMsqChars:0}% of Heavensward MSQ";
-        if (japaneseChars < All[0].EstimatedMsqChars)
-            return $"≈ {japaneseChars / (double)All[1].EstimatedMsqChars:0.0}× Heavensward MSQ";
-        if (japaneseChars < TotalMsqChars)
-            return $"≈ {100.0 * japaneseChars / TotalMsqChars:0.0}% of full FFXIV MSQ";
-        return $"≈ {japaneseChars / (double)TotalMsqChars:0.00}× full FFXIV MSQ!";
     }
 }

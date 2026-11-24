@@ -1,7 +1,6 @@
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json.Nodes;
 using HachidoriFfxiv.Publishing;
 
 internal static class PublishChecks
@@ -25,43 +24,35 @@ internal static class PublishChecks
         gate.Offer("Popup", "はい", t.AddSeconds(20));
         check(gate.Drain(t.AddSeconds(21)).Count(l => l == "はい") == 2, "sources are tracked independently");
 
-        var json = JsonNode.Parse(PublishMessage.Format(PublishMessage.Line("ウリエンジェ", "123", true)))!;
-        check(json["sentence"]!.GetValue<string>() == "ウリエンジェ：123", "messages are JSON objects with an optional speaker");
-        check(PublishMessage.Format(PublishMessage.Line("名前", "冒険", false)) == """{"sentence":"冒険"}""", "speaker is omitted by default and Japanese stays readable");
-
-        check(TextWebSocketServer.IsAllowedOrigin(null) && TextWebSocketServer.IsAllowedOrigin("http://localhost:7275")
-            && TextWebSocketServer.IsAllowedOrigin("http://127.0.0.1:55000"), "non-browser and local clients may connect");
-        check(!TextWebSocketServer.IsAllowedOrigin("https://example.com") && !TextWebSocketServer.IsAllowedOrigin("null")
-            && !TextWebSocketServer.IsAllowedOrigin("http://localhost.example.com"), "websites may not read the feed");
-
         var probe = new TcpListener(System.Net.IPAddress.Loopback, 0);
         probe.Start();
         var port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
         probe.Stop();
 
-        var server = new TextWebSocketServer(port);
+        using var server = new TextWebSocketServer(port);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        foreach (var host in new[] { "localhost", "127.0.0.1" })
+        foreach (var (host, origin, includeSpeaker, expected) in new[]
+        {
+            ("localhost", "http://localhost:7275", false, """{"sentence":"冒険者"}"""),
+            ("127.0.0.1", "http://127.0.0.1:55000", true, """{"sentence":"ウリエンジェ：冒険者"}"""),
+        })
         {
             using var client = new ClientWebSocket();
+            client.Options.SetRequestHeader("Origin", origin);
             await client.ConnectAsync(new Uri($"ws://{host}:{port}"), timeout.Token);
-            while (server.ClientCount == 0) await Task.Delay(5, timeout.Token);
-            server.Broadcast("""{"sentence":"冒険者"}""");
-            var buffer = new byte[256];
-            var received = await client.ReceiveAsync(buffer, timeout.Token);
-            check(Encoding.UTF8.GetString(buffer, 0, received.Count) == """{"sentence":"冒険者"}""" && received.MessageType == WebSocketMessageType.Text,
-                $"a client on {host} receives published text");
+            await CheckDeliveryAsync(server, client, includeSpeaker, expected, $"a client from {origin} receives Japanese text with the configured speaker setting");
             await client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, timeout.Token);
             while (server.ClientCount != 0) await Task.Delay(5, timeout.Token);
         }
 
-        using (var website = new ClientWebSocket())
+        foreach (var origin in new[] { "https://example.com", "null", "http://localhost.example.com" })
         {
-            website.Options.SetRequestHeader("Origin", "https://example.com");
+            using var website = new ClientWebSocket();
+            website.Options.SetRequestHeader("Origin", origin);
             var refused = false;
             try { await website.ConnectAsync(new Uri($"ws://localhost:{port}"), timeout.Token); }
             catch (WebSocketException) { refused = true; }
-            check(refused, "the server refuses a website's connection");
+            check(refused, $"the server rejects connections with Origin {origin}");
         }
 
         var busy = false;
@@ -75,6 +66,17 @@ internal static class PublishChecks
         using var restarted = new TextWebSocketServer(port);
         using var reconnect = new ClientWebSocket();
         await reconnect.ConnectAsync(new Uri($"ws://localhost:{port}"), timeout.Token);
-        check(reconnect.State == WebSocketState.Open, "the port can be reopened while an old client lingers");
+        await CheckDeliveryAsync(restarted, reconnect, false, """{"sentence":"冒険者"}""",
+            "a client without an Origin receives text after the server restarts with an old client connected");
+
+        async Task CheckDeliveryAsync(TextWebSocketServer publisher, ClientWebSocket client, bool includeSpeaker, string expected, string name)
+        {
+            while (publisher.ClientCount == 0) await Task.Delay(5, timeout.Token);
+            publisher.Broadcast(PublishMessage.Format(PublishMessage.Line("ウリエンジェ", "冒険者", includeSpeaker)));
+            var buffer = new byte[256];
+            var received = await client.ReceiveAsync(buffer, timeout.Token);
+            check(received.MessageType == WebSocketMessageType.Text && received.EndOfMessage
+                  && Encoding.UTF8.GetString(buffer, 0, received.Count) == expected, name);
+        }
     }
 }

@@ -12,8 +12,6 @@ public sealed class LookupReply
     public required IReadOnlyList<LookupResult> Results { get; init; }
     public long Generation { get; init; }
     public bool IsKanji { get; init; }
-
-    public static readonly LookupReply Empty = new() { Query = string.Empty, Results = [] };
 }
 
 /// <summary>hoshidicts' LookupResult, as Hachidori's engine service returns it.</summary>

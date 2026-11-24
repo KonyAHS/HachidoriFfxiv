@@ -39,7 +39,7 @@ public sealed class GamepadNavigator : IDisposable
     private GamepadButtons previous;
     private readonly ControllerTriggerState triggerState = new();
     private bool toggleKeyWasDown;
-    private readonly Dictionary<string, (DateTime Next, bool Repeating)> repeats = new();
+    private readonly Dictionary<string, DateTime> repeats = new();
     private DateTime? noTextSince;
     private bool seenText;
     private DateTime lastScroll = DateTime.MinValue;
@@ -270,7 +270,7 @@ public sealed class GamepadNavigator : IDisposable
             var vp = ImGui.GetMainViewport();
             var stick = Normalize(DalamudServices.Gamepad.LeftStick);
             var stickMag = stick.Length();
-            var padDelta = config.ControllerUseTouchpad ? touchpad.ConsumeDelta(out _) : Vector2.Zero;
+            var padDelta = config.ControllerUseTouchpad ? touchpad.ConsumeDelta() : Vector2.Zero;
             if (stickMag > 0.18f)
             {
                 if (virtualPointer.X < vp.Pos.X - 100)
@@ -327,7 +327,7 @@ public sealed class GamepadNavigator : IDisposable
             virtualPointer = stops[Math.Clamp(current, 0, stops.Count - 1)].Center;
         }
         var stop = stops[Math.Clamp(current, 0, stops.Count - 1)];
-        var block = StopBlock(stop, level);
+        var block = StopBlock(stop);
         if (!config.ControllerAutoScan && scanState.OnStopChanged(block, stop.Index))
             popups.CloseFrom(level);
 
@@ -357,7 +357,7 @@ public sealed class GamepadNavigator : IDisposable
             }
             current = FindCurrent(stops);
             stop = stops[Math.Clamp(current, 0, stops.Count - 1)];
-            block = StopBlock(stop, level);
+            block = StopBlock(stop);
             if (!config.ControllerAutoScan)
                 scanState.AlignAfterModeToggle(block, stop.Index);
         }
@@ -419,7 +419,7 @@ public sealed class GamepadNavigator : IDisposable
                 {
                     current = nextWindow;
                     stop = stops[current];
-                    block = StopBlock(stop, level);
+                    block = StopBlock(stop);
                     cursor[level] = (block, stop.Index);
                     virtualPointer = stop.Center;
                     if (!config.ControllerAutoScan && scanState.OnStopChanged(block, stop.Index))
@@ -482,7 +482,7 @@ public sealed class GamepadNavigator : IDisposable
     private readonly List<bool> stopBodies = new();
     private readonly List<IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)>> stopCells = new();
 
-    private RichBlock? StopBlock(CursorStop stop, int forLevel) => stop.Target < stopBlocks.Count ? stopBlocks[stop.Target] : null;
+    private RichBlock? StopBlock(CursorStop stop) => stop.Target < stopBlocks.Count ? stopBlocks[stop.Target] : null;
     private string StopAddon(CursorStop stop) => stop.Target < stopAddons.Count ? stopAddons[stop.Target] : string.Empty;
 
     private int NextAddonStop(List<CursorStop> stops, int current)
@@ -840,15 +840,15 @@ public sealed class GamepadNavigator : IDisposable
             return false;
         }
 
-        if (!repeats.TryGetValue(key, out var state))
+        if (!repeats.TryGetValue(key, out var next))
         {
-            repeats[key] = (now.AddSeconds(RepeatDelay), true);
+            repeats[key] = now.AddSeconds(RepeatDelay);
             return true;
         }
 
-        if (now < state.Next)
+        if (now < next)
             return false;
-        repeats[key] = (now.AddSeconds(RepeatRate), true);
+        repeats[key] = now.AddSeconds(RepeatRate);
         return true;
     }
 

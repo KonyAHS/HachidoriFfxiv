@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.GamePad;
 using Dalamud.Game.Text;
-using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -727,14 +726,13 @@ public sealed partial class ConfigWindow : Window
         }
     }
 
-    private bool Toggle(string label, bool value, Action<bool> set)
+    private void Toggle(string label, bool value, Action<bool> set)
     {
         if (ImGui.Checkbox(label, ref value))
         {
             set(value);
             config.Save();
         }
-        return value;
     }
 
     private static void HelpMarker(string text)

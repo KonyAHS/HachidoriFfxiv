@@ -57,19 +57,16 @@ public static class Japanese
 
         var result = new List<FuriganaSegment>();
         var groupIndex = 1;
-        var readingOffset = 0;
         foreach (var group in groups)
         {
             if (group.Kana)
             {
                 result.Add(new FuriganaSegment(group.Text, string.Empty));
-                readingOffset += group.Text.Length;
             }
             else
             {
                 var captured = match.Groups[groupIndex++];
                 result.Add(new FuriganaSegment(group.Text, reading.Substring(captured.Index, captured.Length)));
-                readingOffset = captured.Index + captured.Length;
             }
         }
 

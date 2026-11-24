@@ -33,7 +33,6 @@ public sealed partial class AnkiGlossary
         "sub", "summary", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul",
     ];
     private static readonly HashSet<string> IgnoredTags = ["audio", "button", "canvas", "iframe", "input", "script", "source", "style", "svg", "video"];
-    private static readonly HashSet<string> TagsWithoutContent = ["br", "img"];
     private static readonly HashSet<string> Blocks = ["br", "div", "li", "ol", "p", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"];
     private static readonly (string Property, string Css)[] StyleProperties =
     [
@@ -354,7 +353,7 @@ public sealed partial class AnkiGlossary
         {
             parent.Append(element);
         }
-        if (!TagsWithoutContent.Contains(tag) && record.ContainsKey("content"))
+        if (tag != "br" && record.ContainsKey("content"))
             AppendStructuredValue(contentParent, record["content"], childLanguage, dictionary, images);
         if (external)
         {

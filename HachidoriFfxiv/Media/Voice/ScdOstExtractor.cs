@@ -14,7 +14,6 @@ public sealed record BgmSnapshot(
     uint SoundNumber,
     double ElapsedSeconds,
     long CapturedAtTicks,
-    float TrackVolume,
     bool FromEngineClock,
     bool Muted)
 {
@@ -94,7 +93,6 @@ public sealed class CachedOstTrack
     public required long LoopEndSample { get; init; }
 
     public bool Loops => LoopEndSample > LoopStartSample && LoopEndSample <= TotalSamples;
-    public double DurationSeconds => SampleRate > 0 ? TotalSamples / (double)SampleRate : 0;
 }
 
 /// <summary>
@@ -418,15 +416,8 @@ public sealed class OstTrackCache
     {
         lock (gate)
         {
-            for (var node = entries.First; node is not null; node = node.Next)
-            {
-                if (node.Value.SoundNumber == soundNumber && string.Equals(node.Value.KeyPath, filePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    entries.Remove(node);
-                    entries.AddFirst(node);
-                    return node.Value.Track;
-                }
-            }
+            if (FindAndPromoteLocked(filePath, soundNumber) is { } cached)
+                return cached;
         }
 
         var loaded = loader();
@@ -436,15 +427,8 @@ public sealed class OstTrackCache
         lock (gate)
         {
             // Avoid duplicating if another thread loaded it concurrently.
-            for (var node = entries.First; node is not null; node = node.Next)
-            {
-                if (node.Value.SoundNumber == soundNumber && string.Equals(node.Value.KeyPath, filePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    entries.Remove(node);
-                    entries.AddFirst(node);
-                    return node.Value.Track;
-                }
-            }
+            if (FindAndPromoteLocked(filePath, soundNumber) is { } cached)
+                return cached;
 
             entries.AddFirst((filePath, soundNumber, loaded));
             while (entries.Count > maxEntries)
@@ -453,9 +437,18 @@ public sealed class OstTrackCache
         }
     }
 
-    public void Clear()
+    private CachedOstTrack? FindAndPromoteLocked(string filePath, uint soundNumber)
     {
-        lock (gate)
-            entries.Clear();
+        for (var node = entries.First; node is not null; node = node.Next)
+        {
+            if (node.Value.SoundNumber != soundNumber || !string.Equals(node.Value.KeyPath, filePath, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            entries.Remove(node);
+            entries.AddFirst(node);
+            return node.Value.Track;
+        }
+
+        return null;
     }
 }

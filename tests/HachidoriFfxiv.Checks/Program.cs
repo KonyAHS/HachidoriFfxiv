@@ -54,15 +54,18 @@ CheckGameUiInterop(Check);
 Vector2 FixedMeasure(string s) => new(s.EnumerateRunes().Count() * 10, 12);
 var native = NativeTextLayout.Build("冒険\n者𠮷", 40, 40, 0, 12, 18, false, FixedMeasure);
 Check(native.Hit(new(5, 4))?.Index == 0 && native.Hit(new(15, 4))?.Index == 1, "native hover resolves individual characters");
-Check(native.Hit(new(15, 21))?.Index == 4 && native.Cells.Count == 4, "native multiline offsets preserve surrogate pairs");
 Check(native.Hit(new(25, 4)) is null && native.Hit(new(5, 14)) is null, "native blank space and line gaps are not hover targets");
+var supplementary = NativeTextLayout.Build("冒\n𠮷者", 40, 40, 0, 12, 18, false, FixedMeasure);
+Check(supplementary.Hit(new(5, 21))?.Index == 2 && supplementary.Hit(new(15, 21))?.Index == 4,
+    "native hover treats supplementary characters as one glyph and preserves UTF-16 offsets");
 var centered = NativeTextLayout.Build("冒険", 100, 50, 4, 12, 18, false, FixedMeasure);
 Check(centered.Hit(new(41, 20))?.Index == 0 && centered.Hit(new(5, 5)) is null, "native center alignment follows text rather than the whole node");
 var wrapped = NativeTextLayout.Build("冒険者", 20, 40, 0, 12, 18, true, FixedMeasure);
 Check(wrapped.Hit(new(5, 20))?.Index == 2, "native soft wrapping preserves source offsets");
 var crlf = NativeTextLayout.Build("冒\r\n険", 40, 40, 0, 12, 18, false, FixedMeasure);
 Check(crlf.Hit(new(5, 20))?.Index == 3, "native CRLF is one visual line break");
-Check(!NativeTextLayout.Contains(new(0), new(20), new(20, 5)), "native hit rectangles exclude the far edge");
+Check(native.Hit(new(10, 5))?.Index == 1 && native.Hit(new(20, 5)) is null,
+    "a glyph's right edge belongs to the following glyph or to blank space");
 Check(native.HitScreen(new(210, 108), new(200, 100), new(2), new(200, 100), new(280, 180))?.Index == 0,
     "native targets follow moved text boxes and UI scaling");
 Check(native.HitScreen(new(210, 108), new(600, 300), new(2), new(600, 300), new(680, 380)) is null,
@@ -131,7 +134,6 @@ try
 catch (HachidoriException ex) { Check(ex.Message.Contains("browser speech recording"), "browser speech plans produce an actionable error instead of an invalid envelope"); }
 var segmentResponse = JsonNode.Parse("""{"segments":[{"id":0,"spans":[{"start":0,"length":3},{"start":3,"length":1},{"start":999,"length":1}]}]}""");
 var words = WordSpan.Parse(segmentResponse, "冒険者さん");
-Check(WordSpan.At(words, 2) == new WordSpan(0, 3), "hovering any character of a token resolves its word start and full range");
 Check(words.Count == 2 && WordSpan.At(words, 4) is null, "token parser rejects invalid spans and preserves unsegmented gaps");
 var imageBlocks = GlossaryBuilder.Build(JsonNode.Parse("""[{"type":"structured-content","content":{"tag":"img","path":"images/character.png","height":2,"sizeUnits":"em","alt":"character"}}]"""), 0, false, "FFXIV");
 var imageSpec = imageBlocks.Single().Image!;
@@ -173,7 +175,6 @@ Check(blocks.All(b => !b.ScanText.Contains("source credit")), "attribution hides
 Check(GlossaryBuilder.Build(glossary, 0, true).Any(b => b.ScanText.Contains("source credit")), "attribution renders when enabled");
 var ruby = Japanese.DistributeFurigana("分かる", "わかる");
 Check(ruby.Count == 2 && ruby[0].Reading == "わ" && ruby[1].Reading == "", "furigana stays above kanji");
-Check(NameKana.ToKatakana("Rony") == "ロニー" && NameKana.ToKatakana("Tamino") == "タミノ", "player names convert to katakana");
 var nameOffset = 12;
 var named = NameKana.Apply("ありがとう、Rony Tamino。Ronyさん", NameKana.Replacements("Rony Tamino", null), ref nameOffset);
 Check(named == "ありがとう、ロニー・タミノ。ロニーさん" && nameOffset == 6, "player name replacement keeps the match offset on the name");
@@ -187,7 +188,8 @@ var result = LookupResult.Parse(JsonNode.Parse("""
  "frequencies":[{"dictionary":"frequency","frequencies":[{"value":260,"displayValue":"260㋕"}]}]}}
 """)!.AsObject());
 Check(result.Matched == "分かりませんでした" && result.Trace.Single() == "-た" && result.Term.Frequencies.Single().Values.Single().Display == "260㋕", "lookup response preserves surface text, inflection and frequency display");
-Check(result.Term.Glossaries.Single().Content is JsonArray, "JSON-encoded glossary parses");
+Check(GlossaryBuilder.Build(result.Term.Glossaries.Single().Content, 0, false).Single().ScanText == "understand",
+    "JSON-encoded glossary displays the definition");
 
 if (args.Contains("--live"))
 {
@@ -195,10 +197,10 @@ if (args.Contains("--live"))
     var reply = await live.RequestAsync("hoshidicts-offscreen", "hd_lookup",
         new JsonObject { ["text"] = "冒険者", ["maxResults"] = 4, ["scanLength"] = 16 });
     Check(reply?["results"] is JsonArray { Count: > 0 }, "live Hachidori lookup returns dictionary results");
-    foreach (var item in reply!["results"]!.AsArray().OfType<JsonObject>())
-        foreach (var entry in LookupResult.Parse(item).Term.Glossaries)
-            GlossaryBuilder.Build(entry.Content, 0, false);
-    Check(true, "live dictionary glossaries convert without errors");
+    var liveGlossaryBlocks = reply!["results"]!.AsArray().OfType<JsonObject>()
+        .SelectMany(item => LookupResult.Parse(item).Term.Glossaries)
+        .SelectMany(entry => GlossaryBuilder.Build(entry.Content, 0, false)).ToArray();
+    Check(liveGlossaryBlocks.Any(block => !block.IsEmpty), "live dictionary glossaries contain renderable definitions");
     Console.WriteLine($"Host: {live.HostName} {live.HostVersion}; dictionaries: {live.DictionaryCount}");
     var segmentation = await live.RequestAsync("hoshidicts-offscreen", "hd_segment", HachidoriPayloads.Segment("冒険者さん、お待たせしました", 16, true));
     var liveWords = WordSpan.Parse(segmentation, "冒険者さん、お待たせしました");

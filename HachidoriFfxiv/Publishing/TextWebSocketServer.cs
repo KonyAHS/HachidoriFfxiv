@@ -48,7 +48,7 @@ public sealed class TextWebSocketServer : IDisposable
     }
 
     /// <summary>A website can open a WebSocket to localhost; only local pages and non-browsers may read game text.</summary>
-    public static bool IsAllowedOrigin(string? origin)
+    private static bool IsAllowedOrigin(string? origin)
     {
         if (string.IsNullOrEmpty(origin))
             return true;

@@ -133,7 +133,7 @@ public sealed class HachidoriBundleManager : IDisposable
             // 1. Custom extension folder override (explicit user path).
             if (!string.IsNullOrWhiteSpace(customExtensionPath))
             {
-                if (TryInstallFromLocalDirectory(customExtensionPath.Trim(), "custom-path", wanted, force, out var installedVer, out var installedDir))
+                if (TryInstallFromLocalDirectory(customExtensionPath.Trim(), wanted, force, out var installedVer, out var installedDir))
                 {
                     Activate(installedVer, installedDir, "custom-path");
                     return true;
@@ -154,7 +154,7 @@ public sealed class HachidoriBundleManager : IDisposable
             // 3. Auto-detect local Chrome/Edge/Brave Hachidori extension folder (instant, zero network).
             if (TryDetectLocalChromiumExtension(wanted, out var localDir, out var localVer)
                 && !IsFailed(localVer)
-                && TryInstallFromLocalDirectory(localDir, "local-browser", wanted: null, force, out var copiedVer, out var copiedDir))
+                && TryInstallFromLocalDirectory(localDir, wanted: null, force, out var copiedVer, out var copiedDir))
             {
                 Activate(copiedVer, copiedDir, "local-browser");
                 return true;
@@ -200,7 +200,7 @@ public sealed class HachidoriBundleManager : IDisposable
         syncLock.Wait();
         try
         {
-            if (!TryInstallFromLocalDirectory(sourceDirectory, sourceLabel, wanted: null, force: true, out var version, out var targetDir))
+            if (!TryInstallFromLocalDirectory(sourceDirectory, wanted: null, force: true, out var version, out var targetDir))
                 return false;
             state.FailedVersions.Remove(version);
             Activate(version, targetDir, sourceLabel);
@@ -283,7 +283,7 @@ public sealed class HachidoriBundleManager : IDisposable
     }
 
     /// <summary>Filters out heavy engine-only files (WASM binaries, language transform tables, video encoders) not needed by the popup UI.</summary>
-    public static bool ShouldIncludeBundleEntry(string relativeUnixPath)
+    private static bool ShouldIncludeBundleEntry(string relativeUnixPath)
     {
         var path = relativeUnixPath.Replace('\\', '/').TrimStart('/');
         if (path.Length == 0 || path.EndsWith('/') || path.Contains("..", StringComparison.Ordinal))
@@ -385,7 +385,7 @@ public sealed class HachidoriBundleManager : IDisposable
         return false;
     }
 
-    private bool TryInstallFromLocalDirectory(string sourceDir, string sourceLabel, string? wanted, bool force, out string version, out string targetDir)
+    private bool TryInstallFromLocalDirectory(string sourceDir, string? wanted, bool force, out string version, out string targetDir)
     {
         version = string.Empty;
         targetDir = string.Empty;
