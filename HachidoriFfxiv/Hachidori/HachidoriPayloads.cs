@@ -11,7 +11,7 @@ public static class HachidoriPayloads
     /// The submit envelope. With a screenshot, the request names it ({token, filename}) and the
     /// client media carries the JPEG; without one, {screenshot} is declared unavailable.
     /// </summary>
-    public static JsonObject Submit(JsonObject request, Media.ScreenshotMedia? screenshot = null)
+    public static JsonObject Submit(JsonObject request, ScreenshotMedia? screenshot = null)
     {
         if (request["clientSpeech"] is JsonObject)
             throw new HachidoriException("This audio source requires browser speech recording. Select a downloadable pronunciation source in Hachidori before mining from FFXIV.");

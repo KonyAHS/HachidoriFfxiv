@@ -14,8 +14,8 @@
     <Compile Include="../../HachidoriFfxiv/Hachidori/WordSpans.cs" Link="WordSpans.cs" />
     <Compile Include="../../HachidoriFfxiv/Host/DiagnosticLog.cs" Link="Host/DiagnosticLog.cs" />
     <Compile Include="../../HachidoriFfxiv/Rendering/SvgImage.cs" Link="SvgImage.cs" />
-    <Compile Include="../../HachidoriFfxiv/Media/ScreenshotMedia.cs" Link="ScreenshotMedia.cs" />
-    <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs" Link="Offline/%(Filename)%(Extension)" />
+    <Compile Include="../../HachidoriFfxiv/Hachidori/ScreenshotMedia.cs" Link="ScreenshotMedia.cs" />
+    <Compile Include="../../HachidoriFfxiv/Offline/*.cs" Exclude="../../HachidoriFfxiv/Offline/OfflineMode.cs;../../HachidoriFfxiv/Offline/LocalBackend.cs" Link="Offline/%(Filename)%(Extension)" />
     <Compile Include="../../HachidoriFfxiv/Anki/*.cs" Exclude="../../HachidoriFfxiv/Anki/OfflineAnkiMiner.cs" Link="Anki/%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../HachidoriFfxiv/Anki/Data/*.json" LogicalName="HachidoriFfxiv.Anki.%(Filename).json" />
     <EmbeddedResource Include="../../HachidoriFfxiv/Offline/Data/*.json" LogicalName="HachidoriFfxiv.Offline.%(Filename).json" />

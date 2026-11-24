@@ -11,8 +11,11 @@ namespace HachidoriFfxiv.Media;
 /// plugin's own audio so voice-line mining can substitute a clean SCD decode and RMS fallback
 /// voice detection ignores plugin audio.
 /// </summary>
-public sealed class PluginAudioTracker
+public sealed class PluginAudioTracker : Audio.IAudioPlaybackObserver
 {
+    long Audio.IAudioPlaybackObserver.BeginPlayback() => BeginPlayback();
+
+    void Audio.IAudioPlaybackObserver.EndPlayback(long handle) => EndPlayback(handle);
     private const double LeadMarginSeconds = 0.10;
     private const double TailMarginSeconds = 0.25;
     private const double MaxOpenIntervalSeconds = 30.0;

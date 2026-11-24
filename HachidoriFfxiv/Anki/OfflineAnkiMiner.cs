@@ -23,7 +23,7 @@ namespace HachidoriFfxiv.Anki;
 /// in one cached <c>multi</c> call and checks an entire popup's entries in 1-2 batched
 /// AnkiConnect requests instead of per-entry round trips or linked audio probes.
 /// </summary>
-public sealed class OfflineAnkiMiner : IDisposable
+public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
 {
     private const string ConfigChanged = "Anki configuration changed. Refresh this result before adding a note.";
     private static readonly TimeSpan ConfigCacheTtl = TimeSpan.FromSeconds(60);

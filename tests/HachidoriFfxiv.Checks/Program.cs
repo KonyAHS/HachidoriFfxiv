@@ -540,10 +540,7 @@ static void CheckFfxivDictionary(Action<bool, string> check)
         "FFXIV dictionary detection matches ASCII hyphen and disabled state");
 
     var offline = FfxivDictionary.FindInstalledOffline([
-        new HachidoriFfxiv.Offline.OfflineDictionary
-        {
-            Id = "d1", Title = "FFXIV Hachidori JP–EN", Revision = "2026.11.22.1", Folder = "f1",
-        },
+        ("FFXIV Hachidori JP–EN", "2026.11.22.1"),
     ]);
     check(offline is { Title: "FFXIV Hachidori JP–EN", Revision: "2026.11.22.1", Enabled: true },
         "FFXIV dictionary detection finds offline synced dictionary");

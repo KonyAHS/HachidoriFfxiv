@@ -90,6 +90,7 @@ public sealed class ConfigWindow : Window
 
     private readonly Configuration config;
     private readonly HachidoriService service;
+    private readonly Offline.OfflineMode? offline;
     private readonly Fonts fonts;
     private readonly NativeTextHover nativeHover;
     private readonly TextPublisher publisher;
@@ -126,6 +127,7 @@ public sealed class ConfigWindow : Window
     public ConfigWindow(
         Configuration config,
         HachidoriService service,
+        Offline.OfflineMode? offline,
         Fonts fonts,
         NativeTextHover nativeHover,
         TextPublisher publisher,
@@ -143,6 +145,7 @@ public sealed class ConfigWindow : Window
     {
         this.config = config;
         this.service = service;
+        this.offline = offline;
         this.fonts = fonts;
         this.nativeHover = nativeHover;
         this.publisher = publisher;
@@ -240,10 +243,10 @@ public sealed class ConfigWindow : Window
             dotCol = AccentGreen;
             statusText = $"Linked to Hachidori ({link.HostName} v{link.HostVersion}) · {link.DictionaryCount} dicts";
         }
-        else if (service.UsingOffline && service.Offline is { } offline)
+        else if (service.UsingOffline && offline is { } off)
         {
             dotCol = AccentAmber;
-            statusText = $"Offline mode · {offline.Store.Manifest.Dictionaries.Count} local dicts (synced {Ago(offline.Store.Manifest.SyncedAt)})";
+            statusText = $"Offline mode · {off.Store.Manifest.Dictionaries.Count} local dicts (synced {Ago(off.Store.Manifest.SyncedAt)})";
         }
         else
         {
@@ -467,13 +470,13 @@ public sealed class ConfigWindow : Window
             ImGui.SameLine(0, 6 * scale);
             if (ImGui.Button("Connection settings"))
                 pendingSelectTab = "Connection";
-            if (!config.OfflineMode && connected && service.Offline is { } offline)
+            if (!config.OfflineMode && connected && offline is { } off)
             {
                 ImGui.SameLine(0, 6 * scale);
-                using (ImRaii.Disabled(offline.Sync.Running))
+                using (ImRaii.Disabled(off.Sync.Running))
                 {
                     if (ImGui.Button("Set up Offline Mode"))
-                        _ = offline.SetUpAsync();
+                        _ = off.SetUpAsync();
                 }
             }
         }
@@ -1382,9 +1385,9 @@ public sealed class ConfigWindow : Window
             DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, installedFfxivDict, "conn");
         }
 
-        if (service.Offline is { } offline && Section("conn-offline", config.OfflineMode ? "Offline Mode  [Enabled]" : "Offline Mode", defaultOpen: true, accent: config.OfflineMode ? AccentGreen : null))
+        if (offline is { } off && Section("conn-offline", config.OfflineMode ? "Offline Mode  [Enabled]" : "Offline Mode", defaultOpen: true, accent: config.OfflineMode ? AccentGreen : null))
         {
-            DrawOfflineModeBody(offline);
+            DrawOfflineModeBody(off);
         }
 
         if (Advanced && Section("conn-diag", "Diagnostics", defaultOpen: false))
@@ -1408,8 +1411,8 @@ public sealed class ConfigWindow : Window
         var live = FfxivDictionary.FindInstalled(service.Dictionaries);
         if (live is not null)
             return live;
-        if (service.Offline is { } offline)
-            return FfxivDictionary.FindInstalledOffline(offline.Store.Manifest.Dictionaries);
+        if (offline is { } off)
+            return FfxivDictionary.FindInstalledOffline(off.Store.Manifest.Dictionaries.Select(d => (d.Title, d.Revision)));
         return null;
     }
 
@@ -2409,8 +2412,8 @@ public sealed class ConfigWindow : Window
             DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, FindInstalledFfxivDictionary(), "search"));
         Add("Connection", "Offline Mode", "Offline mode", "local dictionaries sync hdw_native", false, () =>
         {
-            if (service.Offline is { } offline)
-                DrawOfflineModeBody(offline);
+            if (offline is { } off)
+                DrawOfflineModeBody(off);
         });
     }
 

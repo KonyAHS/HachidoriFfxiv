@@ -1,9 +1,11 @@
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
+using HachidoriFfxiv.Anki;
 using HachidoriFfxiv.Audio;
 using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Hachidori;
+using HachidoriFfxiv.Offline;
 using HachidoriFfxiv.Publishing;
 using HachidoriFfxiv.Stats;
 using HachidoriFfxiv.Ui;
@@ -19,6 +21,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem windows = new("HachidoriFfxiv");
     private readonly Configuration config;
     private readonly HachidoriService service;
+    private readonly OfflineMode? offline;
     private readonly AudioPlayer audio;
     private readonly Fonts fonts;
     private readonly TextCapture capture;
@@ -47,9 +50,18 @@ public sealed class Plugin : IDalamudPlugin
         config = LoadConfiguration();
         if (config.Migrate())
             config.Save();
-        service = new HachidoriService(config,
-            System.IO.Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "offline"),
-            DalamudServices.PluginInterface.AssemblyLocation.DirectoryName);
+        service = new HachidoriService(config);
+        var assemblyDir = DalamudServices.PluginInterface.AssemblyLocation.DirectoryName;
+        LocalBackend? localBackend = null;
+        if (assemblyDir is not null)
+        {
+            offline = new OfflineMode(config, service.Link,
+                System.IO.Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "offline"),
+                assemblyDir);
+            localBackend = new LocalBackend(offline, service.Http, () => service.Options);
+        }
+        var offlineAnki = new OfflineAnkiMiner(() => service.Snapshot, () => offline is { Ready: true } o ? o.Loaded() : null, service.Http);
+        service.AttachOffline(localBackend, offlineAnki);
         audio = new AudioPlayer(config);
         fonts = new Fonts(config);
         capture = new TextCapture(config);
@@ -60,7 +72,7 @@ public sealed class Plugin : IDalamudPlugin
         audio.PlaybackTracker = media.PluginAudio;
         stats = new StatsTracker(
             System.IO.Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "stats"),
-            text => service.Link.Connected || (service.Offline?.Ready == true)
+            text => service.Link.Connected || (offline?.Ready == true)
                 ? service.SegmentAsync(text)
                 : System.Threading.Tasks.Task.FromResult<System.Collections.Generic.IReadOnlyList<WordSpan>>([]),
             options: new StatsTrackerOptions
@@ -79,6 +91,7 @@ public sealed class Plugin : IDalamudPlugin
         webView = new WebViewPopupController(
             config,
             service,
+            offline,
             DalamudServices.PluginInterface.GetPluginConfigDirectory(),
             () => media,
             () => stats,
@@ -92,7 +105,7 @@ public sealed class Plugin : IDalamudPlugin
         search = new SearchWindow(config, popups, fonts);
         freezeFrame = new FreezeFrameOverlay(config, nativeHover, service, popups, text => search.SetText(text));
         statsWindow = new StatsWindow(config, stats, ankiFeed, popups, fonts, msqResolver);
-        configWindow = new ConfigWindow(config, service, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs,
+        configWindow = new ConfigWindow(config, service, offline, fonts, nativeHover, publisher, popups.Themes, media, ExportLogs,
             openStats: statsWindow.Toggle,
             openSearchSample: sample => { if (sample is not null) search.SetText(sample); else search.Toggle(); },
             openReader: () => { reader.Pinned = true; config.ReaderEnabled = true; reader.IsOpen = true; config.Save(); },
@@ -245,6 +258,7 @@ public sealed class Plugin : IDalamudPlugin
         audio.Dispose();
         fonts.Dispose();
         service.Dispose();
+        offline?.Dispose();
         DiagnosticLog.Write("plugin", "Plugin stopped.");
     }
 
@@ -315,10 +329,10 @@ public sealed class Plugin : IDalamudPlugin
             ["dictionaryCount"] = service.Link.DictionaryCount,
             ["backend"] = service.Backend.Name,
             ["offlineMode"] = config.OfflineMode,
-            ["offlineEngine"] = service.Offline?.EngineVersion?.Short,
-            ["offlineDictionaries"] = service.Offline?.Store.Manifest.Dictionaries.Count,
-            ["offlineSyncedAt"] = service.Offline?.Store.Manifest.SyncedAt?.ToString("O"),
-            ["offlineWarnings"] = service.Offline is { } offline ? offline.Warnings().Count : 0,
+            ["offlineEngine"] = offline?.EngineVersion?.Short,
+            ["offlineDictionaries"] = offline?.Store.Manifest.Dictionaries.Count,
+            ["offlineSyncedAt"] = offline?.Store.Manifest.SyncedAt?.ToString("O"),
+            ["offlineWarnings"] = offline is { } off ? off.Warnings().Count : 0,
             ["webViewEnabled"] = config.UseWebViewPopup,
             ["webViewActive"] = webView.Active,
             ["webViewRuntime"] = webView.RuntimeAvailable,

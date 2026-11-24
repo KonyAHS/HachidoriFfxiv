@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Concentus;
 using Concentus.Oggfile;
-using HachidoriFfxiv.Media;
 using NAudio.Vorbis;
 using NAudio.Wave;
 
