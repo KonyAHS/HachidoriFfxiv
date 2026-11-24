@@ -434,7 +434,7 @@ public sealed class MediaMiner : IDisposable
     {
         try
         {
-            var scd = Plugin.DataManager?.GetFile<Lumina.Data.Files.ScdFile>(voice.FilePath);
+            var scd = DalamudServices.DataManager?.GetFile<Lumina.Data.Files.ScdFile>(voice.FilePath);
             if (scd is null)
                 return null;
             var decoded = ScdVoiceExtractor.TryDecode(scd);

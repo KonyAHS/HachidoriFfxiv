@@ -55,17 +55,17 @@ public sealed unsafe class VoiceLineTracker : IDisposable
     {
         try
         {
-            if (Plugin.SigScanner is not null && Plugin.GameInterop is not null)
+            if (DalamudServices.SigScanner is not null && DalamudServices.GameInterop is not null)
             {
                 if (TryScanFirst(out var loadPtr, loadSigOverride, LoadSoundFileSigPrimary, LoadSoundFileSigFallback))
                 {
-                    loadSoundFileHook = Plugin.GameInterop.HookFromAddress<LoadSoundFileDelegate>(loadPtr, LoadSoundFileDetour);
+                    loadSoundFileHook = DalamudServices.GameInterop.HookFromAddress<LoadSoundFileDelegate>(loadPtr, LoadSoundFileDetour);
                     loadSoundFileHook.Enable();
                 }
 
                 if (TryScanFirst(out var playPtr, playSigOverride, PlaySpecificSoundSig))
                 {
-                    playSpecificSoundHook = Plugin.GameInterop.HookFromAddress<PlaySpecificSoundDelegate>(playPtr, PlaySpecificSoundDetour);
+                    playSpecificSoundHook = DalamudServices.GameInterop.HookFromAddress<PlaySpecificSoundDelegate>(playPtr, PlaySpecificSoundDetour);
                     playSpecificSoundHook.Enable();
                 }
 
@@ -77,7 +77,7 @@ public sealed unsafe class VoiceLineTracker : IDisposable
                 {
                     var message = $"Native voice hooks partial/unavailable (load={LoadHookActive}, play={PlayHookActive}); using SoundManager.SoundDataPool + loudness fallback.";
                     DiagnosticLog.Write("voice", message);
-                    Plugin.Log?.Warning("HachidoriFfxiv: {Message}", message);
+                    DalamudServices.Log?.Warning("HachidoriFfxiv: {Message}", message);
                 }
             }
         }
@@ -85,7 +85,7 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         {
             var message = $"Could not initialize native voice hooks: {ex.Message}";
             DiagnosticLog.Write("voice", message);
-            Plugin.Log?.Warning(ex, "HachidoriFfxiv: {Message}", message);
+            DalamudServices.Log?.Warning(ex, "HachidoriFfxiv: {Message}", message);
             loadSoundFileHook?.Dispose();
             playSpecificSoundHook?.Dispose();
             loadSoundFileHook = null;
@@ -101,7 +101,7 @@ public sealed unsafe class VoiceLineTracker : IDisposable
             var sig = raw?.Trim();
             if (string.IsNullOrEmpty(sig))
                 continue;
-            if (Plugin.SigScanner.TryScanText(sig, out address))
+            if (DalamudServices.SigScanner.TryScanText(sig, out address))
                 return true;
         }
         return false;
@@ -316,7 +316,7 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         {
             try
             {
-                var scd = Plugin.DataManager?.GetFile<ScdFile>(filePath);
+                var scd = DalamudServices.DataManager?.GetFile<ScdFile>(filePath);
                 if (scd is not null)
                     ev.DurationSeconds = VoiceLinePath.EstimateScdDurationSeconds(scd);
             }

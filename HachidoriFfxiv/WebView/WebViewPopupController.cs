@@ -589,7 +589,7 @@ public sealed class WebViewPopupController : IDisposable
                 host = new WebViewPopupHost(sessionFolder, bridge, Bundles, headless: false)
                 {
                     OnAudioPlaybackChanged = playing => getMedia()?.PluginAudio.SetExternalPlaying(playing),
-                    OnWarning = msg => Plugin.Log.Warning("HachidoriFfxiv: {Message}", msg),
+                    OnWarning = msg => DalamudServices.Log.Warning("HachidoriFfxiv: {Message}", msg),
                 };
                 if (controllerMode)
                     host.SetControllerMode(true);

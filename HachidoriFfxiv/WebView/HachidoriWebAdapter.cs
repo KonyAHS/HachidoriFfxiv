@@ -87,7 +87,7 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
     {
         var parsed = LookupResult.Parse((JsonObject)miningRequest.DeepClone());
         var expr = parsed.Term.Expression.Length > 0 ? parsed.Term.Expression : parsed.Matched;
-        Plugin.NotifyAnkiCardCreated(config, expr, parsed.Term.Reading);
+        DalamudServices.NotifyAnkiCardCreated(config.NotifyOnAnkiMine, expr, parsed.Term.Reading);
         if (getStats() is not { } stats) return;
         var media = getMedia();
         var hasAudio = media is not null && (config.RecordVoiceLines || media.Tts.Enabled);

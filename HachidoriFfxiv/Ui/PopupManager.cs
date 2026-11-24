@@ -1038,7 +1038,7 @@ public sealed class PopupManager : IDisposable
                 entry.Anki = AnkiState.Added;
                 RecordMinedStats(noteId, entry.Result, state.Context, screenshot is not null, attachedText);
                 var expr = entry.Result.Term.Expression.Length > 0 ? entry.Result.Term.Expression : entry.Result.Matched;
-                Plugin.NotifyAnkiCardCreated(config, expr, entry.Result.Term.Reading, updated: result.State == "updated");
+                DalamudServices.NotifyAnkiCardCreated(config.NotifyOnAnkiMine, expr, entry.Result.Term.Reading, updated: result.State == "updated");
             }
             else if (result.State == "duplicate")
             {
@@ -1183,7 +1183,7 @@ public sealed class PopupManager : IDisposable
             if (task.IsFaulted)
             {
                 state.Error = task.Exception?.GetBaseException().Message ?? "Lookup failed.";
-                Plugin.Log.Debug($"Lookup failed: {state.Error}");
+                DalamudServices.Log.Debug($"Lookup failed: {state.Error}");
                 return;
             }
 

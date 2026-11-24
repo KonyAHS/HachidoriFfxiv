@@ -182,7 +182,7 @@ public sealed class WebViewPopupHost : IDisposable
     /// <summary>Invoked whenever WebView2 starts or stops playing pronunciation audio.</summary>
     public Action<bool>? OnAudioPlaybackChanged { get; set; }
 
-    /// <summary>Optional warning callback (wired to <c>Plugin.Log.Warning</c> in Dalamud).</summary>
+    /// <summary>Optional warning callback (wired to <c>DalamudServices.Log.Warning</c> in Dalamud).</summary>
     public Action<string>? OnWarning { get; set; }
 
     public Task<bool> WaitUntilReadyAsync(TimeSpan timeout) =>

@@ -57,7 +57,7 @@ public sealed class AudioPlayer : IDisposable
             {
                 LastError = ex.Message;
                 DiagnosticLog.Write("audio", ex.ToString());
-                Plugin.Log.Debug($"Audio failed: {ex.Message}");
+                DalamudServices.Log.Debug($"Audio failed: {ex.Message}");
             }
         });
     }

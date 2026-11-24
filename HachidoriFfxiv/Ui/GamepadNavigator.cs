@@ -120,7 +120,7 @@ public sealed class GamepadNavigator : IDisposable
             return;
         Active = false;
         touchpad.Stop();
-        Plugin.Gamepad.EnableGamepadNav = false;
+        DalamudServices.Gamepad.EnableGamepadNav = false;
         nativeHover.ControllerScan = false;
         popups.SetWebControllerCursor(null);
         popups.ControllerActive = false;
@@ -143,7 +143,7 @@ public sealed class GamepadNavigator : IDisposable
         var mask = GamepadButtons.None;
         foreach (var button in AllButtons)
         {
-            if (Plugin.Gamepad.Raw(button) > 0)
+            if (DalamudServices.Gamepad.Raw(button) > 0)
                 mask |= button;
         }
 
@@ -191,8 +191,8 @@ public sealed class GamepadNavigator : IDisposable
         }
 
         // Take the controller from the game while the mode is on.
-        Plugin.Gamepad.EnableGamepadNav = true;
-        BlockingRefused = !Plugin.Gamepad.EnableGamepadNav;
+        DalamudServices.Gamepad.EnableGamepadNav = true;
+        BlockingRefused = !DalamudServices.Gamepad.EnableGamepadNav;
         nativeHover.ControllerScan = true;
         popups.ControllerActive = true;
 
@@ -268,7 +268,7 @@ public sealed class GamepadNavigator : IDisposable
         if (!moved)
         {
             var vp = ImGui.GetMainViewport();
-            var stick = Normalize(Plugin.Gamepad.LeftStick);
+            var stick = Normalize(DalamudServices.Gamepad.LeftStick);
             var stickMag = stick.Length();
             var padDelta = config.ControllerUseTouchpad ? touchpad.ConsumeDelta(out _) : Vector2.Zero;
             if (stickMag > 0.18f)
@@ -435,7 +435,7 @@ public sealed class GamepadNavigator : IDisposable
             if (HasBound(pressed, config.ControllerAudioButton)) popups.PlaySelected(deepest);
             if (HasBound(pressed, config.ControllerNextEntryButton)) popups.SelectEntry(deepest, 1);
             if (HasBound(pressed, config.ControllerPrevEntryButton)) popups.SelectEntry(deepest, -1);
-            var right = Normalize(Plugin.Gamepad.RightStick);
+            var right = Normalize(DalamudServices.Gamepad.RightStick);
             if (Math.Abs(right.Y) > 0.45f && (now - lastScroll).TotalSeconds > RepeatRate)
             {
                 popups.Scroll(deepest, -Math.Sign(right.Y) * 110 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
@@ -774,7 +774,7 @@ public sealed class GamepadNavigator : IDisposable
         try
         {
             var key = (VirtualKey)vk;
-            return Plugin.KeyState.IsVirtualKeyValid(key) && Plugin.KeyState[key];
+            return DalamudServices.KeyState.IsVirtualKeyValid(key) && DalamudServices.KeyState[key];
         }
         catch
         {
@@ -810,10 +810,10 @@ public sealed class GamepadNavigator : IDisposable
             return;
         try
         {
-            if (Plugin.KeyState.IsVirtualKeyValid(vk))
+            if (DalamudServices.KeyState.IsVirtualKeyValid(vk))
             {
-                Plugin.KeyState[vk] = false;
-                Plugin.KeyState.SetRawValue(vk, 0);
+                DalamudServices.KeyState[vk] = false;
+                DalamudServices.KeyState.SetRawValue(vk, 0);
             }
         }
         catch

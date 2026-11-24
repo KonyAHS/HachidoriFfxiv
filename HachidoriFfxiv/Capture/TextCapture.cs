@@ -52,8 +52,8 @@ public sealed unsafe class TextCapture : IDisposable
     public TextCapture(Configuration config)
     {
         this.config = config;
-        Plugin.Framework.Update += OnUpdate;
-        Plugin.ChatGui.ChatMessageUnhandled += OnChat;
+        DalamudServices.Framework.Update += OnUpdate;
+        DalamudServices.ChatGui.ChatMessageUnhandled += OnChat;
     }
 
     public event Action<GameLine>? LineCaptured;
@@ -104,7 +104,7 @@ public sealed unsafe class TextCapture : IDisposable
         }
         foreach (var name in PopupAddons)
         {
-            var addon = Plugin.GameGui.GetAddonByName(name);
+            var addon = DalamudServices.GameGui.GetAddonByName(name);
             if (addon.IsNull || !addon.IsVisible)
             {
                 lastPopups.Remove(name);
@@ -162,7 +162,7 @@ public sealed unsafe class TextCapture : IDisposable
     /// <summary>Reads one dialogue addon. Returns whether it is visible.</summary>
     private bool Poll(string addonName, LineSource source, ref string last)
     {
-        var addon = Plugin.GameGui.GetAddonByName(addonName);
+        var addon = DalamudServices.GameGui.GetAddonByName(addonName);
         if (addon.IsNull || !addon.IsVisible)
         {
             last = string.Empty;
@@ -366,7 +366,7 @@ public sealed unsafe class TextCapture : IDisposable
 
     public void Dispose()
     {
-        Plugin.Framework.Update -= OnUpdate;
-        Plugin.ChatGui.ChatMessageUnhandled -= OnChat;
+        DalamudServices.Framework.Update -= OnUpdate;
+        DalamudServices.ChatGui.ChatMessageUnhandled -= OnChat;
     }
 }

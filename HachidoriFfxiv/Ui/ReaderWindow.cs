@@ -102,7 +102,7 @@ public sealed class ReaderWindow : Window
 
         if (config.ReaderAnchor != ReaderAnchor.Free && capture.TalkVisible)
         {
-            var talk = Plugin.GameGui.GetAddonByName("Talk");
+            var talk = DalamudServices.GameGui.GetAddonByName("Talk");
             if (!talk.IsNull && talk.IsVisible)
             {
                 var size = talk.ScaledSize;

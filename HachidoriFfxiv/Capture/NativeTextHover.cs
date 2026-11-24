@@ -88,7 +88,7 @@ public sealed unsafe class NativeTextHover : IDisposable
     public NativeTextHover(Configuration config)
     {
         this.config = config;
-        Plugin.Framework.Update += Update;
+        DalamudServices.Framework.Update += Update;
     }
 
     /// <summary>Queues a full-screen snapshot of all visible native Japanese text (including tooltips) on the next Framework.Update.</summary>
@@ -148,7 +148,7 @@ public sealed unsafe class NativeTextHover : IDisposable
         {
             // TalkSubtitle has no interactive backdrop. The native collision hit may
             // belong to a different addon underneath it, so inspect it independently.
-            var subtitle = Plugin.GameGui.GetAddonByName("TalkSubtitle");
+            var subtitle = DalamudServices.GameGui.GetAddonByName("TalkSubtitle");
             var subtitleVisible = config.CaptureTalk && !subtitle.IsNull && subtitle.IsVisible;
             if (subtitleVisible != SubtitleVisible)
                 DiagnosticLog.Write("capture", $"Floating subtitle visible={subtitleVisible}");
@@ -169,7 +169,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                 foreach (var name in DialogueAddons)
                 {
                     if (!Allowed(name)) continue;
-                    var addon = Plugin.GameGui.GetAddonByName(name);
+                    var addon = DalamudServices.GameGui.GetAddonByName(name);
                     if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name, next, visited, seen, ignoreMouse: true);
                 }
                 if (next.Count == 0 && stage != null && stage->RaptureAtkUnitManager != null)
@@ -203,7 +203,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                 foreach (var name in DialogueAddons)
                 {
                     if (!Allowed(name)) continue;
-                    var addon = Plugin.GameGui.GetAddonByName(name);
+                    var addon = DalamudServices.GameGui.GetAddonByName(name);
                     if (!addon.IsNull && addon.IsVisible) ReadAddon((AtkUnitBase*)addon.Address, name, next, visited, seen, ignoreMouse: false);
                 }
                 ReadChat(null, next, visited, seen, ignoreMouse: false);
@@ -227,7 +227,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             {
                 lastError = DateTime.UtcNow;
                 DiagnosticLog.Write("native-hover", ex.Message);
-                Plugin.Log.Warning(ex, "Native text hover skipped a frame");
+                DalamudServices.Log.Warning(ex, "Native text hover skipped a frame");
             }
         }
     }
@@ -252,7 +252,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             }
         }
 
-        var subtitle = Plugin.GameGui.GetAddonByName("TalkSubtitle");
+        var subtitle = DalamudServices.GameGui.GetAddonByName("TalkSubtitle");
         if (!subtitle.IsNull && subtitle.IsVisible)
             CollectUnit((AtkUnitBase*)subtitle.Address, "TalkSubtitle", 1000);
 
@@ -365,7 +365,7 @@ public sealed unsafe class NativeTextHover : IDisposable
     private void ReadChat(AtkUnitBase* hovered, List<Region> next, HashSet<nint> visited, HashSet<nint> seen, bool ignoreMouse, bool forceAllow = false)
     {
         if (!forceAllow && !Allowed("ChatLog")) return;
-        var addon = Plugin.GameGui.GetAddonByName("ChatLog");
+        var addon = DalamudServices.GameGui.GetAddonByName("ChatLog");
         var chatLog = (AddonChatLog*)addon.Address;
         var selectedTab = addon.IsNull || !addon.IsVisible ? -1 : chatLog->TabIndex;
         var hoverInMain = chatLog != null && (hovered == &chatLog->AtkUnitBase
@@ -611,7 +611,7 @@ public sealed unsafe class NativeTextHover : IDisposable
 
     public void Dispose()
     {
-        Plugin.Framework.Update -= Update;
+        DalamudServices.Framework.Update -= Update;
         regions = [];
         cache.Clear();
         chatScroll.Clear();

@@ -19,7 +19,7 @@ public sealed class TextPublisher : IDisposable
         this.config = config;
         this.capture = capture;
         capture.LineCaptured += OnLine;
-        Plugin.Framework.Update += OnUpdate;
+        DalamudServices.Framework.Update += OnUpdate;
     }
 
     public bool Listening => server is not null;
@@ -85,7 +85,7 @@ public sealed class TextPublisher : IDisposable
     public void Dispose()
     {
         capture.LineCaptured -= OnLine;
-        Plugin.Framework.Update -= OnUpdate;
+        DalamudServices.Framework.Update -= OnUpdate;
         server?.Dispose();
         server = null;
     }

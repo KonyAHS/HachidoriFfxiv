@@ -106,7 +106,7 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
         ShowCloseButton = false;
         BgAlpha = 0f;
 
-        Plugin.Framework.Update += OnFrameworkUpdate;
+        DalamudServices.Framework.Update += OnFrameworkUpdate;
     }
 
     public bool Active => active || capturing || IsOpen;
@@ -242,7 +242,7 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
 
         // Allow Steam Deck / controller users to exit Freeze Frame with B / Circle.
         var padBackDown = false;
-        try { padBackDown = Plugin.Gamepad.Raw(GamepadButtons.East) > 0; }
+        try { padBackDown = DalamudServices.Gamepad.Raw(GamepadButtons.East) > 0; }
         catch { /* gamepad service unavailable */ }
         if (padBackDown && !gamepadBackWasDown && (active || IsOpen) && (now - enteredAt).TotalMilliseconds > 250)
             escPressedSinceLastDraw = true;
@@ -291,7 +291,7 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
             needViewportCapture = false;
             try
             {
-                frameTextureTask = Plugin.TextureProvider.CreateFromImGuiViewportAsync(new ImGuiViewportTextureArgs
+                frameTextureTask = DalamudServices.TextureProvider.CreateFromImGuiViewportAsync(new ImGuiViewportTextureArgs
                 {
                     ViewportId = ImGui.GetMainViewport().ID,
                     TakeBeforeImGuiRender = true,
@@ -617,7 +617,7 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
 
     private static bool IsGameKeyDown(VirtualKey vk)
     {
-        try { return Plugin.KeyState.IsVirtualKeyValid(vk) && Plugin.KeyState[vk]; }
+        try { return DalamudServices.KeyState.IsVirtualKeyValid(vk) && DalamudServices.KeyState[vk]; }
         catch { return false; }
     }
 
@@ -669,10 +669,10 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
         if (vk == VirtualKey.NO_KEY) return;
         try
         {
-            if (Plugin.KeyState.IsVirtualKeyValid(vk))
+            if (DalamudServices.KeyState.IsVirtualKeyValid(vk))
             {
-                Plugin.KeyState[vk] = false;
-                Plugin.KeyState.SetRawValue(vk, 0);
+                DalamudServices.KeyState[vk] = false;
+                DalamudServices.KeyState.SetRawValue(vk, 0);
             }
         }
         catch
@@ -694,7 +694,7 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
 
     public void Dispose()
     {
-        Plugin.Framework.Update -= OnFrameworkUpdate;
+        DalamudServices.Framework.Update -= OnFrameworkUpdate;
         ReleaseTexture();
     }
 

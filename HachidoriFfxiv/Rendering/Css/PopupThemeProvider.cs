@@ -143,7 +143,7 @@ public sealed class PopupThemeProvider
         {
             var ex = done.Exception?.GetBaseException();
             Error = ex?.Message;
-            Plugin.Log.Warning(ex, "Could not apply the Hachidori popup theme");
+            DalamudServices.Log.Warning(ex, "Could not apply the Hachidori popup theme");
             PopupTheme.Current = PopupTheme.PluginDefault();
         }
 
