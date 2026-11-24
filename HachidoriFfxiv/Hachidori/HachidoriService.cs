@@ -248,14 +248,15 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     // -------------------------------------------------------------------- Anki
 
-    public async Task<AnkiStatus> AnkiStatusAsync()
+    public async Task<AnkiStatus> AnkiStatusAsync(string? templateId = null)
     {
+        var effectiveTemplateId = NullIfBlank(templateId) ?? NullIfBlank(config.AnkiTemplateId);
         // Offline, the plugin renders the note from the saved Template and writes it through AnkiConnect.
         if (UsingOffline && offlineAnki is not null)
-            return await offlineAnki.StatusAsync(NullIfBlank(config.AnkiTemplateId)).ConfigureAwait(false);
+            return await offlineAnki.StatusAsync(effectiveTemplateId).ConfigureAwait(false);
         var payload = new JsonObject();
-        if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId))
-            payload["templateId"] = config.AnkiTemplateId;
+        if (effectiveTemplateId is not null)
+            payload["templateId"] = effectiveTemplateId;
         var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_status", payload).ConfigureAwait(false);
         var available = reply?["available"] is JsonValue a && a.TryGetValue<bool>(out var b) && b;
         return new AnkiStatus(available, reply?["configKey"]?.ToString(), reply?["error"]?.ToString());
@@ -309,7 +310,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         return request;
     }
 
-    private static string? NullIfBlank(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     public bool IsLocalRelayHost
     {
@@ -376,11 +377,12 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         return ParseDecision(reply);
     }
 
-    public async Task AnkiBrowseAsync(long[] noteIds, string expression, string? configKey)
+    public async Task AnkiBrowseAsync(long[] noteIds, string expression, string? configKey, string? templateId = null)
     {
+        var effectiveTemplateId = NullIfBlank(templateId) ?? NullIfBlank(config.AnkiTemplateId);
         if (UsingOffline && offlineAnki is not null)
         {
-            await offlineAnki.BrowseAsync(noteIds, expression, NullIfBlank(config.AnkiTemplateId)).ConfigureAwait(false);
+            await offlineAnki.BrowseAsync(noteIds, expression, effectiveTemplateId).ConfigureAwait(false);
             return;
         }
         var request = new JsonObject
@@ -389,8 +391,8 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
             ["expression"] = expression,
             ["configKey"] = configKey,
         };
-        if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId))
-            request["templateId"] = config.AnkiTemplateId;
+        if (effectiveTemplateId is not null)
+            request["templateId"] = effectiveTemplateId;
         await Link.RequestAsync(AnkiTarget, "hd_anki_browse", new JsonObject { ["request"] = request }).ConfigureAwait(false);
     }
 

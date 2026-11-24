@@ -416,6 +416,18 @@ internal static class AnkiChecks
                   "Expression": { "value": "{expression}", "overwriteMode": "coalesce" },
                   "Picture": { "value": "<div>{screenshot}</div>", "overwriteMode": "coalesce" }
                 }
+              }, {
+                "id": "secondary",
+                "name": "Secondary",
+                "deck": "Japanese Mining",
+                "model": "Kiku",
+                "duplicateBehavior": "prevent",
+                "duplicateScope": "deck",
+                "captureScreenshot": false,
+                "tags": ["secondary"],
+                "fieldTemplates": {
+                  "Expression": { "value": "{expression}", "overwriteMode": "coalesce" }
+                }
               }]
             }
           }
@@ -426,6 +438,14 @@ internal static class AnkiChecks
         using var http = new HttpClient();
         using var miner = new OfflineAnkiMiner(() => snap, () => localEngine, http);
         var status = await miner.StatusAsync("default");
+        var implicitStatus = await miner.StatusAsync(null);
+        var secondaryStatus = await miner.StatusAsync("secondary");
+        check(status.Available && implicitStatus.Available && status.ConfigKey == implicitStatus.ConfigKey
+              && secondaryStatus.Available && secondaryStatus.ConfigKey != status.ConfigKey,
+            "offline Anki status resolves default templateId consistently (null == default) while keeping other templates distinct");
+
+        // 3. Offline preflight + submit with explicit templateId="default" accepts configKey from StatusAsync(null),
+        //    and secondary templates keep distinct configKeys and preflight cleanly with their own status key.
         var req = new JsonObject
         {
             ["term"] = new JsonObject { ["expression"] = "冒険者", ["reading"] = "ぼうけんしゃ" },
@@ -433,9 +453,32 @@ internal static class AnkiChecks
             ["sentence"] = "冒険者さん",
             ["matchOffset"] = 0,
             ["generation"] = localEngine.Generation,
-            ["configKey"] = status.ConfigKey,
+            ["configKey"] = implicitStatus.ConfigKey,
             ["templateId"] = "default",
         };
+        var preflight = await miner.PreflightManyAsync([req]);
+        check(preflight.Length == 1 && preflight[0].State == "addable" && preflight[0].CanAdd,
+            "offline preflight accepts default templateId using configKey from implicit null template status");
+
+        var secondaryReq = new JsonObject
+        {
+            ["term"] = new JsonObject { ["expression"] = "残留", ["reading"] = "ざんりゅう" },
+            ["matched"] = "残留",
+            ["sentence"] = "残留",
+            ["matchOffset"] = 0,
+            ["generation"] = localEngine.Generation,
+            ["configKey"] = secondaryStatus.ConfigKey,
+            ["templateId"] = "secondary",
+        };
+        var secondaryMismatch = (JsonObject)secondaryReq.DeepClone();
+        secondaryMismatch["configKey"] = implicitStatus.ConfigKey;
+        var secondaryPreflights = await miner.PreflightManyAsync([secondaryReq, secondaryMismatch]);
+        check(secondaryPreflights.Length == 2
+              && secondaryPreflights[0].State == "addable" && secondaryPreflights[0].CanAdd
+              && secondaryPreflights[1].State == "error"
+              && (secondaryPreflights[1].Error?.Contains("Anki configuration changed", StringComparison.Ordinal) ?? false),
+            "offline preflight matches secondary template configKey and rejects keys from a different template");
+
         var shot = new HachidoriFfxiv.Hachidori.ScreenshotMedia("tok", "hachidori-screenshot-test.jpg", Convert.ToBase64String([0xFF, 0xD8, 0xFF, 0xE0]));
         var decision = await miner.SubmitAsync(req, shot);
         check(decision.State == "added" && decision.NoteIds.SequenceEqual([7777L])

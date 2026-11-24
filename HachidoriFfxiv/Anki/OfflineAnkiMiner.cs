@@ -117,8 +117,9 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
     private Task<Current> ConfigurationAsync(string? templateId, CancellationToken ct, bool requireOfflineLimits = true)
     {
         var config = TemplateConfig(templateId) ?? throw new InvalidOperationException("The selected Anki Template is no longer available.");
-        var key = ConfigKey(templateId, config);
-        var cacheKey = $"{(requireOfflineLimits ? "off" : "live")}\u0001{templateId ?? string.Empty}";
+        var resolvedTemplateId = AnkiFields.Str(config["id"]) is { Length: > 0 } id ? id : templateId;
+        var key = ConfigKey(resolvedTemplateId, config);
+        var cacheKey = $"{(requireOfflineLimits ? "off" : "live")}\u0001{resolvedTemplateId ?? string.Empty}";
         var now = DateTime.UtcNow;
 
         if (configCache.TryGetValue(cacheKey, out var cached)

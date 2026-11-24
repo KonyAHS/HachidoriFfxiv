@@ -102,13 +102,17 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
 
     public async Task<JsonObject> SubmitAnkiAsync(JsonObject request, ScreenshotMedia? screenshot, CancellationToken ct)
     {
+        var prepared = (JsonObject)request.DeepClone();
+        if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId) && string.IsNullOrEmpty(prepared["templateId"]?.ToString()))
+            prepared["templateId"] = config.AnkiTemplateId;
+
         if (service.UsingOffline)
         {
-            var decision = await service.AnkiSubmitAsync(request, screenshot).ConfigureAwait(false);
+            var decision = await service.AnkiSubmitAsync(prepared, screenshot).ConfigureAwait(false);
             return DecisionToJson(decision);
         }
 
-        var envelope = HachidoriPayloads.Submit(request, screenshot);
+        var envelope = HachidoriPayloads.Submit(prepared, screenshot);
         var raw = await service.Link.RequestAsync("hachidori-anki", "hd_anki_submit", envelope, ct).ConfigureAwait(false);
         return raw as JsonObject ?? new JsonObject { ["ok"] = true };
     }
@@ -258,7 +262,8 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
             {
                 case "hd_anki_status":
                 {
-                    var status = await service.AnkiStatusAsync().ConfigureAwait(false);
+                    var templateId = message["templateId"]?.ToString();
+                    var status = await service.AnkiStatusAsync(templateId).ConfigureAwait(false);
                     return new JsonObject
                     {
                         ["ok"] = true,
@@ -269,7 +274,9 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
                 }
                 case "hd_anki_preflight":
                 {
-                    var req = message["request"] as JsonObject ?? new JsonObject();
+                    var req = message["request"] is JsonObject src ? (JsonObject)src.DeepClone() : new JsonObject();
+                    if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId) && string.IsNullOrEmpty(req["templateId"]?.ToString()))
+                        req["templateId"] = config.AnkiTemplateId;
                     return DecisionToJson(await service.AnkiPreflightAsync(req).ConfigureAwait(false));
                 }
                 case "hd_anki_view":
@@ -285,7 +292,11 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
                         .Select(n => n is JsonValue v && v.TryGetValue<long>(out var l) ? l : 0)
                         .Where(l => l > 0)
                         .ToArray();
-                    await service.AnkiBrowseAsync(ids, req?["expression"]?.ToString() ?? string.Empty, req?["configKey"]?.ToString()).ConfigureAwait(false);
+                    await service.AnkiBrowseAsync(
+                        ids,
+                        req?["expression"]?.ToString() ?? string.Empty,
+                        req?["configKey"]?.ToString(),
+                        req?["templateId"]?.ToString()).ConfigureAwait(false);
                     return new JsonObject { ["ok"] = true, ["opened"] = true };
                 }
                 default:

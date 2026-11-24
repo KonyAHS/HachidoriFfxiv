@@ -36,6 +36,7 @@ public sealed class WebViewPopupController : IDisposable
 
     private readonly Configuration config;
     private readonly HachidoriService service;
+    private readonly Offline.OfflineMode? offline;
     private readonly Func<MediaMiner?> getMedia;
     private readonly string userDataRoot;
     private readonly HachidoriWebAdapter adapter;
@@ -51,6 +52,7 @@ public sealed class WebViewPopupController : IDisposable
     private string? lastSyncedHostVersion;
     private string? lastConfigFingerprint;
     private bool snapshotDirty = true;
+    private bool lastUsingOffline;
     private DateTime lastSyncKick = DateTime.MinValue;
     private float lastScaleX = 1f;
     private float lastScaleY = 1f;
@@ -76,7 +78,9 @@ public sealed class WebViewPopupController : IDisposable
     {
         this.config = config;
         this.service = service;
+        this.offline = offline;
         this.getMedia = getMedia;
+        lastUsingOffline = service.UsingOffline;
         userDataRoot = Path.Combine(configDirectory, "webview2-data");
         Bundles = new HachidoriBundleManager(Path.Combine(configDirectory, "hachidori-web"));
         _ = Task.Run(() => PruneStaleSessionFolders(userDataRoot));
@@ -91,6 +95,8 @@ public sealed class WebViewPopupController : IDisposable
         service.Link.ConnectionChanged += OnConnectionChanged;
         service.Link.SnapshotChanged += OnSnapshotChanged;
         service.Link.WordStatusChanged += OnWordStatusChanged;
+        if (offline is not null)
+            offline.Changed += OnOfflineChanged;
         Bundles.BundleChanged += OnBundleChanged;
 
         if (config.UseWebViewPopup && PlatformSupported)
@@ -624,9 +630,22 @@ public sealed class WebViewPopupController : IDisposable
         catch { /* locked by an active WebView2 process; pruned on a future run */ }
     }
 
+    private void HandleBackendModeChange()
+    {
+        var usingOffline = service.UsingOffline;
+        if (usingOffline != lastUsingOffline)
+        {
+            lastUsingOffline = usingOffline;
+            // Live and offline backends use different dictionary generations and Anki configKeys;
+            // close any open popup so the next lookup fetches fresh status/generation from the active backend.
+            host?.CloseAll();
+        }
+    }
+
     private void OnConnectionChanged()
     {
         snapshotDirty = true;
+        HandleBackendModeChange();
         if (!PlatformSupported || !service.Link.Connected || !config.UseWebViewPopup || !config.AutoSyncWebViewBundle)
             return;
 
@@ -645,6 +664,12 @@ public sealed class WebViewPopupController : IDisposable
             if (ok && !disposed)
                 EnsureHostStarted();
         });
+    }
+
+    private void OnOfflineChanged()
+    {
+        snapshotDirty = true;
+        HandleBackendModeChange();
     }
 
     private void OnSnapshotChanged() => snapshotDirty = true;
@@ -712,6 +737,8 @@ public sealed class WebViewPopupController : IDisposable
         service.Link.ConnectionChanged -= OnConnectionChanged;
         service.Link.SnapshotChanged -= OnSnapshotChanged;
         service.Link.WordStatusChanged -= OnWordStatusChanged;
+        if (offline is not null)
+            offline.Changed -= OnOfflineChanged;
         Bundles.BundleChanged -= OnBundleChanged;
         lifetime.Cancel();
         WebViewPopupHost? toDispose;
