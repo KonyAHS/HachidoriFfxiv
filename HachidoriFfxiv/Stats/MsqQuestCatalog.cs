@@ -23,21 +23,14 @@ public sealed record MsqQuestEntry(
 public sealed class MsqQuestIndex
 {
     public IReadOnlyList<MsqQuestEntry> Quests { get; }
-    public IReadOnlyDictionary<string, long> ExpansionTotals { get; }
     public long TotalMsqChars { get; }
 
     public MsqQuestIndex(IReadOnlyList<MsqQuestEntry> orderedQuests)
     {
         Quests = orderedQuests;
-        var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         long grand = 0;
         foreach (var q in orderedQuests)
-        {
-            totals.TryGetValue(q.ExpansionId, out var cur);
-            totals[q.ExpansionId] = cur + q.QuestChars;
             grand += q.QuestChars;
-        }
-        ExpansionTotals = totals;
         TotalMsqChars = grand;
     }
 

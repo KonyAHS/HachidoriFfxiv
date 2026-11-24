@@ -445,9 +445,6 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
 
     // -------------------------------------------------------------- preflight
 
-    public async Task<AnkiDecision> PreflightAsync(JsonObject request, CancellationToken ct = default) =>
-        (await PreflightManyAsync([request], ct).ConfigureAwait(false))[0];
-
     /// <summary>
     /// Batched offline preflight: resolves template configuration once (cached) and checks all
     /// entries in 1-2 AnkiConnect round trips instead of N×4+ sequential calls.

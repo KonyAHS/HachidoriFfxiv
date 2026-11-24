@@ -102,7 +102,6 @@ public static class AnkiNoteRenderer
         return (reply["segments"] as JsonArray ?? []).Select(s => (IReadOnlyList<JsonObject>)(s?["spans"] as JsonArray ?? []).OfType<JsonObject>().ToList()).ToList();
     }
 
-    // Under Compact popup and Anki the glossary carries Yomitan's compact gloss style.
     /// <summary>anki-resources.js ankiMediaFilename: hachidori_&lt;SHA-256&gt;.&lt;extension&gt;.</summary>
     public static string MediaFilename(byte[] bytes, string extension) => $"hachidori_{Convert.ToHexStringLower(SHA256.HashData(bytes))}.{extension}";
 

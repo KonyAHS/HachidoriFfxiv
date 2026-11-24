@@ -88,8 +88,6 @@ public sealed class HtmlElement : HtmlNode
         attributes.Add((name, value));
     }
 
-    public void RemoveAttribute(string name) => attributes.RemoveAll(a => a.Name == name);
-
     private void EnsureAttribute(string name)
     {
         if (!HasAttribute(name)) attributes.Add((name, string.Empty));
@@ -147,17 +145,6 @@ public sealed class HtmlElement : HtmlNode
         SetAttribute(name.ToString(), value);
     }
 
-    public string? GetData(string camelKey)
-    {
-        var name = new StringBuilder("data-");
-        foreach (var c in camelKey)
-        {
-            if (char.IsAsciiLetterUpper(c)) name.Append('-').Append(char.ToLowerInvariant(c));
-            else name.Append(c);
-        }
-        return GetAttribute(name.ToString());
-    }
-
     // --------------------------------------------------------------- children
 
     public T Append<T>(T node) where T : HtmlNode
@@ -169,13 +156,6 @@ public sealed class HtmlElement : HtmlNode
     }
 
     public HtmlText Append(string text) => Append(new HtmlText(text));
-
-    public void Prepend(HtmlNode node)
-    {
-        node.Remove();
-        node.Parent = this;
-        children.Insert(0, node);
-    }
 
     internal void RemoveChild(HtmlNode node)
     {
@@ -216,14 +196,6 @@ public sealed class HtmlElement : HtmlNode
         }
     }
 
-    /// <summary>Element.closest for an attribute's presence.</summary>
-    public HtmlElement? ClosestWithAttribute(string name)
-    {
-        for (var element = this; element is not null; element = element.Parent)
-            if (element.HasAttribute(name)) return element;
-        return null;
-    }
-
     // ------------------------------------------------------------ serializing
 
     public string OuterHtml
@@ -232,16 +204,6 @@ public sealed class HtmlElement : HtmlNode
         {
             var builder = new StringBuilder();
             Serialize(builder);
-            return builder.ToString();
-        }
-    }
-
-    public string InnerHtml
-    {
-        get
-        {
-            var builder = new StringBuilder();
-            foreach (var child in children) SerializeNode(child, builder, Tag);
             return builder.ToString();
         }
     }
@@ -291,9 +253,6 @@ public sealed class HtmlElement : HtmlNode
         if (value.IndexOfAny(['&', '"', '<', '>', ' ']) < 0) return value;
         return value.Replace("&", "&amp;").Replace(" ", "&nbsp;").Replace("\"", "&quot;").Replace("<", "&lt;").Replace(">", "&gt;");
     }
-
-    /// <summary>Node.textContent.</summary>
-    public string TextContent => string.Concat(DescendantTexts().Select(t => t.Value));
 }
 
 /// <summary>
@@ -305,8 +264,6 @@ public sealed class HtmlElement : HtmlNode
 public sealed class CssDeclarations
 {
     private readonly List<(string Property, string Value)> declarations = [];
-
-    public int Count => declarations.Count;
 
     public string? Get(string property) => declarations.FirstOrDefault(d => d.Property == property).Value;
 

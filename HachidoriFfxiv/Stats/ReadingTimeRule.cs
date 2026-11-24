@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using HachidoriFfxiv.Rendering;
 
 namespace HachidoriFfxiv.Stats;
@@ -27,8 +26,6 @@ public static class ReadingTimeRule
     public const long SkimGapUs = 1_000_000L;
     public const int SkimChars = 12;
     public const int SkimLines = 3;
-
-    public const int DefaultDayStartHour = 4;
 
     /// <summary>Goal step presets matching bee-san/LearnFromGames ReadingGoals.</summary>
     public static readonly int[] MinuteGoalSteps = [0, 15, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480];
@@ -97,9 +94,6 @@ public static class ReadingTimeRule
         var shift = Math.Clamp(dayStartHour, 0, 12);
         return shift > 0 ? local.AddHours(-shift).Date : local.Date;
     }
-
-    public static string LogicalDateKey(DateTime utcTime, int dayStartHour) =>
-        LogicalDate(utcTime, dayStartHour).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Rubi's adaptive reading-time rule: credits <paramref name="gapUs"/> capped at

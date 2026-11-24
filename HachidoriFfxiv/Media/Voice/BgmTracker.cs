@@ -27,7 +27,6 @@ public sealed unsafe class BgmTracker
     private string? activePath;
     private long trackStartedAtTicks;
     private double lastElapsedSeconds;
-    private bool loggedFirstDetection;
     private BgmSnapshot? lastSnapshot;
     private bool bgmMutedInGame;
 
@@ -119,7 +118,6 @@ public sealed unsafe class BgmTracker
                 }
 
                 DiagnosticLog.Write("ost", $"BGM switched to {filePath} (sound={soundNumber}, elapsed={elapsed:0.0}s, engineClock={hasEngineClock}, vol={trackVolume:0.00}, muted={muted}).");
-                loggedFirstDetection = true;
             }
             else
             {
@@ -132,16 +130,10 @@ public sealed unsafe class BgmTracker
                 {
                     elapsed = Math.Max(0.0, (nowTicks - trackStartedAtTicks) / (double)Stopwatch.Frequency);
                 }
-
-                if (!loggedFirstDetection)
-                {
-                    DiagnosticLog.Write("ost", $"BGM active: {filePath} (sound={soundNumber}, elapsed={elapsed:0.0}s, engineClock={hasEngineClock}, vol={trackVolume:0.00}, muted={muted}).");
-                    loggedFirstDetection = true;
-                }
             }
 
             lastElapsedSeconds = elapsed;
-            lastSnapshot = new BgmSnapshot(filePath, soundNumber, elapsed, nowTicks, trackVolume, hasEngineClock, muted);
+            lastSnapshot = new BgmSnapshot(filePath, soundNumber, elapsed, nowTicks, hasEngineClock, muted);
             return lastSnapshot;
         }
     }

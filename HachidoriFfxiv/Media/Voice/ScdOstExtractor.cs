@@ -14,7 +14,6 @@ public sealed record BgmSnapshot(
     uint SoundNumber,
     double ElapsedSeconds,
     long CapturedAtTicks,
-    float TrackVolume,
     bool FromEngineClock,
     bool Muted)
 {
@@ -94,7 +93,6 @@ public sealed class CachedOstTrack
     public required long LoopEndSample { get; init; }
 
     public bool Loops => LoopEndSample > LoopStartSample && LoopEndSample <= TotalSamples;
-    public double DurationSeconds => SampleRate > 0 ? TotalSamples / (double)SampleRate : 0;
 }
 
 /// <summary>
@@ -451,11 +449,5 @@ public sealed class OstTrackCache
                 entries.RemoveLast();
             return loaded;
         }
-    }
-
-    public void Clear()
-    {
-        lock (gate)
-            entries.Clear();
     }
 }
