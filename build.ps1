@@ -61,6 +61,8 @@ try {
     if ($Verify) {
         & $taskDotnet run --project tests/HachidoriFfxiv.Checks -c Release
         if ($LASTEXITCODE -ne 0) { throw 'Regression checks failed.' }
+        & $taskDotnet run --project tests/HachidoriFfxiv.ArchCheck -c Release -- --self-test --allow .deslop.allow
+        if ($LASTEXITCODE -ne 0) { throw 'Architectural checks failed.' }
     }
     # Package only this assembly's runtime dependencies. Old binaries from the
     # project rename must not be included just because they remain in bin.
