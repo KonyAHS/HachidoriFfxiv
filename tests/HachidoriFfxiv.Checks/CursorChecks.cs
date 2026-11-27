@@ -182,5 +182,19 @@ static class CursorChecks
         long[] trimmed = [103, 104];
         check(backlog.Sync(trimmed) == 0 && backlog.SelectedLineId == 103,
             "trimming the selected line falls back cleanly to the oldest surviving line");
+
+        // Replay target resolution & outside-controller-mode quick-replay policy.
+        check(ControllerBacklogState.ResolveReplayTargetLineId(backlogOpen: true, selectedBacklogLineId: 102, trackedLiveLineId: 104, latestDialogueLineId: 105) == 102
+              && ControllerBacklogState.ResolveReplayTargetLineId(backlogOpen: false, selectedBacklogLineId: 102, trackedLiveLineId: 104, latestDialogueLineId: 105) == 104
+              && ControllerBacklogState.ResolveReplayTargetLineId(backlogOpen: false, selectedBacklogLineId: null, trackedLiveLineId: 0, latestDialogueLineId: 105) == 105
+              && ControllerBacklogState.ResolveReplayTargetLineId(backlogOpen: false, selectedBacklogLineId: null, trackedLiveLineId: 0, latestDialogueLineId: null) == 0,
+            "replay target prefers selected backlog line, then scanned live line, then latest cutscene dialogue line");
+
+        check(!ControllerBacklogState.ShouldFireGamepadQuickReplay(hasBinding: false, cutsceneOnly: false, inCutsceneOrDialogue: true, backlogOpen: true)
+              && !ControllerBacklogState.ShouldFireGamepadQuickReplay(hasBinding: true, cutsceneOnly: true, inCutsceneOrDialogue: false, backlogOpen: false)
+              && ControllerBacklogState.ShouldFireGamepadQuickReplay(hasBinding: true, cutsceneOnly: true, inCutsceneOrDialogue: true, backlogOpen: false)
+              && ControllerBacklogState.ShouldFireGamepadQuickReplay(hasBinding: true, cutsceneOnly: true, inCutsceneOrDialogue: false, backlogOpen: true)
+              && ControllerBacklogState.ShouldFireGamepadQuickReplay(hasBinding: true, cutsceneOnly: false, inCutsceneOrDialogue: false, backlogOpen: false),
+            "gamepad quick replay enforces cutscene/dialogue guard when enabled and allows anytime replay when disabled");
     }
 }

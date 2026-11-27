@@ -64,6 +64,32 @@ public sealed partial class ConfigWindow : Window
         GamepadButtons.Select | GamepadButtons.DpadDown,
     ];
 
+    private static readonly GamepadButtons[] QuickReplayChoices =
+    [
+        GamepadButtons.None,
+        GamepadButtons.R3,
+        GamepadButtons.L3,
+        GamepadButtons.L1,
+        GamepadButtons.R1,
+        GamepadButtons.L2,
+        GamepadButtons.R2,
+        GamepadButtons.Select,
+        GamepadButtons.L1 | GamepadButtons.R1,
+        GamepadButtons.L2 | GamepadButtons.R2,
+        GamepadButtons.L3 | GamepadButtons.R3,
+        GamepadButtons.L1 | GamepadButtons.R3,
+        GamepadButtons.R1 | GamepadButtons.R3,
+        GamepadButtons.Select | GamepadButtons.R3,
+        GamepadButtons.Select | GamepadButtons.DpadDown,
+    ];
+
+    private enum KeybindRecordTarget
+    {
+        None,
+        ControllerToggle,
+        ReplayVoice,
+    }
+
     private static readonly GamepadButtons[] BindChoices =
     [
         GamepadButtons.None,
@@ -120,7 +146,7 @@ public sealed partial class ConfigWindow : Window
     private bool customPublishPort;
     private bool ankiConnectedHint;
     private bool firstDraw = true;
-    private bool recordingControllerKey;
+    private KeybindRecordTarget recordingKeyTarget;
     private readonly bool[] recorderPrevKeys = new bool[256];
 
     public ConfigWindow(
@@ -176,7 +202,7 @@ public sealed partial class ConfigWindow : Window
 
     public override void OnClose()
     {
-        recordingControllerKey = false;
+        recordingKeyTarget = KeybindRecordTarget.None;
         if (gamepad is not null)
             gamepad.SuppressToggleKey = false;
     }
@@ -550,6 +576,12 @@ public sealed partial class ConfigWindow : Window
         Add("Controller", "Activation", "Trigger style (hold / press)", "hold press instant toggle extra button paddle", false, DrawControllerTriggerModeControl);
         Add("Controller", "Activation", "Hold for (s)", "duration seconds hold", false, DrawControllerHoldSecondsControl);
         Add("Controller", "Activation", "Toggle keybind", "keyboard hotkey keybind press f13 paddle extra button controller", false, DrawControllerToggleKeyControl);
+        Add("Controller", "Voice Line Repeat", "Cutscene repeat button", "replay repeat voice line cached audio cutscene gamepad controller r3 l3", false, DrawControllerQuickReplayButtonControl);
+        Add("Controller", "Voice Line Repeat", "Cutscene repeat trigger style", "hold press instant repeat voice cutscene", false, DrawControllerQuickReplayTriggerModeControl);
+        Add("Controller", "Voice Line Repeat", "Only during cutscenes or dialogue", "cutscene dialogue scope guard repeat replay voice", false,
+            () => Checkbox("Only during cutscenes or dialogue", () => config.ControllerQuickReplayCutsceneOnly, v => config.ControllerQuickReplayCutsceneOnly = v));
+        Add("Controller", "Voice Line Repeat", "Repeat line keybind", "keyboard hotkey keybind paddle repeat replay voice cached line cutscene", false, DrawReplayVoiceKeyControl);
+        Add("Controller", "Voice Line Repeat", "Backlog / controller mode repeat button", "backlog repeat replay voice button r3 controller", false, DrawControllerReplayVoiceButtonControl);
         Add("Controller", "Behavior & Display", "Scan words automatically under the cursor", "auto scan manual button press popup lookup immediately", false,
             () => Checkbox("Scan words automatically under the cursor", () => config.ControllerAutoScan, v => config.ControllerAutoScan = v));
         Add("Controller", "Behavior & Display", "Look up button", "manual scan button press lookup popup controller", false, DrawControllerScanButtonControl);

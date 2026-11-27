@@ -153,6 +153,13 @@ public sealed class Configuration : IPluginConfiguration
     public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerWindowButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.L1;
     public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerHistoryButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.L3;
     public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerReplayVoiceButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.R3;
+    public Dalamud.Game.ClientState.GamePad.GamepadButtons ControllerQuickReplayButton { get; set; } = Dalamud.Game.ClientState.GamePad.GamepadButtons.None;
+    public Ui.ControllerTriggerMode ControllerQuickReplayTriggerMode { get; set; } = Ui.ControllerTriggerMode.Press;
+    public bool ControllerQuickReplayCutsceneOnly { get; set; } = true;
+    public int ReplayVoiceKey { get; set; } = 0;
+    public bool ReplayVoiceKeyCtrl { get; set; } = false;
+    public bool ReplayVoiceKeyShift { get; set; } = false;
+    public bool ReplayVoiceKeyAlt { get; set; } = false;
     public bool ControllerAutoOpenBacklog { get; set; } = true;
     public bool ControllerPinOnAdvance { get; set; } = true;
     public bool ControllerBacklogIncludeChat { get; set; } = false;
@@ -381,6 +388,13 @@ public sealed class Configuration : IPluginConfiguration
         ControllerWindowButton = d.ControllerWindowButton;
         ControllerHistoryButton = d.ControllerHistoryButton;
         ControllerReplayVoiceButton = d.ControllerReplayVoiceButton;
+        ControllerQuickReplayButton = d.ControllerQuickReplayButton;
+        ControllerQuickReplayTriggerMode = d.ControllerQuickReplayTriggerMode;
+        ControllerQuickReplayCutsceneOnly = d.ControllerQuickReplayCutsceneOnly;
+        ReplayVoiceKey = d.ReplayVoiceKey;
+        ReplayVoiceKeyCtrl = d.ReplayVoiceKeyCtrl;
+        ReplayVoiceKeyShift = d.ReplayVoiceKeyShift;
+        ReplayVoiceKeyAlt = d.ReplayVoiceKeyAlt;
         ControllerAutoOpenBacklog = d.ControllerAutoOpenBacklog;
         ControllerPinOnAdvance = d.ControllerPinOnAdvance;
         ControllerBacklogIncludeChat = d.ControllerBacklogIncludeChat;

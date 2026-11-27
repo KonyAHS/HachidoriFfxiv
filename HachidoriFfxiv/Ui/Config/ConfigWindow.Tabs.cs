@@ -135,6 +135,8 @@ public sealed partial class ConfigWindow
                     ("/hachidori <text>", "Look up text"),
                     ("/hachidori reader", "Pin or unpin the reader overlay"),
                     ("/hachidori pad", "Controller reading mode (put it on a hotbar macro)"),
+                    ("/hachidori backlog", "Open the dialogue backlog (previous lines)"),
+                    ("/hachidori replay", "Repeat the cached voice for the latest dialogue line"),
                     ("/hachidori freeze", "Freeze the screen to look up tooltips"),
                     ("/hachidori pictures", "NPC picture dictionary"),
                     ("/hachidori logs", "Export a debug log"),
@@ -663,25 +665,52 @@ public sealed partial class ConfigWindow
         if (Section("ctrl-activation", "Activation", defaultOpen: true))
         {
             Toggle("Controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v);
-            if (!config.ControllerEnabled)
-                return;
-
-            ImGui.TextUnformatted("Easiest: put this on a cross hotbar macro.");
-            ImGui.SameLine();
-            ImGui.TextUnformatted("/hachidori pad");
-            ImGui.SameLine();
-            if (ImGui.SmallButton("Copy"))
-                ImGui.SetClipboardText("/hachidori pad");
-
-            DrawControllerHoldButtonControl();
-            if (config.ControllerHoldButton != GamepadButtons.None)
+            if (config.ControllerEnabled)
             {
-                DrawControllerTriggerModeControl();
-                if (config.ControllerTriggerMode == ControllerTriggerMode.Hold)
-                    DrawControllerHoldSecondsControl();
+                ImGui.TextUnformatted("Easiest: put this on a cross hotbar macro.");
+                ImGui.SameLine();
+                ImGui.TextUnformatted("/hachidori pad");
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Copy"))
+                    ImGui.SetClipboardText("/hachidori pad");
+
+                DrawControllerHoldButtonControl();
+                if (config.ControllerHoldButton != GamepadButtons.None)
+                {
+                    DrawControllerTriggerModeControl();
+                    if (config.ControllerTriggerMode == ControllerTriggerMode.Hold)
+                        DrawControllerHoldSecondsControl();
+                }
+                DrawControllerToggleKeyControl();
             }
-            DrawControllerToggleKeyControl();
         }
+
+        if (Section("ctrl-replay", "Voice Line Repeat (Cutscenes & Backlog)", defaultOpen: true))
+        {
+            ImGui.TextDisabled("Repeat the cached voice line in cutscenes without opening controller mode, or for any line in the backlog.");
+            DrawControllerQuickReplayButtonControl();
+            if (config.ControllerQuickReplayButton != GamepadButtons.None)
+            {
+                using var indent = ImRaii.PushIndent();
+                DrawControllerQuickReplayTriggerModeControl();
+                if (config.ControllerQuickReplayTriggerMode == ControllerTriggerMode.Hold)
+                    DrawControllerHoldSecondsControl();
+                Checkbox("Only during cutscenes or dialogue", () => config.ControllerQuickReplayCutsceneOnly, v => config.ControllerQuickReplayCutsceneOnly = v);
+                HelpMarker("Prevents accidental repeats during normal gameplay when bound to a single button like R3 or L3.");
+            }
+            DrawReplayVoiceKeyControl();
+            if (config.ControllerEnabled)
+                DrawControllerReplayVoiceButtonControl();
+            ImGui.TextUnformatted("Macro / chat command:");
+            ImGui.SameLine();
+            ImGui.TextUnformatted("/hachidori replay");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Copy##copy-replay-cmd"))
+                ImGui.SetClipboardText("/hachidori replay");
+        }
+
+        if (!config.ControllerEnabled)
+            return;
 
         if (Section("ctrl-behavior", "Behavior & Display", defaultOpen: true))
         {
@@ -768,7 +797,16 @@ public sealed partial class ConfigWindow
             rows.Add((L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"));
             rows.Add((L(config.ControllerWindowButton), "cycle between open UI windows (or return to game UI from the backlog)"));
             rows.Add((L(config.ControllerHistoryButton), "toggle the dialogue backlog to mine previous lines (or push D-pad up at the top of dialogue)"));
-            rows.Add((L(config.ControllerReplayVoiceButton), "replay the captured voice clip for the selected dialogue line"));
+            rows.Add((L(config.ControllerReplayVoiceButton), "repeat the cached voice clip for the selected dialogue line"));
+            if (config.ControllerQuickReplayButton != GamepadButtons.None)
+            {
+                var qrLabel = GamepadNavigator.ButtonComboLabel(config.ControllerQuickReplayButton, ps);
+                var qrPrefix = config.ControllerQuickReplayTriggerMode == ControllerTriggerMode.Hold ? "Hold " : string.Empty;
+                var qrScope = config.ControllerQuickReplayCutsceneOnly ? " during cutscenes/dialogue" : string.Empty;
+                rows.Add(($"{qrPrefix}{qrLabel}", $"repeat the cached voice line{qrScope} without entering controller mode"));
+            }
+            if (config.ReplayVoiceKey > 0)
+                rows.Add((KeybindFormat.Format(config.ReplayVoiceKey, config.ReplayVoiceKeyCtrl, config.ReplayVoiceKeyShift, config.ReplayVoiceKeyAlt), "repeat the cached voice line anytime (without entering controller mode)"));
             rows.Add((L(config.ControllerWordModeButton), "switch between words and characters"));
             rows.Add((L(config.ControllerBackExitButton), config.ControllerAutoScan
                 ? "back out of a nested popup, or leave the mode"

@@ -78,8 +78,7 @@ public sealed class MediaMiner : IDisposable
         var now = Stopwatch.GetTimestamp();
         Frames.Draw();
         Timeline.OnWindows(capture.TalkVisible, capture.BattleTalkVisible, now);
-        if (config.RecordVoiceLines)
-            Voices.Update(now);
+        Voices.Update(now);
         if (Tts.Enabled && config.TtsInjectOst)
             Bgm.Update(now);
         if (config.RecordVoiceLines && recorder is null)
@@ -101,11 +100,37 @@ public sealed class MediaMiner : IDisposable
         if (span is null)
             return default;
         var hasShot = Timeline.ScreenshotOf(span) is { Length: > 0 };
-        var hasVoice = Timeline.VoiceOf(span) is not null;
+        var (cachedAudio, cachedIsTts) = Timeline.ReplayAudioOf(span);
+        var hasVoice = Timeline.VoiceOf(span) is not null || (cachedAudio is { Length: > 0 } && !cachedIsTts);
         bool hasClip;
         lock (clips)
             hasClip = clips.Any(c => c.Start == span.Start);
         return new LineMediaStatus(hasShot, hasVoice, hasClip);
+    }
+
+    /// <summary>True when <paramref name="lineId"/> has a replayable cached voice, loopback recording, or TTS fallback.</summary>
+    public bool CanReplayLineVoice(long lineId)
+    {
+        var span = Timeline.FindById(lineId);
+        if (span is null)
+            return false;
+        if (Timeline.VoiceOf(span) is not null)
+            return true;
+        if (Timeline.ReplayAudioOf(span).Audio is { Length: > 0 })
+            return true;
+        if (Tts.Enabled)
+            return true;
+        if (config.RecordVoiceLines && !Voices.HooksActive && recorder is { Running: true } rec)
+        {
+            var ring = rec.Ring;
+            if (ring.Written > 0)
+            {
+                var startIdx = ring.IndexAt(span.Start) - ring.SampleRate * 3 / 10;
+                if (Math.Max(0, ring.Written - ring.Capacity) <= Math.Max(0, startIdx))
+                    return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>The cached JPEG captured while <paramref name="lineId"/> was on screen, if still retained.</summary>
@@ -113,8 +138,8 @@ public sealed class MediaMiner : IDisposable
         Timeline.FindById(lineId) is { } span ? Timeline.ScreenshotOf(span) : null;
 
     /// <summary>
-    /// Decodes playable audio for replaying a captured line in the backlog (prefers clean native
-    /// SCD voice extraction, else loopback recording, else TTS when enabled).
+    /// Decodes playable audio for replaying a captured line (returns cached bytes immediately on repeat,
+    /// else prefers clean native SCD voice extraction, else loopback recording, else TTS when enabled).
     /// </summary>
     public async Task<byte[]?> GetLineVoiceReplayAsync(long lineId)
     {
@@ -123,25 +148,51 @@ public sealed class MediaMiner : IDisposable
             return null;
 
         var voice = Timeline.VoiceOf(span);
+        var (cachedAudio, cachedIsTts) = Timeline.ReplayAudioOf(span);
+        if (cachedAudio is { Length: > 0 } && (!cachedIsTts || voice is null))
+            return cachedAudio;
+
+        // If replayed moments after a line appeared while still open, allow a brief window for delayed voice onset.
+        if (voice is null && Voices.HooksActive && Timeline.EndOf(span) is null)
+        {
+            var waitUntil = span.Start + (long)(1.8 * Stopwatch.Frequency);
+            while (voice is null && Timeline.EndOf(span) is null && Stopwatch.GetTimestamp() < waitUntil)
+            {
+                await Task.Delay(60).ConfigureAwait(false);
+                voice = Timeline.VoiceOf(span);
+            }
+        }
+
         if (voice is not null)
         {
-            var clean = await Task.Run(() => TryExtractCleanVoiceFromScd(voice, "Backlog voice replay")).ConfigureAwait(false);
-            if (clean is not null)
+            var clean = await Task.Run(() => TryExtractCleanVoiceFromScd(voice, "Voice line replay")).ConfigureAwait(false);
+            if (clean is { Length: > 0 })
+            {
+                Timeline.SetReplayAudio(lineId, clean, isTts: false);
                 return clean;
+            }
         }
 
         if (config.RecordVoiceLines && recorder is { Running: true } rec)
         {
             var clip = await Task.Run(() => VoiceClipAsync(rec, span)).ConfigureAwait(false);
-            if (clip is not null)
+            if (clip is { Length: > 0 })
+            {
+                Timeline.SetReplayAudio(lineId, clip, isTts: false);
                 return clip;
+            }
         }
 
         if (Tts.Enabled)
         {
             var bgmSnapshot = ResolveBgmForTts(span);
             var (data, _, _, _) = await SynthesizeTtsAsync(span.Line.Text, bgmSnapshot).ConfigureAwait(false);
-            return data;
+            if (data is { Length: > 0 })
+            {
+                if (Timeline.EndOf(span) is not null)
+                    Timeline.SetReplayAudio(lineId, data, isTts: true);
+                return data;
+            }
         }
 
         return null;

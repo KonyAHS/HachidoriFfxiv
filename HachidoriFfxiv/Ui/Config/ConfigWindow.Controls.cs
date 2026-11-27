@@ -498,25 +498,8 @@ public sealed partial class ConfigWindow
     private void DrawControllerHoldButtonControl()
     {
         var ps = config.ControllerPlayStationLabels;
-        string Name(GamepadButtons b) => b switch
-        {
-            GamepadButtons.None => "Off (macro only)",
-            _ => string.Join(" + ", Enum.GetValues<GamepadButtons>()
-                .Where(v => v != GamepadButtons.None && b.HasFlag(v))
-                .Select(v => v switch
-                {
-                    GamepadButtons.Select => ps ? "Select / Touchpad" : "Back / View",
-                    GamepadButtons.Start => ps ? "Options" : "Start / Menu",
-                    GamepadButtons.L1 => ps ? "L1" : "LB",
-                    GamepadButtons.R1 => ps ? "R1" : "RB",
-                    GamepadButtons.L3 => ps ? "L3" : "LS click",
-                    GamepadButtons.R3 => ps ? "R3" : "RS click",
-                    GamepadButtons.DpadDown => "D-pad down",
-                    _ => v.ToString(),
-                })),
-        };
         var index = Math.Max(0, Array.IndexOf(HoldChoices, config.ControllerHoldButton));
-        var labels = HoldChoices.Select(Name).ToArray();
+        var labels = HoldChoices.Select(b => FormatGamepadComboChoice(b, ps, "Off (macro only)")).ToArray();
         if (ImGui.Combo("Controller trigger", ref index, labels, labels.Length))
         {
             config.ControllerHoldButton = HoldChoices[index];
@@ -524,6 +507,64 @@ public sealed partial class ConfigWindow
         }
         HelpMarker("Button or combo that enters and exits controller mode. FFXIV still sees that press when entering, so pick a button whose game action you don't mind, or use the macro or a keybind.");
     }
+
+    private void DrawControllerQuickReplayButtonControl()
+    {
+        var ps = config.ControllerPlayStationLabels;
+        var index = Math.Max(0, Array.IndexOf(QuickReplayChoices, config.ControllerQuickReplayButton));
+        var labels = QuickReplayChoices.Select(b => FormatGamepadComboChoice(b, ps, "Off")).ToArray();
+        if (ImGui.Combo("Cutscene repeat button", ref index, labels, labels.Length))
+        {
+            config.ControllerQuickReplayButton = QuickReplayChoices[index];
+            config.Save();
+        }
+        HelpMarker("Controller button or combo that repeats the latest cached voice line directly during cutscenes without entering controller mode. R3 / L3 are unused in FFXIV cutscenes.");
+    }
+
+    private void DrawControllerQuickReplayTriggerModeControl()
+    {
+        var modes = new[] { "Press to repeat", "Hold to repeat" };
+        var mode = (int)config.ControllerQuickReplayTriggerMode;
+        if (ImGui.Combo("Repeat trigger style", ref mode, modes, modes.Length))
+        {
+            config.ControllerQuickReplayTriggerMode = (ControllerTriggerMode)mode;
+            config.Save();
+        }
+        HelpMarker("Press repeats immediately on tap (best for R3/L3 in cutscenes or combos). Hold avoids conflicting with single-press game actions.");
+    }
+
+    private void DrawControllerReplayVoiceButtonControl()
+    {
+        var ps = config.ControllerPlayStationLabels;
+        var labels = BindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
+        var idx = Math.Max(0, Array.IndexOf(BindChoices, config.ControllerReplayVoiceButton));
+        if (ImGui.Combo("Backlog / controller mode button", ref idx, labels, labels.Length))
+        {
+            config.ControllerReplayVoiceButton = BindChoices[idx];
+            config.Save();
+        }
+        HelpMarker("Controller button that repeats the selected line's cached voice while in controller mode or the dialogue backlog.");
+    }
+
+    private static string FormatGamepadComboChoice(GamepadButtons b, bool ps, string noneLabel) => b switch
+    {
+        GamepadButtons.None => noneLabel,
+        _ => string.Join(" + ", Enum.GetValues<GamepadButtons>()
+            .Where(v => v != GamepadButtons.None && b.HasFlag(v))
+            .Select(v => v switch
+            {
+                GamepadButtons.Select => ps ? "Select / Touchpad" : "Back / View",
+                GamepadButtons.Start => ps ? "Options" : "Start / Menu",
+                GamepadButtons.L1 => ps ? "L1" : "LB",
+                GamepadButtons.R1 => ps ? "R1" : "RB",
+                GamepadButtons.L2 => ps ? "L2" : "LT",
+                GamepadButtons.R2 => ps ? "R2" : "RT",
+                GamepadButtons.L3 => ps ? "L3" : "LS click",
+                GamepadButtons.R3 => ps ? "R3" : "RS click",
+                GamepadButtons.DpadDown => "D-pad down",
+                _ => v.ToString(),
+            })),
+    };
 
     private void DrawControllerTriggerModeControl()
     {
@@ -540,45 +581,87 @@ public sealed partial class ConfigWindow
     private void DrawControllerHoldSecondsControl() =>
         NumberFloat("Hold for (s)", () => config.ControllerHoldSeconds, v => config.ControllerHoldSeconds = v, 0.2f, 1.5f, Defaults.ControllerHoldSeconds, "%.1f", "s", deferSave: config.Save);
 
-    private void DrawControllerToggleKeyControl()
-    {
-        if (recordingControllerKey)
-            PollControllerKeyRecorder();
-
-        var scale = ImGuiHelpers.GlobalScale;
-        var label = recordingControllerKey
-            ? "Press any key… (Esc cancels)"
-            : config.ControllerToggleKey > 0
-                ? KeybindFormat.Format(config.ControllerToggleKey, config.ControllerToggleKeyCtrl, config.ControllerToggleKeyShift, config.ControllerToggleKeyAlt)
-                : "None (click to bind)";
-
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Toggle keybind");
-        ImGui.SameLine(0, 8 * scale);
-        using (var col = recordingControllerKey ? ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.68f, 0.45f, 0.14f, 0.95f)) : null)
-        {
-            if (ImGui.Button($"{label}##ctrl-toggle-key", new Vector2(210 * scale, 0)))
-            {
-                recordingControllerKey = !recordingControllerKey;
-                if (gamepad is not null)
-                    gamepad.SuppressToggleKey = recordingControllerKey;
-                if (recordingControllerKey)
-                    SnapshotRecorderKeys();
-            }
-        }
-        if (config.ControllerToggleKey > 0 && !recordingControllerKey)
-        {
-            ImGui.SameLine(0, 6 * scale);
-            if (ImGui.SmallButton("Clear##ctrl-toggle-key-clear"))
+    private void DrawControllerToggleKeyControl() =>
+        DrawKeybindControl(
+            KeybindRecordTarget.ControllerToggle,
+            "Toggle keybind",
+            "ctrl-toggle-key",
+            config.ControllerToggleKey,
+            config.ControllerToggleKeyCtrl,
+            config.ControllerToggleKeyShift,
+            config.ControllerToggleKeyAlt,
+            () =>
             {
                 config.ControllerToggleKey = 0;
                 config.ControllerToggleKeyCtrl = false;
                 config.ControllerToggleKeyShift = false;
                 config.ControllerToggleKeyAlt = false;
                 config.Save();
+            },
+            "Optional single-press keyboard or extra-button keybind to toggle controller mode on/off. Great for controller back paddles or Steam Deck grip buttons mapped to a key like F13–F24 or Mouse 4/5.");
+
+    private void DrawReplayVoiceKeyControl() =>
+        DrawKeybindControl(
+            KeybindRecordTarget.ReplayVoice,
+            "Repeat line keybind",
+            "replay-voice-key",
+            config.ReplayVoiceKey,
+            config.ReplayVoiceKeyCtrl,
+            config.ReplayVoiceKeyShift,
+            config.ReplayVoiceKeyAlt,
+            () =>
+            {
+                config.ReplayVoiceKey = 0;
+                config.ReplayVoiceKeyCtrl = false;
+                config.ReplayVoiceKeyShift = false;
+                config.ReplayVoiceKeyAlt = false;
+                config.Save();
+            },
+            "Optional single-press keyboard, mouse, or controller back-paddle keybind (e.g. F13–F24, Mouse 4/5, Alt+R) to repeat the current or selected line's cached voice without opening controller mode.");
+
+    private void DrawKeybindControl(
+        KeybindRecordTarget target,
+        string caption,
+        string idSuffix,
+        int vk,
+        bool ctrl,
+        bool shift,
+        bool alt,
+        Action clear,
+        string help)
+    {
+        var recording = recordingKeyTarget == target;
+        if (recording)
+            PollKeyRecorder();
+
+        var scale = ImGuiHelpers.GlobalScale;
+        var label = recording
+            ? "Press any key… (Esc cancels)"
+            : vk > 0
+                ? KeybindFormat.Format(vk, ctrl, shift, alt)
+                : "None (click to bind)";
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(caption);
+        ImGui.SameLine(0, 8 * scale);
+        using (var col = recording ? ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.68f, 0.45f, 0.14f, 0.95f)) : null)
+        {
+            if (ImGui.Button($"{label}##{idSuffix}", new Vector2(210 * scale, 0)))
+            {
+                recordingKeyTarget = recording ? KeybindRecordTarget.None : target;
+                if (gamepad is not null)
+                    gamepad.SuppressToggleKey = recordingKeyTarget != KeybindRecordTarget.None;
+                if (recordingKeyTarget != KeybindRecordTarget.None)
+                    SnapshotRecorderKeys();
             }
         }
-        HelpMarker("Optional single-press keyboard or extra-button keybind to toggle controller mode on/off. Great for controller back paddles or Steam Deck grip buttons mapped to a key like F13–F24 or Mouse 4/5.");
+        if (vk > 0 && !recording)
+        {
+            ImGui.SameLine(0, 6 * scale);
+            if (ImGui.SmallButton($"Clear##{idSuffix}-clear"))
+                clear();
+        }
+        HelpMarker(help);
     }
 
     private void SnapshotRecorderKeys()
@@ -587,8 +670,12 @@ public sealed partial class ConfigWindow
             recorderPrevKeys[vk] = GamepadNavigator.IsOsKeyDown(vk);
     }
 
-    private void PollControllerKeyRecorder()
+    private void PollKeyRecorder()
     {
+        var target = recordingKeyTarget;
+        if (target == KeybindRecordTarget.None)
+            return;
+
         for (var vk = 0x04; vk < 0xFF; vk++)
         {
             var down = GamepadNavigator.IsOsKeyDown(vk);
@@ -600,19 +687,34 @@ public sealed partial class ConfigWindow
             if (vk is 0x10 or 0x11 or 0x12 or 0x5B or 0x5C or >= 0xA0 and <= 0xA5)
                 continue;
 
-            recordingControllerKey = false;
+            recordingKeyTarget = KeybindRecordTarget.None;
             if (gamepad is not null)
                 gamepad.SuppressToggleKey = false;
 
             if (vk == 0x1B) // Escape cancels
                 return;
 
-            config.ControllerToggleKey = vk;
-            config.ControllerToggleKeyCtrl = GamepadNavigator.IsOsKeyDown(0x11);
-            config.ControllerToggleKeyShift = GamepadNavigator.IsOsKeyDown(0x10);
-            config.ControllerToggleKeyAlt = GamepadNavigator.IsOsKeyDown(0x12);
-            config.Save();
-            gamepad?.NotifyToggleKeyBound();
+            var ctrl = GamepadNavigator.IsOsKeyDown(0x11);
+            var shift = GamepadNavigator.IsOsKeyDown(0x10);
+            var alt = GamepadNavigator.IsOsKeyDown(0x12);
+            if (target == KeybindRecordTarget.ControllerToggle)
+            {
+                config.ControllerToggleKey = vk;
+                config.ControllerToggleKeyCtrl = ctrl;
+                config.ControllerToggleKeyShift = shift;
+                config.ControllerToggleKeyAlt = alt;
+                config.Save();
+                gamepad?.NotifyToggleKeyBound();
+            }
+            else if (target == KeybindRecordTarget.ReplayVoice)
+            {
+                config.ReplayVoiceKey = vk;
+                config.ReplayVoiceKeyCtrl = ctrl;
+                config.ReplayVoiceKeyShift = shift;
+                config.ReplayVoiceKeyAlt = alt;
+                config.Save();
+                gamepad?.NotifyReplayKeyBound();
+            }
             return;
         }
     }

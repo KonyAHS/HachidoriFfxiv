@@ -406,6 +406,23 @@ public sealed class ControllerBacklogState
     public static bool ShouldPinOnLiveAdvance(bool pinEnabled, long trackedLiveLineId, long? currentLiveDialogueId, bool liveDialogueVisible) =>
         pinEnabled && trackedLiveLineId > 0 && (!liveDialogueVisible || (currentLiveDialogueId is { } cur && cur != trackedLiveLineId));
 
+    /// <summary>
+    /// Chooses which captured dialogue line to repeat: the selected backlog line when the drawer is open,
+    /// else the actively scanned live line, else the latest captured dialogue line.
+    /// </summary>
+    public static long ResolveReplayTargetLineId(bool backlogOpen, long? selectedBacklogLineId, long trackedLiveLineId, long? latestDialogueLineId)
+    {
+        if (backlogOpen)
+            return selectedBacklogLineId ?? 0;
+        if (trackedLiveLineId > 0)
+            return trackedLiveLineId;
+        return latestDialogueLineId ?? 0;
+    }
+
+    /// <summary>True when the outside-controller-mode gamepad quick-replay bind is allowed to fire.</summary>
+    public static bool ShouldFireGamepadQuickReplay(bool hasBinding, bool cutsceneOnly, bool inCutsceneOrDialogue, bool backlogOpen) =>
+        hasBinding && (!cutsceneOnly || inCutsceneOrDialogue || backlogOpen);
+
     /// <summary>Opens the backlog at an offset back from the newest line (0 = latest, 1 = previous), or at an explicit line id.</summary>
     public bool OpenAt(
         IReadOnlyList<long> lineIds,

@@ -223,6 +223,10 @@ public sealed class Plugin : IDalamudPlugin
             case "history":
                 gamepad.ToggleBacklog();
                 return;
+            case "replay":
+            case "repeat":
+                gamepad.ReplayCurrentOrLatestLine();
+                return;
             case "freeze":
             case "tooltip":
             case "tooltips":
@@ -236,7 +240,7 @@ public sealed class Plugin : IDalamudPlugin
                 PrintDiagnostics();
                 return;
             case "help":
-                DalamudServices.ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori backlog (history) · /hachidori diag · /hachidori logs");
+                DalamudServices.ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori backlog (history) · /hachidori replay (repeat line voice) · /hachidori diag · /hachidori logs");
                 return;
             case "logs":
                 try

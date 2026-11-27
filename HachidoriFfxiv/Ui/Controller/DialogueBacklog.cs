@@ -182,6 +182,11 @@ public sealed class DialogueBacklog : IDisposable
     /// <summary>Replays the captured game voice (or TTS) for <paramref name="lineId"/>.</summary>
     public void ReplayVoice(long lineId)
     {
+        if (lineId <= 0)
+        {
+            SetReplayNotice("No dialogue line captured yet", 2.0);
+            return;
+        }
         var seq = Interlocked.Increment(ref replaySequence);
         SetReplayNotice("Loading voice…", 2.5);
         _ = Task.Run(async () =>
@@ -193,18 +198,53 @@ public sealed class DialogueBacklog : IDisposable
                     return;
                 if (data is null || data.Length == 0)
                 {
-                    SetReplayNotice("No recorded voice for this line", 2.5);
+                    SetReplayNotice("No cached voice for this line", 2.5);
                     return;
                 }
                 audio.Play(data);
-                SetReplayNotice("Replaying voice", 2.0);
+                SetReplayNotice("Repeating voice", 1.8);
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Write("audio", $"Backlog voice replay failed: {ex.Message}");
+                DiagnosticLog.Write("audio", $"Voice replay failed: {ex.Message}");
                 SetReplayNotice("Voice replay failed", 2.5);
             }
         });
+    }
+
+    /// <summary>Replays the most recently captured dialogue line (useful during cutscenes outside controller mode).</summary>
+    public void ReplayLatestDialogue()
+    {
+        var latest = GetLatestDialogueLineId();
+        if (latest is { } lineId)
+            ReplayVoice(lineId);
+        else
+            SetReplayNotice("No dialogue line captured yet", 2.0);
+    }
+
+    /// <summary>Draws a subtle foreground feedback pill when replaying a line while the backlog drawer is closed.</summary>
+    public void DrawReplayNoticeOverlay()
+    {
+        if (Open || replayNotice is null)
+            return;
+        if (DateTime.UtcNow >= replayNoticeUntil)
+        {
+            replayNotice = null;
+            return;
+        }
+
+        var viewport = ImGui.GetMainViewport();
+        var draw = ImGui.GetForegroundDrawList();
+        var font = ImGui.GetFont();
+        var size = ImGui.GetFontSize();
+        var text = replayNotice;
+        var width = ImGui.CalcTextSize(text).X;
+        var pos = new Vector2(viewport.Pos.X + (viewport.Size.X - width) * 0.5f, viewport.Pos.Y + viewport.Size.Y - size * 3.8f);
+        var pad = new Vector2(size * 0.65f, size * 0.32f);
+        var accent = CssColor.ToAbgr(PopupTheme.Current.Accent with { W = 0.85f });
+        draw.AddRectFilled(pos - pad, pos + new Vector2(width, size) + pad, 0xCC10131C, size * 0.5f);
+        draw.AddRect(pos - pad, pos + new Vector2(width, size) + pad, accent, size * 0.5f);
+        draw.AddText(font, size, pos, 0xFFFFFFFF, text);
     }
 
     /// <summary>Draws the backlog drawer and records clipped screen-space glyph cells for controller scanning.</summary>
@@ -262,12 +302,12 @@ public sealed class DialogueBacklog : IDisposable
             windowMin = ImGui.GetWindowPos();
             windowMax = windowMin + ImGui.GetWindowSize();
 
-            DrawHeader(selectedIdx, selectedLine, controllerActive, scale, accentVec);
+            var showSidebar = config.CaptureScreenshot || previewTexture is not null;
+            DrawHeader(selectedIdx, selectedLine, controllerActive, showSidebar, scale, accentVec);
             ImGui.Separator();
             ImGuiHelpers.ScaledDummy(3f);
 
             var avail = ImGui.GetContentRegionAvail();
-            var showSidebar = config.CaptureScreenshot || previewTexture is not null;
             var sidebarW = showSidebar ? MathF.Min(210f * scale, avail.X * 0.28f) : 0f;
             var listW = showSidebar ? MathF.Max(200f * scale, avail.X - sidebarW - 10f * scale) : avail.X;
 
@@ -282,7 +322,7 @@ public sealed class DialogueBacklog : IDisposable
         ImGui.End();
     }
 
-    private void DrawHeader(int selectedIdx, GameLine selectedLine, bool controllerActive, float scale, Vector4 accentVec)
+    private void DrawHeader(int selectedIdx, GameLine selectedLine, bool controllerActive, bool showSidebar, float scale, Vector4 accentVec)
     {
         var backOffset = filteredLines.Count - 1 - selectedIdx;
         var offsetText = backOffset == 0 ? "Latest" : $"-{backOffset}";
@@ -314,6 +354,28 @@ public sealed class DialogueBacklog : IDisposable
 
         var closeW = 24f * scale;
         var closeX = ImGui.GetWindowContentRegionMax().X - closeW;
+        if (!showSidebar)
+        {
+            var ps = config.ControllerPlayStationLabels;
+            var replayBind = config.ControllerReplayVoiceButton != Dalamud.Game.ClientState.GamePad.GamepadButtons.None
+                ? $" ({GamepadNavigator.ButtonLabel(config.ControllerReplayVoiceButton, ps)})"
+                : string.Empty;
+            var repeatLabel = $"Repeat line{replayBind}";
+            var repeatW = ImGui.CalcTextSize(repeatLabel).X + ImGui.GetStyle().FramePadding.X * 2f;
+            var repeatX = closeX - repeatW - 8f * scale;
+            if (repeatX > ImGui.GetCursorPosX() + 12f)
+            {
+                var canReplay = media.CanReplayLineVoice(selectedLine.Id);
+                ImGui.SameLine(repeatX);
+                using (ImRaii.Disabled(!canReplay))
+                {
+                    if (ImGui.SmallButton($"{repeatLabel}##backlog-header-replay"))
+                        ReplayVoice(selectedLine.Id);
+                }
+                if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                    ImGui.SetTooltip(canReplay ? "Repeat the cached voice for the selected line" : "No cached voice for this line");
+            }
+        }
         if (closeX > ImGui.GetCursorPosX() + 12f)
         {
             ImGui.SameLine(closeX);
@@ -382,6 +444,29 @@ public sealed class DialogueBacklog : IDisposable
             ImGui.SameLine(0f, 8f * scale);
             ImGui.TextDisabled(badges.Length > 0 ? $"{age} · {badges}" : age);
 
+            // Per-line Repeat button right on each card that has cached audio (or TTS/recording).
+            var cardReplayClicked = false;
+            var canReplayLine = media.CanReplayLineVoice(line.Id);
+            if (canReplayLine)
+            {
+                const string btnText = "Repeat";
+                var btnW = ImGui.CalcTextSize(btnText).X + ImGui.GetStyle().FramePadding.X * 2f;
+                var btnX = innerW - cardPadX - btnW;
+                if (btnX > ImGui.GetCursorPosX() + 8f * scale)
+                    ImGui.SameLine(btnX);
+                else
+                    ImGui.SameLine(0f, 8f * scale);
+                if (ImGui.SmallButton($"{btnText}##line-replay"))
+                {
+                    cardReplayClicked = true;
+                    State.SelectLine(filteredIds, line.Id);
+                    PrewarmAroundSelection();
+                    ReplayVoice(line.Id);
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Repeat the cached voice for this line");
+            }
+
             // Dialogue text body.
             ImGui.SetCursorPosX(cardPadX);
             var textWidth = MathF.Max(60f, innerW - cardPadX * 2f);
@@ -416,7 +501,8 @@ public sealed class DialogueBacklog : IDisposable
             }
 
             // Click anywhere on a card with mouse to jump selection to it.
-            if (ImGui.IsMouseClicked(ImGuiMouseButton.Left)
+            if (!cardReplayClicked
+                && ImGui.IsMouseClicked(ImGuiMouseButton.Left)
                 && ImGui.IsMouseHoveringRect(cardMin, cardMax, true)
                 && !popups.ContainsMouse(ImGui.GetMousePos()))
             {
@@ -493,12 +579,14 @@ public sealed class DialogueBacklog : IDisposable
         var replayBind = config.ControllerReplayVoiceButton != Dalamud.Game.ClientState.GamePad.GamepadButtons.None
             ? $" ({GamepadNavigator.ButtonLabel(config.ControllerReplayVoiceButton, ps)})"
             : string.Empty;
-        var canReplay = status.HasVoice || media.Tts.Enabled;
+        var canReplay = media.CanReplayLineVoice(line.Id);
         using (ImRaii.Disabled(!canReplay))
         {
-            if (ImGui.Button($"Replay voice{replayBind}##backlog-replay", new Vector2(innerW, 0f)))
+            if (ImGui.Button($"Repeat voice{replayBind}##backlog-replay", new Vector2(innerW, 0f)))
                 ReplayVoice(line.Id);
         }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip(canReplay ? "Repeat the cached voice for this line" : "No cached voice for this line");
 
         if (!controllerActive)
         {

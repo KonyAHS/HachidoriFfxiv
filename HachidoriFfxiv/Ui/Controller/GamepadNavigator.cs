@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.GamePad;
 using Dalamud.Game.ClientState.Keys;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -40,7 +41,9 @@ public sealed class GamepadNavigator : IDisposable
 
     private GamepadButtons previous;
     private readonly ControllerTriggerState triggerState = new();
+    private readonly ControllerTriggerState quickReplayTriggerState = new();
     private bool toggleKeyWasDown;
+    private bool replayKeyWasDown;
     private readonly Dictionary<string, DateTime> repeats = new();
     private DateTime? noTextSince;
     private bool seenText;
@@ -79,11 +82,25 @@ public sealed class GamepadNavigator : IDisposable
 
     public bool Active { get; private set; }
 
-    /// <summary>Set by ConfigWindow while recording a toggle keybind so the bound press does not also toggle controller mode.</summary>
+    /// <summary>Set by ConfigWindow while recording a keybind so the bound press does not also trigger it.</summary>
     public bool SuppressToggleKey { get; set; }
 
-    /// <summary>Prevents the just-recorded key press from triggering controller mode while still held.</summary>
+    /// <summary>Prevents the just-recorded toggle key press from triggering controller mode while still held.</summary>
     public void NotifyToggleKeyBound() => toggleKeyWasDown = true;
+
+    /// <summary>Prevents the just-recorded replay key press from triggering replay while still held.</summary>
+    public void NotifyReplayKeyBound() => replayKeyWasDown = true;
+
+    /// <summary>Repeats the cached voice line for the selected backlog entry, active live dialogue, or latest dialogue line.</summary>
+    public void ReplayCurrentOrLatestLine()
+    {
+        var targetId = ControllerBacklogState.ResolveReplayTargetLineId(
+            backlog.Open,
+            backlog.SelectedLine?.Id,
+            Active ? trackedLiveLineId : 0,
+            backlog.LatestDialogueLineId);
+        backlog.ReplayVoice(targetId);
+    }
 
     /// <summary>Dalamud ignores input blocking when "plugin gamepad input" is off in its settings.</summary>
     public bool BlockingRefused { get; private set; }
@@ -156,6 +173,7 @@ public sealed class GamepadNavigator : IDisposable
         // Buttons held while entering must not act until released.
         previous = ReadButtons();
         triggerState.RequireReleaseIfDown(IsTriggerDown(previous));
+        quickReplayTriggerState.RequireReleaseIfDown(IsQuickReplayDown(previous));
         Notice = null;
         // Dalamud also hands the controller to ImGui navigation: no plugin window may hold
         // focus, or A would press its buttons.
@@ -181,13 +199,21 @@ public sealed class GamepadNavigator : IDisposable
         popups.CloseAll();
         scanState.Reset();
         repeats.Clear();
-        triggerState.RequireReleaseIfDown(IsTriggerDown(ReadButtons()));
+        var currentButtons = ReadButtons();
+        triggerState.RequireReleaseIfDown(IsTriggerDown(currentButtons));
+        quickReplayTriggerState.RequireReleaseIfDown(IsQuickReplayDown(currentButtons));
     }
 
     private bool IsTriggerDown(GamepadButtons raw)
     {
         var trigger = config.ControllerHoldButton;
         return trigger != GamepadButtons.None && (raw & trigger) == trigger;
+    }
+
+    private bool IsQuickReplayDown(GamepadButtons raw)
+    {
+        var button = config.ControllerQuickReplayButton;
+        return button != GamepadButtons.None && (raw & button) == button;
     }
 
     private static readonly GamepadButtons[] AllButtons = Enum.GetValues<GamepadButtons>().Where(b => b != GamepadButtons.None).ToArray();
@@ -207,18 +233,25 @@ public sealed class GamepadNavigator : IDisposable
     /// <summary>Call every frame after native hover and before the popups draw.</summary>
     public void Draw()
     {
-        if (!config.ControllerEnabled)
-        {
-            Exit();
-            if (backlog.Open)
-                backlog.Draw(controllerActive: false);
-            return;
-        }
-
         var now = DateTime.UtcNow;
         var raw = ReadButtons();
         var pressed = raw & ~previous;
         previous = raw;
+
+        if (PollReplayKey())
+            ReplayCurrentOrLatestLine();
+
+        if (!config.ControllerEnabled)
+        {
+            Exit();
+            PollOutsideQuickReplay(raw, now);
+            if (backlog.Open)
+                backlog.Draw(controllerActive: false);
+            else
+                backlog.DrawReplayNoticeOverlay();
+            return;
+        }
+
         var trigger = config.ControllerHoldButton;
         var triggerDown = trigger != GamepadButtons.None && (raw & trigger) == trigger;
 
@@ -233,11 +266,19 @@ public sealed class GamepadNavigator : IDisposable
         if (!Active)
         {
             if (triggerFired)
+            {
                 Enter();
-            else if (backlog.Open)
+                return;
+            }
+            PollOutsideQuickReplay(raw, now);
+            if (backlog.Open)
                 backlog.Draw(controllerActive: false);
+            else
+                backlog.DrawReplayNoticeOverlay();
             return;
         }
+
+        quickReplayTriggerState.RequireReleaseIfDown(IsQuickReplayDown(raw));
 
         if (triggerState.WaitingForRelease && triggerDown)
             pressed &= ~trigger;
@@ -316,17 +357,15 @@ public sealed class GamepadNavigator : IDisposable
             }
         }
 
-        // Replay voice line for the selected backlog entry or active live dialogue (default R3).
+        // Replay voice line for the selected backlog entry, active live dialogue, or latest dialogue line (default R3).
         if (HasBound(pressed, config.ControllerReplayVoiceButton))
-        {
-            var replayId = backlog.Open ? backlog.SelectedLine?.Id ?? 0 : trackedLiveLineId;
-            if (replayId > 0)
-                backlog.ReplayVoice(replayId);
-        }
+            ReplayCurrentOrLatestLine();
 
         // Render the backlog drawer before reading stops so glyph rects are fresh on this exact frame.
         if (backlog.Open)
             backlog.Draw(controllerActive: true);
+        else
+            backlog.DrawReplayNoticeOverlay();
 
         // A popup closed by the mouse or by time: fall back to a level that still exists.
         var prevLevel = level;
@@ -738,6 +777,41 @@ public sealed class GamepadNavigator : IDisposable
     private bool IsLiveDialogueVisible() =>
         capture.TalkVisible || capture.BattleTalkVisible || nativeHover.SubtitleVisible;
 
+    private bool IsCutsceneOrDialogueActive()
+    {
+        if (IsLiveDialogueVisible())
+            return true;
+        try
+        {
+            var cond = DalamudServices.Condition;
+            return cond is not null && (
+                cond[ConditionFlag.OccupiedInCutSceneEvent]
+                || cond[ConditionFlag.WatchingCutscene]
+                || cond[ConditionFlag.WatchingCutscene78]
+                || cond[ConditionFlag.OccupiedInQuestEvent]);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void PollOutsideQuickReplay(GamepadButtons raw, DateTime now)
+    {
+        var allowed = ControllerBacklogState.ShouldFireGamepadQuickReplay(
+            config.ControllerQuickReplayButton != GamepadButtons.None,
+            config.ControllerQuickReplayCutsceneOnly,
+            IsCutsceneOrDialogueActive(),
+            backlog.Open);
+        var fired = quickReplayTriggerState.Update(
+            allowed && IsQuickReplayDown(raw),
+            config.ControllerQuickReplayTriggerMode,
+            config.ControllerHoldSeconds,
+            now);
+        if (fired)
+            ReplayCurrentOrLatestLine();
+    }
+
     private static bool IsDialogueAddon(string addon) =>
         addon is "Talk" or "TalkSubtitle" or "_BattleTalk";
 
@@ -1008,23 +1082,28 @@ public sealed class GamepadNavigator : IDisposable
         return string.Join(" + ", AllButtons.Where(b => (mask & b) == b).Select(b => ButtonLabel(b, ps)));
     }
 
-    private bool PollToggleKey()
+    private bool PollToggleKey() =>
+        PollKeybind(config.ControllerToggleKey, config.ControllerToggleKeyCtrl, config.ControllerToggleKeyShift, config.ControllerToggleKeyAlt, ref toggleKeyWasDown);
+
+    private bool PollReplayKey() =>
+        PollKeybind(config.ReplayVoiceKey, config.ReplayVoiceKeyCtrl, config.ReplayVoiceKeyShift, config.ReplayVoiceKeyAlt, ref replayKeyWasDown);
+
+    private bool PollKeybind(int vk, bool reqCtrl, bool reqShift, bool reqAlt, ref bool wasDown)
     {
-        var vk = config.ControllerToggleKey;
         if (vk <= 0)
         {
-            toggleKeyWasDown = false;
+            wasDown = false;
             return false;
         }
         if (!IsGameForeground())
         {
-            toggleKeyWasDown = false;
+            wasDown = false;
             return false;
         }
 
         var down = IsOsKeyDown(vk);
-        var pressed = down && !toggleKeyWasDown;
-        toggleKeyWasDown = down;
+        var pressed = down && !wasDown;
+        wasDown = down;
 
         if (!pressed || SuppressToggleKey)
             return false;
@@ -1032,9 +1111,7 @@ public sealed class GamepadNavigator : IDisposable
         var ctrl = IsOsKeyDown(VkControl);
         var shift = IsOsKeyDown(VkShift);
         var alt = IsOsKeyDown(VkMenu);
-        if (ctrl != config.ControllerToggleKeyCtrl
-            || shift != config.ControllerToggleKeyShift
-            || alt != config.ControllerToggleKeyAlt)
+        if (ctrl != reqCtrl || shift != reqShift || alt != reqAlt)
             return false;
 
         if (!Active
@@ -1211,8 +1288,8 @@ public sealed class GamepadNavigator : IDisposable
 
         if (level == 0 && config.ControllerHistoryButton != GamepadButtons.None && (backlog.Open || backlog.LineCount > 0))
             parts.Add($"{L(config.ControllerHistoryButton)} {(backlog.Open ? "live" : "backlog")}");
-        if (level == 0 && config.ControllerReplayVoiceButton != GamepadButtons.None && (backlog.Open || trackedLiveLineId > 0))
-            parts.Add($"{L(config.ControllerReplayVoiceButton)} voice");
+        if (level == 0 && config.ControllerReplayVoiceButton != GamepadButtons.None && (backlog.Open || trackedLiveLineId > 0 || backlog.LatestDialogueLineId is not null))
+            parts.Add($"{L(config.ControllerReplayVoiceButton)} repeat");
         if (level == 0 && !backlog.Open && config.ControllerWindowButton != GamepadButtons.None && stopAddons.Distinct(StringComparer.Ordinal).Skip(1).Any())
             parts.Add($"{L(config.ControllerWindowButton)} window");
         else if (level == 0 && backlog.Open && config.ControllerWindowButton != GamepadButtons.None && nativeHover.Targets().Count > 0)

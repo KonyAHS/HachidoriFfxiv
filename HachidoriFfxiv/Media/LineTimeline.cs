@@ -18,6 +18,10 @@ public sealed class LineSpan
     public VoicePlaybackEvent? Voice { get; set; }
     /// <summary>Cached JPEG of the game viewport captured while this line was on screen, for mining past lines.</summary>
     public byte[]? ScreenshotJpeg { get; set; }
+    /// <summary>Cached encoded audio bytes for instant repeated playback of this line.</summary>
+    public byte[]? ReplayAudio { get; set; }
+    /// <summary>True if <see cref="ReplayAudio"/> was synthesized via TTS rather than extracted/recorded from game voice.</summary>
+    public bool ReplayAudioIsTts { get; set; }
 }
 
 /// <summary>
@@ -27,6 +31,7 @@ public sealed class LineSpan
 public sealed class LineTimeline
 {
     public const int MaxCachedScreenshots = 40;
+    public const int MaxCachedReplayAudio = 40;
 
     private readonly List<LineSpan> spans = new();
     private readonly List<VoicePlaybackEvent> recentVoices = new();
@@ -149,6 +154,54 @@ public sealed class LineTimeline
     {
         lock (gate)
             return span.ScreenshotJpeg;
+    }
+
+    public (byte[]? Audio, bool IsTts) ReplayAudioOf(LineSpan span)
+    {
+        lock (gate)
+            return (span.ReplayAudio, span.ReplayAudioIsTts);
+    }
+
+    public bool SetReplayAudio(long lineId, byte[] audio, bool isTts)
+    {
+        if (audio.Length == 0)
+            return false;
+        lock (gate)
+        {
+            LineSpan? target = null;
+            for (var i = spans.Count - 1; i >= 0; i--)
+            {
+                if (spans[i].Line.Id == lineId)
+                {
+                    target = spans[i];
+                    break;
+                }
+            }
+            if (target is null)
+                return false;
+
+            // Never overwrite a real game-voice clip with a TTS clip.
+            if (isTts && target.ReplayAudio is { Length: > 0 } && !target.ReplayAudioIsTts)
+                return false;
+
+            target.ReplayAudio = audio;
+            target.ReplayAudioIsTts = isTts;
+
+            // Keep cached replay audio memory bounded to the newest MaxCachedReplayAudio lines.
+            var kept = 0;
+            for (var i = spans.Count - 1; i >= 0; i--)
+            {
+                if (spans[i].ReplayAudio is null)
+                    continue;
+                kept++;
+                if (kept > MaxCachedReplayAudio)
+                {
+                    spans[i].ReplayAudio = null;
+                    spans[i].ReplayAudioIsTts = false;
+                }
+            }
+            return true;
+        }
     }
 
     public bool SetScreenshot(long lineId, byte[] jpeg)
