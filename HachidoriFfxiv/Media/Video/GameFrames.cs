@@ -24,15 +24,23 @@ public sealed class GameFrames : IDisposable
 
     /// <summary>A line's first seconds are complete: (line start, frames). Raised off the draw thread.</summary>
     public event Action<long, List<GifFrame>>? ClipReady;
+    /// <summary>A per-line still JPEG was captured while that line was visible: (line id, jpeg bytes).</summary>
+    public event Action<long, byte[]>? LineScreenshotReady;
+
     private readonly object gate = new();
     private Task<IDalamudTextureWrap>? viewport;
     private long lastFrameTicks;
     private long retryAfter;
     private bool readingFrame;
+    private bool capturingLineShot;
+    private (long LineId, long ReadyAtTicks)? pendingLineShot;
 
     public GameFrames(Configuration config) => this.config = config;
 
     public string? Error { get; private set; }
+
+    /// <summary>Optional predicate checking whether a scheduled line is still open on screen.</summary>
+    public Func<long, bool>? IsLineStillOpen { get; set; }
 
     /// <summary>Call from UiBuilder.Draw: starts the viewport copy and samples GIF frames.</summary>
     public void Draw()
@@ -64,15 +72,52 @@ public sealed class GameFrames : IDisposable
 
         if (viewport.IsCompletedSuccessfully)
             Error = null;
+
+        var now = Stopwatch.GetTimestamp();
+        if (config.CaptureScreenshot && viewport.IsCompletedSuccessfully && !capturingLineShot)
+        {
+            long? shotLineId = null;
+            lock (gate)
+            {
+                if (pendingLineShot is { } pending && now >= pending.ReadyAtTicks)
+                {
+                    shotLineId = pending.LineId;
+                    pendingLineShot = null;
+                }
+            }
+            if (shotLineId is { } lineId && (IsLineStillOpen is null || IsLineStillOpen(lineId)))
+            {
+                capturingLineShot = true;
+                _ = CaptureLineScreenshotAsync(lineId);
+            }
+        }
+
         if (!config.CaptureGif || !viewport.IsCompletedSuccessfully || readingFrame)
             return;
-        var now = Stopwatch.GetTimestamp();
         var interval = Stopwatch.Frequency / Math.Clamp(config.GifFps, 2, 24);
         if (now - lastFrameTicks < interval)
             return;
         lastFrameTicks = now;
         readingFrame = true;
         _ = SampleAsync(viewport.Result, now);
+    }
+
+    private async Task CaptureLineScreenshotAsync(long lineId)
+    {
+        try
+        {
+            var jpeg = await ScreenshotAsync().ConfigureAwait(false);
+            if (jpeg.Length > 0)
+                LineScreenshotReady?.Invoke(lineId, jpeg);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("screenshot", $"Per-line screenshot failed for line {lineId}: {ex.Message}");
+        }
+        finally
+        {
+            capturingLineShot = false;
+        }
     }
 
     private async Task SampleAsync(IDalamudTextureWrap source, long ticks)
@@ -156,27 +201,30 @@ public sealed class GameFrames : IDisposable
 
     private long ClipLength => (long)(Stopwatch.Frequency * Math.Clamp(config.GifSeconds, 1, 10));
 
-    /// <summary>A dialogue line appeared: keep its first seconds for the animation.</summary>
-    public void OnLineStarted(long ticks)
+    /// <summary>A dialogue line appeared: keep its first seconds for the animation and schedule a still capture.</summary>
+    public void OnLineStarted(long ticks, long lineId = 0)
     {
-        if (!config.CaptureGif)
-            return;
         lock (gate)
         {
-            pendingLines.Add(ticks);
-            if (pendingLines.Count > 8)
-                pendingLines.RemoveAt(0);
+            if (config.CaptureScreenshot && lineId > 0)
+                pendingLineShot = (lineId, ticks + Stopwatch.Frequency / 5); // ~200 ms so cutscene/dialog fade settles
+            if (config.CaptureGif)
+            {
+                pendingLines.Add(ticks);
+                if (pendingLines.Count > 8)
+                    pendingLines.RemoveAt(0);
+            }
         }
     }
 
-    /// <summary>Buffered frames from <paramref name="fromTicks"/>, else the latest ones.</summary>
-    public List<GifFrame> FramesFrom(long fromTicks)
+    /// <summary>Buffered frames from <paramref name="fromTicks"/>, optionally falling back to the latest ones.</summary>
+    public List<GifFrame> FramesFrom(long fromTicks, bool allowLatestFallback = true)
     {
         var length = ClipLength;
         lock (gate)
         {
             var list = frames.Where(f => f.Ticks >= fromTicks && f.Ticks <= fromTicks + length).Select(f => f.Frame).ToList();
-            if (list.Count >= 2)
+            if (list.Count >= 2 || !allowLatestFallback)
                 return list;
             var latest = frames.LastOrDefault().Ticks;
             return frames.Where(f => f.Ticks >= latest - length).Select(f => f.Frame).ToList();
@@ -224,6 +272,7 @@ public sealed class GameFrames : IDisposable
         {
             frames.Clear();
             pendingLines.Clear();
+            pendingLineShot = null;
         }
     }
 

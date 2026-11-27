@@ -52,25 +52,9 @@ internal static class GameUiHeuristics
             }
         }
 
-        // Pass 2: largest visible box of dialogue proportions if flags changed.
-        if (bodyIdx < 0)
-        {
-            for (var i = 0; i < candidates.Length; i++)
-            {
-                var c = candidates[i];
-                if (!c.Visible || c.Width < 100 || c.Height < 30)
-                    continue;
-                var area = (long)c.Width * c.Height;
-                var score = area * 2 + (c.HasText ? 1 : 0);
-                if (score > bodyScore)
-                {
-                    bodyScore = score;
-                    bodyIdx = i;
-                }
-            }
-        }
-
-        // Pass 3: even if momentarily hidden, keep the largest multi-line box anchored.
+        // Pass 2: even if momentarily hidden during a line transition, keep the largest
+        // multi-line / word-wrapped dialogue box anchored so a wide visible speaker nameplate
+        // (e.g. エスティニアン, フォルタン家の門衛) is never promoted to the body slot.
         if (bodyIdx < 0)
         {
             for (var i = 0; i < candidates.Length; i++)
@@ -82,6 +66,25 @@ internal static class GameUiHeuristics
                 if (area > bodyScore)
                 {
                     bodyScore = area;
+                    bodyIdx = i;
+                }
+            }
+        }
+
+        // Pass 3: only when no multi-line box exists at all (e.g. if UI flags changed in a future patch),
+        // fall back to the largest visible box of multi-line dialogue proportions.
+        if (bodyIdx < 0)
+        {
+            for (var i = 0; i < candidates.Length; i++)
+            {
+                var c = candidates[i];
+                if (!c.Visible || c.Width < 100 || c.Height < 45)
+                    continue;
+                var area = (long)c.Width * c.Height;
+                var score = area * 2 + (c.HasText ? 1 : 0);
+                if (score > bodyScore)
+                {
+                    bodyScore = score;
                     bodyIdx = i;
                 }
             }
@@ -99,7 +102,7 @@ internal static class GameUiHeuristics
             if (i == bodyIdx)
                 continue;
             var c = candidates[i];
-            if (!c.Visible || c.Width < 40 || c.Height == 0)
+            if (!c.Visible || c.Width == 0 || c.Height == 0)
                 continue;
             // The speaker nameplate sits above the dialogue body and is shorter than it.
             if (c.Y >= body.Y || c.Height >= body.Height)

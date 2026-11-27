@@ -190,7 +190,11 @@ public static class VoiceLineAssociation
         long prevSpanStart,
         VoicePlaybackEvent prevSpanVoice,
         long newLineStart,
-        long ticksPerSecond)
+        long ticksPerSecond,
+        string? prevSpeaker = null,
+        string? prevText = null,
+        string? newSpeaker = null,
+        string? newText = null)
     {
         var preWindow = (long)(PreLineWindowSeconds * ticksPerSecond);
         var beforeNewLine = newLineStart - prevSpanVoice.StartTicks;
@@ -200,7 +204,25 @@ public static class VoiceLineAssociation
         var afterPrevStart = prevSpanVoice.StartTicks - prevSpanStart;
         // If the voice fired right before the new line appeared and noticeably after the previous
         // line started, it belonged to the incoming line (e.g. unvoiced line -> voiced line).
-        return afterPrevStart > beforeNewLine;
+        if (afterPrevStart > beforeNewLine)
+            return true;
+
+        // If the previous span was a transient speaker-only frame or partial prefix of the incoming
+        // line within the pre-line window, transfer the voice to the complete line.
+        if (!string.IsNullOrEmpty(prevText))
+        {
+            if (string.IsNullOrEmpty(prevSpeaker)
+                && !string.IsNullOrEmpty(newSpeaker)
+                && string.Equals(prevText, newSpeaker, StringComparison.Ordinal))
+                return true;
+
+            if (!string.IsNullOrEmpty(newText)
+                && newText.Length > prevText.Length
+                && newText.StartsWith(prevText, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>

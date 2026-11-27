@@ -31,6 +31,8 @@ public sealed class GamepadNavigator : IDisposable
     private readonly PopupManager popups;
     private readonly NativeTextHover nativeHover;
     private readonly HachidoriService service;
+    private readonly TextCapture capture;
+    private readonly DialogueBacklog backlog;
 
     private const int VkShift = 0x10;
     private const int VkControl = 0x11;
@@ -49,17 +51,29 @@ public sealed class GamepadNavigator : IDisposable
     private DateTime lastPointerMoved = DateTime.MinValue;
     private readonly TouchpadReader touchpad = new();
 
-    // Cursor per level: 0 is the game's text, n is the definitions of popup n-1.
+    private bool pendingAutoBacklogCheck;
+    private long trackedLiveLineId;
+    private int trackedLiveCharIndex;
+
+    // Cursor per level: 0 is the game's text (or backlog), n is the definitions of popup n-1.
     private readonly List<(RichBlock? Block, int Index)> cursor = new() { (null, -1) };
     private int level;
     private bool wordMode = true;
 
-    public GamepadNavigator(Configuration config, PopupManager popups, NativeTextHover nativeHover, HachidoriService service)
+    public GamepadNavigator(
+        Configuration config,
+        PopupManager popups,
+        NativeTextHover nativeHover,
+        HachidoriService service,
+        TextCapture capture,
+        DialogueBacklog backlog)
     {
         this.config = config;
         this.popups = popups;
         this.nativeHover = nativeHover;
         this.service = service;
+        this.capture = capture;
+        this.backlog = backlog;
         wordMode = config.ControllerStartInWordMode;
     }
 
@@ -82,7 +96,35 @@ public sealed class GamepadNavigator : IDisposable
         else Enter();
     }
 
-    public void Enter()
+    /// <summary>Opens (or toggles) the dialogue backlog, entering controller mode when enabled.</summary>
+    public void ToggleBacklog()
+    {
+        if (Active)
+        {
+            if (backlog.Open)
+            {
+                CloseBacklogToLive();
+            }
+            else if (backlog.OpenAtOffset(IsLiveDialogueVisible() && backlog.LineCount >= 2 ? 1 : 0))
+            {
+                ResetForBacklogSwitch();
+            }
+            return;
+        }
+
+        if (config.ControllerEnabled)
+        {
+            Enter(openBacklog: true);
+            return;
+        }
+
+        if (backlog.Open)
+            backlog.Close();
+        else
+            backlog.OpenAtOffset(0, standalone: true);
+    }
+
+    public void Enter(bool openBacklog = false)
     {
         if (!config.ControllerEnabled || Active)
             return;
@@ -92,6 +134,9 @@ public sealed class GamepadNavigator : IDisposable
         cursor.Add((null, -1));
         noTextSince = null;
         seenText = false;
+        trackedLiveLineId = 0;
+        trackedLiveCharIndex = 0;
+        pendingAutoBacklogCheck = !openBacklog && config.ControllerAutoOpenBacklog;
         scanState.Reset();
         nativeHover.ControllerScan = true;
         popups.ControllerActive = true;
@@ -103,6 +148,11 @@ public sealed class GamepadNavigator : IDisposable
         if (config.ControllerUseTouchpad)
             touchpad.Start();
         wordMode = config.ControllerStartInWordMode;
+        if (openBacklog)
+        {
+            var offset = IsLiveDialogueVisible() && backlog.LineCount >= 2 ? 1 : 0;
+            backlog.OpenAtOffset(offset);
+        }
         // Buttons held while entering must not act until released.
         previous = ReadButtons();
         triggerState.RequireReleaseIfDown(IsTriggerDown(previous));
@@ -119,6 +169,10 @@ public sealed class GamepadNavigator : IDisposable
         if (!Active)
             return;
         Active = false;
+        backlog.Close();
+        pendingAutoBacklogCheck = false;
+        trackedLiveLineId = 0;
+        trackedLiveCharIndex = 0;
         touchpad.Stop();
         DalamudServices.Gamepad.EnableGamepadNav = false;
         nativeHover.ControllerScan = false;
@@ -156,6 +210,8 @@ public sealed class GamepadNavigator : IDisposable
         if (!config.ControllerEnabled)
         {
             Exit();
+            if (backlog.Open)
+                backlog.Draw(controllerActive: false);
             return;
         }
 
@@ -178,6 +234,8 @@ public sealed class GamepadNavigator : IDisposable
         {
             if (triggerFired)
                 Enter();
+            else if (backlog.Open)
+                backlog.Draw(controllerActive: false);
             return;
         }
 
@@ -205,6 +263,70 @@ public sealed class GamepadNavigator : IDisposable
             Exit();
             return;
         }
+
+        // Auto-open the backlog when entering controller mode with no live dialogue or non-HUD UI window
+        // (e.g. a cutscene just finished or BattleTalk faded away moments ago).
+        if (pendingAutoBacklogCheck && !backlog.Open && nativeHover.HasControllerScanSnapshot)
+        {
+            pendingAutoBacklogCheck = false;
+            var targets = nativeHover.Targets();
+            var hasLiveDialogue = IsLiveDialogueVisible() || targets.Any(t => IsDialogueAddon(t.Addon));
+            var hasNonHudWindow = targets.Any(t => !string.IsNullOrEmpty(t.Addon) && !HudAddons.Contains(t.Addon) && !IsDialogueAddon(t.Addon));
+            if (ControllerBacklogState.ShouldAutoOpenOnEnter(config.ControllerAutoOpenBacklog, hasLiveDialogue, hasNonHudWindow, backlog.LineCount))
+            {
+                if (backlog.OpenAtOffset(0, autoOpened: true))
+                    ResetForBacklogSwitch();
+            }
+        }
+
+        // Auto-advance pinning: if FFXIV advances or closes the dialogue line while the user is actively
+        // scanning it in controller mode, seamlessly pin that exact line in the backlog instead of losing focus.
+        if (!backlog.Open && ControllerBacklogState.ShouldPinOnLiveAdvance(
+                config.ControllerPinOnAdvance,
+                trackedLiveLineId,
+                backlog.LatestDialogueLineId,
+                IsLiveDialogueVisible()))
+        {
+            var pinLineId = trackedLiveLineId;
+            var pinIndex = trackedLiveCharIndex;
+            trackedLiveLineId = 0;
+            if (backlog.OpenPinned(pinLineId))
+            {
+                level = 0;
+                cursor.Clear();
+                cursor.Add((backlog.SelectedLine?.Block, pinIndex));
+            }
+        }
+
+        // Toggle backlog drawer (default L3).
+        if (HasBound(pressed, config.ControllerHistoryButton))
+        {
+            pendingAutoBacklogCheck = false;
+            if (backlog.Open)
+            {
+                CloseBacklogToLive();
+            }
+            else if (backlog.OpenAtOffset(IsLiveDialogueVisible() && backlog.LineCount >= 2 ? 1 : 0))
+            {
+                ResetForBacklogSwitch();
+            }
+            else
+            {
+                Notice = "No dialogue history yet";
+            }
+        }
+
+        // Replay voice line for the selected backlog entry or active live dialogue (default R3).
+        if (HasBound(pressed, config.ControllerReplayVoiceButton))
+        {
+            var replayId = backlog.Open ? backlog.SelectedLine?.Id ?? 0 : trackedLiveLineId;
+            if (replayId > 0)
+                backlog.ReplayVoice(replayId);
+        }
+
+        // Render the backlog drawer before reading stops so glyph rects are fresh on this exact frame.
+        if (backlog.Open)
+            backlog.Draw(controllerActive: true);
 
         // A popup closed by the mouse or by time: fall back to a level that still exists.
         var prevLevel = level;
@@ -243,6 +365,16 @@ public sealed class GamepadNavigator : IDisposable
                 return;
             }
 
+            // While the backlog drawer is scrolling a newly selected line into view (1 frame),
+            // wait without timing out or showing a "Waiting for text" notice.
+            if (backlog.Open)
+            {
+                seenText = true;
+                noTextSince = null;
+                DrawHints();
+                return;
+            }
+
             noTextSince ??= now;
             Notice = "Waiting for text...";
             popups.SetWebControllerCursor(null);
@@ -256,13 +388,59 @@ public sealed class GamepadNavigator : IDisposable
         noTextSince = null;
         Notice = null;
         var current = FindCurrent(stops);
+        if (level == 0 && backlog.Open && backlog.State.ConsumePendingSnap(stops) is { } snapped)
+            current = snapped;
 
         // ------------------------------------------------------- navigation
         var moved = false;
         if (Repeat("left", Has(raw, GamepadButtons.DpadLeft), now)) { current = CursorMoves.Horizontal(stops, current, -1); moved = true; }
         if (Repeat("right", Has(raw, GamepadButtons.DpadRight), now)) { current = CursorMoves.Horizontal(stops, current, 1); moved = true; }
-        if (Repeat("up", Has(raw, GamepadButtons.DpadUp), now)) { current = CursorMoves.Vertical(stops, current, -1); moved = true; }
-        if (Repeat("down", Has(raw, GamepadButtons.DpadDown), now)) { current = CursorMoves.Vertical(stops, current, 1); moved = true; }
+        if (Repeat("up", Has(raw, GamepadButtons.DpadUp), now))
+        {
+            var nextUp = CursorMoves.Vertical(stops, current, -1);
+            if (nextUp != current)
+            {
+                current = nextUp;
+                moved = true;
+            }
+            else if (level == 0 && backlog.Open)
+            {
+                if (backlog.StepLine(-1, stops[current].Center.X))
+                {
+                    OnBacklogLineChanged();
+                    DrawHints();
+                    return;
+                }
+            }
+            else if (level == 0 && !backlog.Open && IsDialogueAddon(StopAddon(stops[current])) && backlog.LineCount >= 2)
+            {
+                // Pushing Up past the top row of live dialogue rewinds straight into the previous line (-1).
+                if (backlog.OpenAtOffset(1, snap: BacklogSnapEdge.BottomNearestX, snapX: stops[current].Center.X))
+                {
+                    ResetForBacklogSwitch();
+                    DrawHints();
+                    return;
+                }
+            }
+        }
+        if (Repeat("down", Has(raw, GamepadButtons.DpadDown), now))
+        {
+            var nextDown = CursorMoves.Vertical(stops, current, 1);
+            if (nextDown != current)
+            {
+                current = nextDown;
+                moved = true;
+            }
+            else if (level == 0 && backlog.Open)
+            {
+                if (backlog.StepLine(1, stops[current].Center.X))
+                {
+                    OnBacklogLineChanged();
+                    DrawHints();
+                    return;
+                }
+            }
+        }
 
         // Virtual cursor: Left analog stick (default), optional DualSense/DS4 touchpad, or mouse gliding.
         if (!moved)
@@ -283,7 +461,14 @@ public sealed class GamepadNavigator : IDisposable
                     Math.Clamp(virtualPointer.X + dir.X * speed * dt, vp.Pos.X, vp.Pos.X + vp.Size.X),
                     Math.Clamp(virtualPointer.Y - dir.Y * speed * dt, vp.Pos.Y, vp.Pos.Y + vp.Size.Y));
                 lastPointerMoved = now;
-                if (FindStopAtPointer(stops, virtualPointer) is { } stickHit)
+                if (level == 0 && backlog.Open && backlog.TrySelectLineAt(virtualPointer))
+                {
+                    stops = Stops(0, out contexts);
+                    if (stops.Count > 0)
+                        current = FindStopAtPointer(stops, virtualPointer) ?? 0;
+                    moved = true;
+                }
+                else if (FindStopAtPointer(stops, virtualPointer) is { } stickHit)
                 {
                     current = stickHit;
                     moved = true;
@@ -298,7 +483,14 @@ public sealed class GamepadNavigator : IDisposable
                     Math.Clamp(virtualPointer.X + padDelta.X * scale, vp.Pos.X, vp.Pos.X + vp.Size.X),
                     Math.Clamp(virtualPointer.Y + padDelta.Y * scale, vp.Pos.Y, vp.Pos.Y + vp.Size.Y));
                 lastPointerMoved = now;
-                if (FindStopAtPointer(stops, virtualPointer) is { } padHit)
+                if (level == 0 && backlog.Open && backlog.TrySelectLineAt(virtualPointer))
+                {
+                    stops = Stops(0, out contexts);
+                    if (stops.Count > 0)
+                        current = FindStopAtPointer(stops, virtualPointer) ?? 0;
+                    moved = true;
+                }
+                else if (FindStopAtPointer(stops, virtualPointer) is { } padHit)
                 {
                     current = padHit;
                     moved = true;
@@ -313,7 +505,14 @@ public sealed class GamepadNavigator : IDisposable
                     virtualPointer = mouse;
                     lastPointerMoved = now;
                     var insidePopup = level == 0 && popups.ContainsMouse(mouse);
-                    if (!insidePopup && FindStopAtPointer(stops, mouse) is { } hitStop)
+                    if (!insidePopup && level == 0 && backlog.Open && backlog.TrySelectLineAt(mouse))
+                    {
+                        stops = Stops(0, out contexts);
+                        if (stops.Count > 0)
+                            current = FindStopAtPointer(stops, mouse) ?? 0;
+                        moved = true;
+                    }
+                    else if (!insidePopup && FindStopAtPointer(stops, mouse) is { } hitStop)
                     {
                         current = hitStop;
                         moved = true;
@@ -330,6 +529,19 @@ public sealed class GamepadNavigator : IDisposable
         var block = StopBlock(stop);
         if (!config.ControllerAutoScan && scanState.OnStopChanged(block, stop.Index))
             popups.CloseFrom(level);
+
+        if (level == 0 && !backlog.Open)
+        {
+            if (IsDialogueAddon(StopAddon(stop)) && backlog.LatestDialogueLineId is { } liveId)
+            {
+                trackedLiveLineId = liveId;
+                trackedLiveCharIndex = stop.Index;
+            }
+            else
+            {
+                trackedLiveLineId = 0;
+            }
+        }
 
         if (!config.ControllerAutoScan && HasBound(pressed, config.ControllerScanButton))
         {
@@ -394,6 +606,12 @@ public sealed class GamepadNavigator : IDisposable
                 DrawHints();
                 return;
             }
+            else if (backlog.Open && !backlog.State.AutoOpened && HasLiveNonHudTarget())
+            {
+                CloseBacklogToLive();
+                DrawHints();
+                return;
+            }
             else
             {
                 Exit();
@@ -412,6 +630,15 @@ public sealed class GamepadNavigator : IDisposable
                 DrawHints();
                 return;
             }
+            else if (backlog.Open)
+            {
+                if (nativeHover.Targets().Count > 0)
+                {
+                    CloseBacklogToLive();
+                    DrawHints();
+                    return;
+                }
+            }
             else
             {
                 var nextWindow = NextAddonStop(stops, current);
@@ -429,18 +656,23 @@ public sealed class GamepadNavigator : IDisposable
         }
 
         var deepest = popups.VisibleCount - 1;
+        var right = Normalize(DalamudServices.Gamepad.RightStick);
         if (deepest >= 0)
         {
             if (HasBound(pressed, config.ControllerMineButton)) popups.MineSelected(deepest);
             if (HasBound(pressed, config.ControllerAudioButton)) popups.PlaySelected(deepest);
             if (HasBound(pressed, config.ControllerNextEntryButton)) popups.SelectEntry(deepest, 1);
             if (HasBound(pressed, config.ControllerPrevEntryButton)) popups.SelectEntry(deepest, -1);
-            var right = Normalize(DalamudServices.Gamepad.RightStick);
             if (Math.Abs(right.Y) > 0.45f && (now - lastScroll).TotalSeconds > RepeatRate)
             {
                 popups.Scroll(deepest, -Math.Sign(right.Y) * 110 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
                 lastScroll = now;
             }
+        }
+        else if (backlog.Open && Math.Abs(right.Y) > 0.45f && (now - lastScroll).TotalSeconds > RepeatRate)
+        {
+            backlog.ScrollList(-Math.Sign(right.Y) * 90 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
+            lastScroll = now;
         }
 
         // ------------------------------------------------- look up at the cursor
@@ -503,6 +735,44 @@ public sealed class GamepadNavigator : IDisposable
         return FirstStopIn(stops, next.Addon) ?? next.FirstIndex;
     }
 
+    private bool IsLiveDialogueVisible() =>
+        capture.TalkVisible || capture.BattleTalkVisible || nativeHover.SubtitleVisible;
+
+    private static bool IsDialogueAddon(string addon) =>
+        addon is "Talk" or "TalkSubtitle" or "_BattleTalk";
+
+    private bool HasLiveNonHudTarget() =>
+        IsLiveDialogueVisible()
+        || nativeHover.Targets().Any(t => !string.IsNullOrEmpty(t.Addon) && !HudAddons.Contains(t.Addon));
+
+    private void ResetForBacklogSwitch()
+    {
+        level = 0;
+        cursor.Clear();
+        cursor.Add((null, -1));
+        trackedLiveLineId = 0;
+        scanState.Reset();
+        popups.CloseAll();
+    }
+
+    private void OnBacklogLineChanged()
+    {
+        level = 0;
+        cursor.Clear();
+        cursor.Add((null, -1));
+        if (!config.ControllerAutoScan)
+        {
+            scanState.Reset();
+            popups.CloseAll();
+        }
+    }
+
+    private void CloseBacklogToLive()
+    {
+        backlog.Close();
+        ResetForBacklogSwitch();
+    }
+
     /// <summary>Where the cursor may stop at a level: word starts (or characters) of its text, in reading order.</summary>
     private List<CursorStop> Stops(int atLevel, out List<Func<RichBlock, int, ScanContext>?> contexts)
     {
@@ -514,8 +784,19 @@ public sealed class GamepadNavigator : IDisposable
         var blocks = new List<(string Addon, RichBlock Block, IReadOnlyList<(int Index, Vector2 Min, Vector2 Max)> Cells, Func<RichBlock, int, ScanContext>? Context, bool Body)>();
         if (atLevel == 0)
         {
-            foreach (var target in nativeHover.Targets().OrderBy(t => t.Cells.Min(c => c.Min.Y)).ThenBy(t => t.Cells.Min(c => c.Min.X)))
-                blocks.Add((target.Addon, target.Block, target.Cells, target.Context, target.Body));
+            if (backlog.Open)
+            {
+                if (backlog.SelectedTarget() is { } selected)
+                {
+                    var line = selected.Line;
+                    blocks.Add(("Backlog", line.Block, selected.ClippedCells, (_, idx) => backlog.ContextFor(line, idx), true));
+                }
+            }
+            else
+            {
+                foreach (var target in nativeHover.Targets().OrderBy(t => t.Cells.Min(c => c.Min.Y)).ThenBy(t => t.Cells.Min(c => c.Min.X)))
+                    blocks.Add((target.Addon, target.Block, target.Cells, target.Context, target.Body));
+            }
         }
         else
         {
@@ -696,6 +977,8 @@ public sealed class GamepadNavigator : IDisposable
                || scan == config.ControllerDiveButton
                || scan == config.ControllerWordModeButton
                || scan == config.ControllerWindowButton
+               || scan == config.ControllerHistoryButton
+               || scan == config.ControllerReplayVoiceButton
                || scan == config.ControllerBackExitButton;
     }
 
@@ -906,7 +1189,9 @@ public sealed class GamepadNavigator : IDisposable
         var parts = new List<string>
         {
             "LS cursor",
-            "D-Pad " + (wordMode ? "word" : "char"),
+            backlog.Open && level == 0
+                ? "D-Pad " + (wordMode ? "word / ↑↓ line" : "char / ↑↓ line")
+                : "D-Pad " + (wordMode ? "word" : "char"),
         };
         var popupAtLevel = popups.VisibleCount > level;
         var waitingForScan = !config.ControllerAutoScan && !popupAtLevel;
@@ -924,15 +1209,23 @@ public sealed class GamepadNavigator : IDisposable
                 parts.Add($"{L(config.ControllerDiveButton)} inside");
         }
 
-        if (level == 0 && config.ControllerWindowButton != GamepadButtons.None && stopAddons.Distinct(StringComparer.Ordinal).Skip(1).Any())
+        if (level == 0 && config.ControllerHistoryButton != GamepadButtons.None && (backlog.Open || backlog.LineCount > 0))
+            parts.Add($"{L(config.ControllerHistoryButton)} {(backlog.Open ? "live" : "backlog")}");
+        if (level == 0 && config.ControllerReplayVoiceButton != GamepadButtons.None && (backlog.Open || trackedLiveLineId > 0))
+            parts.Add($"{L(config.ControllerReplayVoiceButton)} voice");
+        if (level == 0 && !backlog.Open && config.ControllerWindowButton != GamepadButtons.None && stopAddons.Distinct(StringComparer.Ordinal).Skip(1).Any())
             parts.Add($"{L(config.ControllerWindowButton)} window");
+        else if (level == 0 && backlog.Open && config.ControllerWindowButton != GamepadButtons.None && nativeHover.Targets().Count > 0)
+            parts.Add($"{L(config.ControllerWindowButton)} game UI");
         if (config.ControllerWordModeButton != GamepadButtons.None)
             parts.Add($"{L(config.ControllerWordModeButton)} {(wordMode ? "chars" : "words")}");
         if (config.ControllerBackExitButton != GamepadButtons.None)
         {
             var backLabel = !config.ControllerAutoScan && popupAtLevel
                 ? "close"
-                : level > 0 ? "back" : "exit";
+                : level > 0
+                    ? "back"
+                    : backlog.Open && !backlog.State.AutoOpened && HasLiveNonHudTarget() ? "live" : "exit";
             parts.Add($"{L(config.ControllerBackExitButton)} {backLabel}");
         }
         if (config.ControllerHoldButton != GamepadButtons.None

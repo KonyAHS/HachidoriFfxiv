@@ -335,6 +335,41 @@ static class MediaChecks
         var delayedVoice = new VoicePlaybackEvent("cut/ex1/sound/vo_man/vo_3_ja.scd", VoiceLineKind.Cutscene, 12 * tps);
         check(!VoiceLineAssociation.ShouldTransferToNewLine(10 * tps, delayedVoice, 16 * tps, tps),
             "VoiceLineAssociation keeps a delayed voice on its own line when the next line appears seconds later");
+
+        // Voice fires at t=20.000s, a transient speaker-only line claims it at t=20.004s, real line arrives at t=20.011s -> transfers to real line.
+        var v4 = new VoicePlaybackEvent("cut/ex1/sound/vo_man/vo_4_ja.scd", VoiceLineKind.Cutscene, 20 * tps);
+        check(VoiceLineAssociation.ShouldTransferToNewLine(
+                  prevSpanStart: 20 * tps + tps / 250,
+                  prevSpanVoice: v4,
+                  newLineStart: 20 * tps + 11 * tps / 1000,
+                  ticksPerSecond: tps,
+                  prevSpeaker: "",
+                  prevText: "エスティニアン",
+                  newSpeaker: "エスティニアン",
+                  newText: "異端者の頭目と手を組むなんて"),
+            "VoiceLineAssociation transfers a voice claimed by a transient speaker-only frame to the real dialogue line");
+
+        // Partial prefix expansion within pre-line window also transfers voice; unrelated consecutive line does not.
+        check(VoiceLineAssociation.ShouldTransferToNewLine(
+                  prevSpanStart: 20 * tps + tps / 250,
+                  prevSpanVoice: v4,
+                  newLineStart: 20 * tps + tps / 20,
+                  ticksPerSecond: tps,
+                  prevSpeaker: "エスティニアン",
+                  prevText: "異端者の",
+                  newSpeaker: "エスティニアン",
+                  newText: "異端者の頭目と手を組むなんて"),
+            "VoiceLineAssociation transfers a voice across rapid prefix updates of the same line");
+        check(!VoiceLineAssociation.ShouldTransferToNewLine(
+                  prevSpanStart: 20 * tps + tps / 250,
+                  prevSpanVoice: v4,
+                  newLineStart: 20 * tps + tps / 20,
+                  ticksPerSecond: tps,
+                  prevSpeaker: "エスティニアン",
+                  prevText: "別の台詞だ。",
+                  newSpeaker: "アイメリク",
+                  newText: "まったく無茶をしてくれる。"),
+            "VoiceLineAssociation does not steal a voice from a distinct prior dialogue line");
     }
 
     private static void CheckPluginAudioAndScdVoiceExtraction(Action<bool, string> check)

@@ -16,6 +16,8 @@ public sealed class LineSpan
     public BgmSnapshot? Bgm { get; init; }
     /// <summary>The native game voice .scd playback associated with this line, if FFXIV voiced it.</summary>
     public VoicePlaybackEvent? Voice { get; set; }
+    /// <summary>Cached JPEG of the game viewport captured while this line was on screen, for mining past lines.</summary>
+    public byte[]? ScreenshotJpeg { get; set; }
 }
 
 /// <summary>
@@ -24,6 +26,8 @@ public sealed class LineSpan
 /// </summary>
 public sealed class LineTimeline
 {
+    public const int MaxCachedScreenshots = 40;
+
     private readonly List<LineSpan> spans = new();
     private readonly List<VoicePlaybackEvent> recentVoices = new();
     private readonly HashSet<VoicePlaybackEvent> claimedVoices = new();
@@ -52,9 +56,18 @@ public sealed class LineTimeline
                 claimedVoices.Add(voice);
             }
             // 2. If the previous open line had just tentatively received a voice moments before
-            //    this new line appeared (unvoiced -> voiced transition), transfer it to the new line.
+            //    this new line appeared (unvoiced -> voiced transition, or a transient partial line),
+            //    transfer it to the new line.
             else if (previousOpen?.Voice is { } prevVoice
-                     && VoiceLineAssociation.ShouldTransferToNewLine(previousOpen.Start, prevVoice, now, Stopwatch.Frequency))
+                     && VoiceLineAssociation.ShouldTransferToNewLine(
+                         previousOpen.Start,
+                         prevVoice,
+                         now,
+                         Stopwatch.Frequency,
+                         previousOpen.Line.Speaker,
+                         previousOpen.Line.Text,
+                         line.Speaker,
+                         line.Text))
             {
                 previousOpen.Voice = null;
                 voice = prevVoice;
@@ -130,6 +143,69 @@ public sealed class LineTimeline
     {
         lock (gate)
             return span.Voice;
+    }
+
+    public byte[]? ScreenshotOf(LineSpan span)
+    {
+        lock (gate)
+            return span.ScreenshotJpeg;
+    }
+
+    public bool SetScreenshot(long lineId, byte[] jpeg)
+    {
+        if (jpeg.Length == 0)
+            return false;
+        lock (gate)
+        {
+            LineSpan? target = null;
+            for (var i = spans.Count - 1; i >= 0; i--)
+            {
+                if (spans[i].Line.Id == lineId)
+                {
+                    target = spans[i];
+                    break;
+                }
+            }
+            if (target is null)
+                return false;
+
+            target.ScreenshotJpeg = jpeg;
+
+            // Keep screenshot memory bounded to the newest MaxCachedScreenshots lines.
+            var kept = 0;
+            for (var i = spans.Count - 1; i >= 0; i--)
+            {
+                if (spans[i].ScreenshotJpeg is null)
+                    continue;
+                kept++;
+                if (kept > MaxCachedScreenshots)
+                    spans[i].ScreenshotJpeg = null;
+            }
+            return true;
+        }
+    }
+
+    public LineSpan? FindById(long lineId)
+    {
+        if (lineId <= 0)
+            return null;
+        lock (gate)
+        {
+            for (var i = spans.Count - 1; i >= 0; i--)
+            {
+                if (spans[i].Line.Id == lineId)
+                    return spans[i];
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Exact match by captured line id when known, else falls back to sentence text lookup.</summary>
+    public LineSpan? Resolve(long? lineId, string? sentence)
+    {
+        if (lineId is { } id && FindById(id) is { } exact)
+            return exact;
+        return string.IsNullOrEmpty(sentence) ? null : Find(sentence);
     }
 
     /// <summary>The newest line whose text is the mined sentence (or contains it, or is contained by it).</summary>

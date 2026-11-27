@@ -157,7 +157,11 @@ public sealed class AnkiConnect : IDisposable
                 reselect = true;
             }
         }
-        catch { /* best-effort: never block field updates on GUI calls */ }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Best-effort: never block field updates on GUI calls.
+            DiagnosticLog.Fault("anki", ex, "Could not move the Anki browser off the note before updating it", DiagLevel.Info);
+        }
 
         await InvokeAsync("updateNoteFields", new JsonObject
         {
@@ -171,7 +175,10 @@ public sealed class AnkiConnect : IDisposable
         if (reselect)
         {
             try { await InvokeAsync("guiBrowse", new JsonObject { ["query"] = $"nid:{noteId}" }, ct).ConfigureAwait(false); }
-            catch { }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                DiagnosticLog.Fault("anki", ex, "Could not reselect the note in the Anki browser", DiagLevel.Info);
+            }
         }
     }
 

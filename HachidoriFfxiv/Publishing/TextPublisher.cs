@@ -62,7 +62,7 @@ public sealed class TextPublisher : IDisposable
             server = new TextWebSocketServer(config.PublishPort);
             serverPort = config.PublishPort;
             Error = null;
-            DiagnosticLog.Write("publish", $"Listening on port {serverPort}.");
+            DiagnosticLog.Milestone("publish", $"Listening on port {serverPort}.");
         }
         catch (System.Net.Sockets.SocketException ex)
         {

@@ -32,18 +32,16 @@ public sealed class HachidoriLink : IDisposable
     private readonly SemaphoreSlim sendLock = new(1, 1);
     private readonly Func<Uri> address;
     private readonly Action<Exception>? logFrameError;
-    private readonly Action<string>? logWarning;
     private readonly TimeSpan requestTimeout;
     private ClientWebSocket? socket;
     private TaskCompletionSource ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private long nextId;
     private int attempt;
 
-    public HachidoriLink(Func<Uri> address, Action<Exception>? logFrameError = null, TimeSpan? requestTimeout = null, Action<string>? logWarning = null)
+    public HachidoriLink(Func<Uri> address, Action<Exception>? logFrameError = null, TimeSpan? requestTimeout = null)
     {
         this.address = address;
         this.logFrameError = logFrameError;
-        this.logWarning = logWarning;
         this.requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(30);
         _ = Task.Run(RunAsync);
     }
@@ -85,6 +83,7 @@ public sealed class HachidoriLink : IDisposable
     /// <summary>Sends one runtime message (<c>{target, type, ...}</c>) to the host and returns its reply.</summary>
     public async Task<JsonNode?> RequestAsync(string target, string type, JsonObject? payload = null, CancellationToken ct = default)
     {
+        var started = DiagnosticLog.Now();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime.Token);
         deadline.CancelAfter(requestTimeout);
         var requestToken = deadline.Token;
@@ -106,7 +105,9 @@ public sealed class HachidoriLink : IDisposable
         var message = payload?.DeepClone().AsObject() ?? new JsonObject();
         message["target"] = target;
         message["type"] = type;
-        message["requestId"] = $"hachidori-ffxiv-{id}";
+        // The host sees the same id, so plugin and host logs line up per request.
+        var op = $"hachidori-ffxiv-{id}";
+        message["requestId"] = op;
         var frame = new JsonObject
         {
             ["kind"] = "request",
@@ -134,17 +135,17 @@ public sealed class HachidoriLink : IDisposable
                     throw new HachidoriException(errText);
             }
 
-            DiagnosticLog.Write("relay", $"{type}: reply received");
+            DiagnosticLog.Write("relay", $"{type}: reply received", DiagLevel.Debug, op, DiagnosticLog.MsSince(started));
             return response;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested && !lifetime.IsCancellationRequested)
         {
-            DiagnosticLog.Write("relay", $"{type}: response timed out");
+            DiagnosticLog.Write("relay", $"{type}: response timed out", DiagLevel.Warn, op, DiagnosticLog.MsSince(started));
             throw new HachidoriException("Hachidori did not reply in time. Try again; check the host before retrying an Anki save.");
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Write("relay", $"{type}: {ex.GetType().Name}: {ex.Message}");
+            DiagnosticLog.Write("relay", $"{type}: {ex.GetType().Name}: {ex.Message}", DiagLevel.Warn, op, DiagnosticLog.MsSince(started));
             throw;
         }
         finally
@@ -296,10 +297,8 @@ public sealed class HachidoriLink : IDisposable
                     var peerCaps = frame["capabilities"] is JsonArray rejectedCaps
                         ? string.Join(",", rejectedCaps.Select(c => c?.ToString() ?? string.Empty))
                         : string.Empty;
-                    DiagnosticLog.Write("relay",
-                        $"Handshake rejected: peerProtocol={rawProto}, supported={supportedRange}, hasSnapshot={hasSnapshot}, host='{peerName}' v{peerVersion}, caps=[{peerCaps}]");
-                    logWarning?.Invoke(
-                        $"Incompatible Hachidori sharing handshake (peer protocol={rawProto}, supported={supportedRange}, hasSnapshot={hasSnapshot}, host={peerVersion}).");
+                    DiagnosticLog.Milestone("relay",
+                        $"Handshake rejected: peerProtocol={rawProto}, supported={supportedRange}, hasSnapshot={hasSnapshot}, host='{peerName}' v{peerVersion}, caps=[{peerCaps}]", DiagLevel.Warn);
                     Error = !protoOk
                         ? $"Unsupported Hachidori sharing handshake (host protocol {rawProto}, plugin supports {supportedRange}). Update Hachidori or the plugin, or use Offline Mode."
                         : "Malformed Hachidori sharing handshake (missing snapshot). Update Hachidori and the relay.";
@@ -313,7 +312,7 @@ public sealed class HachidoriLink : IDisposable
                 HostCapabilities = frame["capabilities"] is JsonArray caps
                     ? caps.Select(c => c?.ToString() ?? string.Empty).ToArray()
                     : [];
-                DiagnosticLog.Write("relay", $"Host connected: protocol=v{protoParsed}, version={HostVersion}, dictionaries={DictionaryCount}, capabilities={HostCapabilities.Length}");
+                DiagnosticLog.Milestone("relay", $"Host connected: protocol=v{protoParsed}, version={HostVersion}, dictionaries={DictionaryCount}, capabilities={HostCapabilities.Length}");
                 Snapshot = (JsonObject)snapshot.DeepClone();
                 Connected = true;
                 Error = null;

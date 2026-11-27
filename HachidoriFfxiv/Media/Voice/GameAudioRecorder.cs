@@ -65,7 +65,7 @@ public sealed class GameAudioRecorder : IDisposable
         {
             if (RunProcessLoopback(out processError) || stopping)
                 return;
-            DiagnosticLog.Write("audio", $"Process loopback unavailable ({processError}); trying system loopback fallback.");
+            DiagnosticLog.Milestone("audio", $"Process loopback unavailable ({processError}); trying system loopback fallback.", DiagLevel.Warn);
         }
 
         if (RunSystemLoopback(out var systemError) || stopping)
@@ -75,7 +75,7 @@ public sealed class GameAudioRecorder : IDisposable
         Error = PlatformInfo.Current.HostOs == HostOsKind.MacOs
             ? "Game audio recording is unavailable on macOS (CoreAudio has no built-in loopback). Enable TTS below for spoken cards, or route audio through a virtual loopback device."
             : $"Game audio recording is unavailable: {systemError ?? processError ?? "no loopback audio device found"}. You can still use TTS below for sentence audio.";
-        DiagnosticLog.Write("audio", Error);
+        DiagnosticLog.Milestone("audio", Error, DiagLevel.Warn);
     }
 
     /// <summary>Tier 1: Windows 10 2004+ per-process loopback (captures only FFXIV).</summary>
@@ -103,7 +103,7 @@ public sealed class GameAudioRecorder : IDisposable
             Error = null;
             mode = GameAudioCaptureMode.ProcessLoopback;
             running = true;
-            DiagnosticLog.Write("audio", "Started Windows per-process loopback recording (FFXIV only).");
+            DiagnosticLog.Milestone("audio", "Started Windows per-process loopback recording (FFXIV only).");
             var mono = new float[SampleRate];
             while (!stopping)
             {
@@ -178,7 +178,7 @@ public sealed class GameAudioRecorder : IDisposable
             Error = null;
             mode = GameAudioCaptureMode.SystemLoopback;
             running = true;
-            DiagnosticLog.Write("audio", $"Started system WASAPI loopback fallback ({format.SampleRate} Hz, {format.Channels} ch, {format.Encoding}) on {PlatformInfo.Current.DisplayName}.");
+            DiagnosticLog.Milestone("audio", $"Started system WASAPI loopback fallback ({format.SampleRate} Hz, {format.Channels} ch, {format.Encoding}) on {PlatformInfo.Current.DisplayName}.");
 
             while (!stopping && !stopped.IsSet)
                 stopped.Wait(100);

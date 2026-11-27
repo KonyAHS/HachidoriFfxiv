@@ -175,9 +175,6 @@ public sealed class WebViewPopupHost : IDisposable
     /// <summary>Invoked whenever WebView2 starts or stops playing pronunciation audio.</summary>
     public Action<bool>? OnAudioPlaybackChanged { get; set; }
 
-    /// <summary>Optional warning callback (wired to <c>DalamudServices.Log.Warning</c> in Dalamud).</summary>
-    public Action<string>? OnWarning { get; set; }
-
     public Task<bool> WaitUntilReadyAsync(TimeSpan timeout) =>
         readyTcs.Task.WaitAsync(timeout);
 
@@ -346,13 +343,13 @@ public sealed class WebViewPopupHost : IDisposable
     }
 
     /// <summary>Triggers Hachidori's real popup lookup anchored at the FFXIV text rectangle.</summary>
-    public void ShowLookup(string sentence, int charIndex, Vector2 anchorMin, Vector2 anchorMax, string documentTitle, int tokenLength = 1)
+    public void ShowLookup(string sentence, int charIndex, Vector2 anchorMin, Vector2 anchorMax, string documentTitle, int tokenLength = 1, long? lineId = null)
     {
         if (!IsReady) return;
         bridge.CancelPendingPreflights();
         var (normSentence, normIndex, normTokenLength) = HachidoriWebBridge.NormalizeLookupContext(sentence, charIndex, tokenLength);
         if (normSentence.Length == 0 || normIndex >= normSentence.Length) return;
-        bridge.SetActiveLookupContext(normSentence, normIndex);
+        bridge.SetActiveLookupContext(normSentence, normIndex, lineId);
         // Wake the overlay HWND immediately so Chromium's document.visibilityState is visible while laying out the popup.
         Interlocked.Exchange(ref lookupPendingUntilUtcTicks, DateTime.UtcNow.AddMilliseconds(750).Ticks);
         if (!headless)
@@ -760,7 +757,7 @@ public sealed class WebViewPopupHost : IDisposable
 
             initialized = true;
             statusText = "Loading Hachidori Web…";
-            DiagnosticLog.Write("webview", $"Initialized DirectComposition WebView2 runtime {runtimeVersion}.");
+            DiagnosticLog.Milestone("webview", $"Initialized DirectComposition WebView2 runtime {runtimeVersion}.");
             await NavigateActiveBundleAsync();
         }
         catch (Exception ex)
@@ -831,9 +828,9 @@ public sealed class WebViewPopupHost : IDisposable
                 usedFallbackSelector = BoolVal(msg["usedFallbackSelector"]) || BoolVal(msg["usedFallbackHostTag"]);
                 var hostTagName = msg["hostTag"]?.ToString() ?? string.Empty;
                 bundles.MarkBootSuccess(mappedBundleVersion);
-                DiagnosticLog.Write("webview", $"Hachidori Web v{msg["version"]} popup host ready (hostTag={hostTagName}, fallbackSelector={usedFallbackSelector}).");
+                DiagnosticLog.Milestone("webview", $"Hachidori Web v{msg["version"]} popup host ready (hostTag={hostTagName}, fallbackSelector={usedFallbackSelector}).");
                 if (usedFallbackSelector)
-                    OnWarning?.Invoke($"Hachidori Web v{msg["version"]} required structural DOM fallback (hostTag={hostTagName}); upstream CSS/tag names may have changed.");
+                    DiagnosticLog.Warn("webview", $"Hachidori Web v{msg["version"]} required structural DOM fallback (hostTag={hostTagName}); upstream CSS/tag names may have changed.");
                 if (controllerMode)
                     PostJson(new JsonObject { ["kind"] = "controllerMode", ["active"] = true });
                 readyTcs.TrySetResult(true);
@@ -841,8 +838,7 @@ public sealed class WebViewPopupHost : IDisposable
 
             case "bootError":
                 var err = msg["error"]?.ToString() ?? "Unknown boot error.";
-                DiagnosticLog.Write("webview", $"Hachidori Web v{mappedBundleVersion} boot error: {err}");
-                OnWarning?.Invoke($"Hachidori Web v{mappedBundleVersion} failed boot/smoke test: {err}");
+                DiagnosticLog.Milestone("webview", $"Hachidori Web v{mappedBundleVersion} failed boot/smoke test: {err}", DiagLevel.Warn);
                 var previousPath = mappedBundlePath;
                 if (bundles.MarkBootFailure(mappedBundleVersion, err) && bundles.ActivePath is not null
                     && !string.Equals(bundles.ActivePath, previousPath, StringComparison.OrdinalIgnoreCase))

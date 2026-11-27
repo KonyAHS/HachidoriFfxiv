@@ -881,7 +881,7 @@ public static class EcosystemStatsCodec
             if (doc.RootElement.TryGetProperty(property, out var el) && el.ValueKind == JsonValueKind.String)
                 return el.GetString();
         }
-        catch { }
+        catch (JsonException ex) { DiagnosticLog.Fault("stats", ex, $"Unparseable JSON while reading '{property}'", DiagLevel.Debug); }
         return null;
     }
 }

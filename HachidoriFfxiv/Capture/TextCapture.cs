@@ -23,6 +23,9 @@ public enum LineSource
 /// <summary>A captured line of game text, with its prebuilt scannable block.</summary>
 public sealed class GameLine
 {
+    private static long nextId;
+
+    public long Id { get; init; } = System.Threading.Interlocked.Increment(ref nextId);
     public required LineSource Source { get; init; }
     public required string Speaker { get; init; }
     public required string Text { get; init; }
@@ -205,8 +208,11 @@ public sealed unsafe class TextCapture : IDisposable
                 break;
             case "Talk" when GameUiInterop.TryGetTalkNodes(unit, out var talkSpeaker, out var talkBody) && talkBody != null:
             {
-                // ReadTalk: the dialogue body node, and the speaker node while it is visible.
-                AppendRaw(talkBody->NodeText.AsSpan());
+                // ReadTalk: the dialogue body node (while visible), and the speaker node while it is visible.
+                var bodyVisible = talkBody->IsVisible();
+                rawScratch.Write(bodyVisible ? (ReadOnlySpan<byte>)[1] : [0]);
+                if (bodyVisible)
+                    AppendRaw(talkBody->NodeText.AsSpan());
                 var speakerVisible = talkSpeaker != null && talkSpeaker->IsVisible();
                 rawScratch.Write(speakerVisible ? (ReadOnlySpan<byte>)[1] : [0]);
                 if (speakerVisible)
@@ -283,6 +289,8 @@ public sealed unsafe class TextCapture : IDisposable
     {
         if (!GameUiInterop.TryGetTalkNodes(unit, out var speakerNode, out var textNode) || textNode == null)
             return ReadTexts(unit);
+        if (!textNode->IsVisible())
+            return (string.Empty, string.Empty);
         var text = ReadSeString(textNode->NodeText.AsSpan()).Trim();
         var speaker = speakerNode != null && speakerNode->IsVisible()
             ? ReadSeString(speakerNode->NodeText.AsSpan()).Trim()

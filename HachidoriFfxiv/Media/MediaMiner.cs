@@ -10,6 +10,9 @@ using HachidoriFfxiv.Hachidori;
 
 namespace HachidoriFfxiv.Media;
 
+/// <summary>Summary of cached media available for a captured dialogue line.</summary>
+public readonly record struct LineMediaStatus(bool HasScreenshot, bool HasVoice, bool HasClip);
+
 /// <summary>
 /// Card media from the game itself, replacing GSM: a screenshot (sent with the note through
 /// Hachidori), the line's voice recorded from the game or spoken by a TTS engine, and a GIF of
@@ -25,7 +28,10 @@ public sealed class MediaMiner : IDisposable
     {
         this.config = config;
         this.capture = capture;
-        Frames = new GameFrames(config);
+        Frames = new GameFrames(config)
+        {
+            IsLineStillOpen = id => Timeline.FindById(id) is { } s && Timeline.EndOf(s) is null,
+        };
         Voices = new VoiceLineTracker(config.VoiceLoadSoundFileSigOverride, config.VoicePlaySpecificSoundSigOverride);
         Tts = new TtsClient(config);
         Anki = new AnkiConnect(() => config.AnkiConnectUrl, ankiApiKey);
@@ -33,6 +39,7 @@ public sealed class MediaMiner : IDisposable
         capture.LineCaptured += OnLine;
         Voices.VoicePlayed += OnVoicePlayed;
         Frames.ClipReady += OnClip;
+        Frames.LineScreenshotReady += OnLineScreenshot;
     }
 
     public GameFrames Frames { get; }
@@ -50,6 +57,8 @@ public sealed class MediaMiner : IDisposable
 
     private void OnVoicePlayed(VoicePlaybackEvent voice) => Timeline.OnVoicePlayed(voice);
 
+    private void OnLineScreenshot(long lineId, byte[] jpeg) => Timeline.SetScreenshot(lineId, jpeg);
+
     private void OnLine(GameLine line)
     {
         var now = Stopwatch.GetTimestamp();
@@ -58,7 +67,7 @@ public sealed class MediaMiner : IDisposable
         {
             if (Tts.Enabled && config.TtsInjectOst)
                 bgm = Bgm.CaptureNow(now);
-            Frames.OnLineStarted(now);
+            Frames.OnLineStarted(now, line.Id);
         }
         Timeline.OnLine(line, now, bgm);
     }
@@ -85,19 +94,98 @@ public sealed class MediaMiner : IDisposable
         }
     }
 
-    /// <summary>A JPEG of the game for {screenshot}, or null when it is turned off.</summary>
-    public async Task<ScreenshotMedia?> ScreenshotAsync()
+    /// <summary>Cached media badges for one captured line, for the backlog drawer.</summary>
+    public LineMediaStatus GetLineMediaStatus(long lineId)
+    {
+        var span = Timeline.FindById(lineId);
+        if (span is null)
+            return default;
+        var hasShot = Timeline.ScreenshotOf(span) is { Length: > 0 };
+        var hasVoice = Timeline.VoiceOf(span) is not null;
+        bool hasClip;
+        lock (clips)
+            hasClip = clips.Any(c => c.Start == span.Start);
+        return new LineMediaStatus(hasShot, hasVoice, hasClip);
+    }
+
+    /// <summary>The cached JPEG captured while <paramref name="lineId"/> was on screen, if still retained.</summary>
+    public byte[]? GetLineScreenshot(long lineId) =>
+        Timeline.FindById(lineId) is { } span ? Timeline.ScreenshotOf(span) : null;
+
+    /// <summary>
+    /// Decodes playable audio for replaying a captured line in the backlog (prefers clean native
+    /// SCD voice extraction, else loopback recording, else TTS when enabled).
+    /// </summary>
+    public async Task<byte[]?> GetLineVoiceReplayAsync(long lineId)
+    {
+        var span = Timeline.FindById(lineId);
+        if (span is null)
+            return null;
+
+        var voice = Timeline.VoiceOf(span);
+        if (voice is not null)
+        {
+            var clean = await Task.Run(() => TryExtractCleanVoiceFromScd(voice, "Backlog voice replay")).ConfigureAwait(false);
+            if (clean is not null)
+                return clean;
+        }
+
+        if (config.RecordVoiceLines && recorder is { Running: true } rec)
+        {
+            var clip = await Task.Run(() => VoiceClipAsync(rec, span)).ConfigureAwait(false);
+            if (clip is not null)
+                return clip;
+        }
+
+        if (Tts.Enabled)
+        {
+            var bgmSnapshot = ResolveBgmForTts(span);
+            var (data, _, _, _) = await SynthesizeTtsAsync(span.Line.Text, bgmSnapshot).ConfigureAwait(false);
+            return data;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A JPEG of the game for {screenshot}, or null when it is turned off.
+    /// When mining a past dialogue line whose window has already moved on, returns that line's
+    /// cached JPEG instead of capturing the unrelated current screen.
+    /// </summary>
+    public async Task<ScreenshotMedia?> ScreenshotAsync(long? lineId = null, string? sentence = null)
     {
         if (!config.CaptureScreenshot)
             return null;
-        var jpeg = await Frames.ScreenshotAsync().ConfigureAwait(false);
-        return new ScreenshotMedia(Guid.NewGuid().ToString("N"), $"hachidori-screenshot-{Guid.NewGuid():D}.jpg", Convert.ToBase64String(jpeg));
+
+        var span = Timeline.Resolve(lineId, sentence);
+        if (span is not null && Timeline.EndOf(span) is not null)
+        {
+            var cached = Timeline.ScreenshotOf(span);
+            if (cached is { Length: > 0 })
+                return MakeScreenshotMedia(cached);
+            // The line already ended and its cached still was evicted or never captured:
+            // avoid attaching an unrelated current-screen frame.
+            return null;
+        }
+
+        try
+        {
+            var jpeg = await Frames.ScreenshotAsync().ConfigureAwait(false);
+            return MakeScreenshotMedia(jpeg);
+        }
+        catch when (span is not null && Timeline.ScreenshotOf(span) is { Length: > 0 } fallback)
+        {
+            return MakeScreenshotMedia(fallback);
+        }
     }
 
+    private static ScreenshotMedia MakeScreenshotMedia(byte[] jpeg) =>
+        new(Guid.NewGuid().ToString("N"), $"hachidori-screenshot-{Guid.NewGuid():D}.jpg", Convert.ToBase64String(jpeg));
+
     /// <summary>Adds the sentence audio and GIF to a note Hachidori just added. Returns a short summary.</summary>
-    public async Task<string> AttachAsync(long noteId, string sentence, string? screenshotFile)
+    public async Task<string> AttachAsync(long noteId, string sentence, string? screenshotFile, long? lineId = null)
     {
-        var span = Timeline.Find(sentence);
+        var span = Timeline.Resolve(lineId, sentence);
         var notes = new List<string>();
         var warnings = new List<string>();
 
@@ -237,7 +325,7 @@ public sealed class MediaMiner : IDisposable
                     var (mixed, mixedOst) = AudioClips.MixTtsWithOst(samples, rate, ostSlice, config.TtsOstVolume, outputRate);
                     if (mixedOst)
                     {
-                        DiagnosticLog.Write("ost", $"Mixed {bgmSnapshot.DisplayName} @ {ostStartSeconds:0.0}s ({(bgmSnapshot.FromEngineClock ? "engine" : "wall")} clock) into TTS ({mixed.Length / (double)outputRate:0.1}s).");
+                        DiagnosticLog.Write("ost", $"Mixed {bgmSnapshot.DisplayName} @ {ostStartSeconds:0.0}s ({(bgmSnapshot.FromEngineClock ? "engine" : "wall")} clock) into TTS ({mixed.Length / (double)outputRate:0.0}s).");
                         return (AudioClips.EncodeOpus(mixed, outputRate, bitrate: 64000), "ogg", true, bgmSnapshot);
                     }
                     DiagnosticLog.Write("ost", $"Skipped OST mix into TTS: extracted OST slice was silent ({bgmSnapshot.DisplayName} @ {ostStartSeconds:0.0}s).");
@@ -272,7 +360,10 @@ public sealed class MediaMiner : IDisposable
             }
 
             if (detectedVoice is null)
+            {
+                DiagnosticLog.Write("voice", $"No native voice matched {span.Line.Source} span (chars={span.Line.Text.Length}); falling back to TTS.");
                 return null;
+            }
 
             return await RecordConfirmedVoiceAsync(rec, span, detectedVoice).ConfigureAwait(false);
         }
@@ -402,7 +493,13 @@ public sealed class MediaMiner : IDisposable
         }
 
         if (finalEnd <= from)
+        {
+            var cleanScd = TryExtractCleanVoiceFromScd(voice, "Loopback buffer aged out");
+            if (cleanScd is not null)
+                return cleanScd;
+            DiagnosticLog.Write("voice", $"No loopback audio window available for {voice.DisplayName} (evicted or ended before start); falling back to TTS.");
             return null;
+        }
 
         // If the plugin played pronunciation audio while this voice line was being captured,
         // process/system loopback will contain that pronunciation mixed over the game voice.
@@ -411,7 +508,7 @@ public sealed class MediaMiner : IDisposable
         var clipEndTicks = voice.StartTicks + (long)((finalEnd - voiceStartIdx) * (double)Stopwatch.Frequency / rate);
         if (PluginAudio.Overlaps(clipFromTicks, clipEndTicks))
         {
-            var cleanScd = TryExtractCleanVoiceFromScd(voice);
+            var cleanScd = TryExtractCleanVoiceFromScd(voice, "Plugin pronunciation overlapped loopback");
             if (cleanScd is not null)
                 return cleanScd;
             DiagnosticLog.Write("voice", $"Plugin pronunciation overlapped loopback for {voice.DisplayName}, and direct SCD decode was unavailable; using loopback clip.");
@@ -427,11 +524,11 @@ public sealed class MediaMiner : IDisposable
             return null;
         }
 
-        DiagnosticLog.Write("voice", $"Recorded game voice {voice.DisplayName} ({clip.Length / (double)rate:0.1}s, scdDur={(voice.DurationSeconds is { } d ? $"{d:0.1}s" : "n/a")}).");
+        DiagnosticLog.Write("voice", $"Recorded game voice {voice.DisplayName} ({clip.Length / (double)rate:0.0}s, scdDur={(voice.DurationSeconds is { } d ? $"{d:0.0}s" : "n/a")}).");
         return AudioClips.EncodeOpus(AudioClips.Normalize(clip), rate);
     }
 
-    private static byte[]? TryExtractCleanVoiceFromScd(VoicePlaybackEvent voice)
+    private static byte[]? TryExtractCleanVoiceFromScd(VoicePlaybackEvent voice, string reason)
     {
         try
         {
@@ -447,7 +544,7 @@ public sealed class MediaMiner : IDisposable
                 peak = Math.Max(peak, Math.Abs(s));
             if (peak <= 1e-4f)
                 return null;
-            DiagnosticLog.Write("voice", $"Plugin pronunciation overlapped loopback for {voice.DisplayName}; extracted clean voice directly from SCD ({samples48k.Length / 48000.0:0.1}s).");
+            DiagnosticLog.Write("voice", $"{reason} for {voice.DisplayName}; extracted clean voice directly from SCD ({samples48k.Length / 48000.0:0.0}s).");
             return AudioClips.EncodeOpus(AudioClips.Normalize(samples48k), 48000);
         }
         catch (Exception ex)
@@ -478,7 +575,7 @@ public sealed class MediaMiner : IDisposable
 
     private string? ffmpegPath;
     private string? ffmpegConfigured;
-    private const int MaxCachedClips = 6;
+    private const int MaxCachedClips = 20;
     private readonly LinkedList<(long Start, Task<(byte[] Data, string Ext, string? Note)> Encoded, CancellationTokenSource Cancel)> clips = new();
 
     // At most this many background clip encodes (each may be an FFmpeg process) run at once.
@@ -564,11 +661,18 @@ public sealed class MediaMiner : IDisposable
             }
         }
 
-        // Mined within the line's first seconds (or an old line): use what is buffered now.
+        // Mined within the line's first seconds: use frames from that line's start time.
+        // If a historical line already ended and its clip was evicted, skip animation so its
+        // cached still screenshot is kept rather than attaching frames from the live scene.
+        var historicalEnded = span is not null && Timeline.EndOf(span) is not null;
         var from = span?.Start ?? Stopwatch.GetTimestamp() - Stopwatch.Frequency * (long)Math.Clamp(config.GifSeconds, 1, 10);
-        var frames = Frames.FramesFrom(from);
+        var frames = Frames.FramesFrom(from, allowLatestFallback: !historicalEnded);
         if (frames.Count < 2)
+        {
+            if (historicalEnded)
+                return null;
             throw new InvalidOperationException(Frames.Error ?? "no frames recorded yet");
+        }
         return await Task.Run(() => EncodeAsync(frames)).ConfigureAwait(false);
     }
 
@@ -577,6 +681,7 @@ public sealed class MediaMiner : IDisposable
         capture.LineCaptured -= OnLine;
         Voices.VoicePlayed -= OnVoicePlayed;
         Frames.ClipReady -= OnClip;
+        Frames.LineScreenshotReady -= OnLineScreenshot;
         lock (clips)
         {
             foreach (var clip in clips)

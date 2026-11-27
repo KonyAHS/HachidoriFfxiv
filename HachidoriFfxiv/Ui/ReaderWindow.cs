@@ -227,7 +227,7 @@ public sealed class ReaderWindow : Window
         }
 
         var hit = RichText.Draw(line.Block, width, popups.HighlightFor(line.Block, 0));
-        popups.Report(hit, 0, (block, index) => new ScanContext(line.Text, index, Title(line)));
+        popups.Report(hit, 0, (block, index) => new ScanContext(line.Text, index, Title(line), line.Id));
         ImGuiHelpers.ScaledDummy(2);
     }
 

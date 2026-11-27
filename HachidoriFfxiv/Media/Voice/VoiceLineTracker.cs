@@ -42,7 +42,9 @@ public sealed unsafe class VoiceLineTracker : IDisposable
     // Kept across replays (game audio cache can replay without reloading) and pruned on address reuse.
     private readonly ConcurrentDictionary<nint, (string FilePath, VoiceLineKind Kind)> knownVoiceLines = new();
     private readonly object fireGate = new();
+    private readonly Dictionary<string, VoicePlaybackEvent> recentHookVoices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, VoicePlaybackEvent> poolTrackedVoices = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, float> poolPreloadedVoices = new(StringComparer.OrdinalIgnoreCase);
 
     private nint lastPlayedPtr;
     private long lastPlayedTicks;
@@ -57,13 +59,15 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         {
             if (DalamudServices.SigScanner is not null && DalamudServices.GameInterop is not null)
             {
-                if (TryScanFirst(out var loadPtr, loadSigOverride, LoadSoundFileSigPrimary, LoadSoundFileSigFallback))
+                var loadMatch = ScanFirst(out var loadPtr, ("override", loadSigOverride), ("primary", LoadSoundFileSigPrimary), ("fallback", LoadSoundFileSigFallback));
+                if (loadMatch is not null)
                 {
                     loadSoundFileHook = DalamudServices.GameInterop.HookFromAddress<LoadSoundFileDelegate>(loadPtr, LoadSoundFileDetour);
                     loadSoundFileHook.Enable();
                 }
 
-                if (TryScanFirst(out var playPtr, playSigOverride, PlaySpecificSoundSig))
+                var playMatch = ScanFirst(out var playPtr, ("override", playSigOverride), ("primary", PlaySpecificSoundSig));
+                if (playMatch is not null)
                 {
                     playSpecificSoundHook = DalamudServices.GameInterop.HookFromAddress<PlaySpecificSoundDelegate>(playPtr, PlaySpecificSoundDetour);
                     playSpecificSoundHook.Enable();
@@ -71,21 +75,18 @@ public sealed unsafe class VoiceLineTracker : IDisposable
 
                 if (HooksActive)
                 {
-                    DiagnosticLog.Write("voice", "Hooked LoadSoundFile and PlaySpecificSound for native game voice detection.");
+                    DiagnosticLog.Milestone("voice", $"Hooked LoadSoundFile ({loadMatch} sig, +0x{LoadOffset(loadPtr):x}) and PlaySpecificSound ({playMatch} sig, +0x{LoadOffset(playPtr):x}) for native game voice detection.");
+                    SeedKnownVoicesFromPool(logCount: true);
                 }
                 else
                 {
-                    var message = $"Native voice hooks partial/unavailable (load={LoadHookActive}, play={PlayHookActive}); using SoundManager.SoundDataPool + loudness fallback.";
-                    DiagnosticLog.Write("voice", message);
-                    DalamudServices.Log?.Warning("HachidoriFfxiv: {Message}", message);
+                    DiagnosticLog.Milestone("voice", $"Native voice hooks partial/unavailable (load={loadMatch ?? "no match"}, play={playMatch ?? "no match"}); using SoundManager.SoundDataPool + loudness fallback.", DiagLevel.Warn);
                 }
             }
         }
         catch (Exception ex)
         {
-            var message = $"Could not initialize native voice hooks: {ex.Message}";
-            DiagnosticLog.Write("voice", message);
-            DalamudServices.Log?.Warning(ex, "HachidoriFfxiv: {Message}", message);
+            DiagnosticLog.Fault("voice", ex, "Could not initialize native voice hooks");
             loadSoundFileHook?.Dispose();
             playSpecificSoundHook?.Dispose();
             loadSoundFileHook = null;
@@ -93,19 +94,23 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         }
     }
 
-    private static bool TryScanFirst(out nint address, params string?[] signatures)
+    /// <summary>The name of the first signature that matches, so a patch-day log says which one broke.</summary>
+    private static string? ScanFirst(out nint address, params (string Name, string? Signature)[] signatures)
     {
         address = nint.Zero;
-        foreach (var raw in signatures)
+        foreach (var (name, raw) in signatures)
         {
             var sig = raw?.Trim();
             if (string.IsNullOrEmpty(sig))
                 continue;
             if (DalamudServices.SigScanner.TryScanText(sig, out address))
-                return true;
+                return name;
         }
-        return false;
+        return null;
     }
+
+    private static long LoadOffset(nint address) =>
+        address == nint.Zero ? 0 : (long)address - (long)DalamudServices.SigScanner.Module.BaseAddress;
 
     /// <summary>Raised whenever FFXIV starts playing a voice-acted dialogue .scd file.</summary>
     public event Action<VoicePlaybackEvent>? VoicePlayed;
@@ -152,13 +157,13 @@ public sealed unsafe class VoiceLineTracker : IDisposable
 
             var entries = soundManager->SoundDataPool->Entries;
             HashSet<string>? activeNow = null;
+            List<(string Path, VoiceLineKind Kind, float Elapsed, long StartTicks)>? newPoolCandidates = null;
+            var hooksActive = HooksActive;
 
             for (var i = 0; i < entries.Length; i++)
             {
                 ref var data = ref entries[i];
                 if (!data.IsActive || data.IsLoadingSoundResource || data.SoundResourceHandle == null)
-                    continue;
-                if (!data.IsPlaying())
                     continue;
 
                 var path = ReadSoundPath(ref data);
@@ -170,36 +175,85 @@ public sealed unsafe class VoiceLineTracker : IDisposable
                 if (!VoiceLinePath.IsValidVoiceSize(fileSize))
                     continue;
 
+                // Keep knownVoiceLines populated even for voices loaded before the plugin started
+                // or hot-reloaded mid-cutscene (when LoadSoundFile already ran earlier).
+                RegisterResourceHandle((nint)data.SoundResourceHandle, normalized, kind);
+
+                if (!data.IsPlaying())
+                    continue;
+
                 (activeNow ??= new(StringComparer.OrdinalIgnoreCase)).Add(normalized);
 
-                if (!poolTrackedVoices.ContainsKey(normalized))
-                {
-                    var elapsedRaw = data.GetElapsedTime();
-                    var elapsedOffset = float.IsFinite(elapsedRaw) && elapsedRaw >= 0f && elapsedRaw < 60f
-                        ? (long)(elapsedRaw * Stopwatch.Frequency)
-                        : 0L;
-                    var startTicks = nowTicks - elapsedOffset;
+                var elapsedRaw = data.GetElapsedTime();
+                var elapsedValid = float.IsFinite(elapsedRaw) && elapsedRaw >= 0f && elapsedRaw < 60f ? elapsedRaw : 0f;
 
-                    // If hooks already emitted this voice recently, just track it for EndTicks without duplicating.
-                    var alreadyFromHook = false;
+                if (hooksActive)
+                {
+                    // Native hooks are authoritative for playback start; use the pool only to track
+                    // EndTicks on the exact VoicePlaybackEvent emitted by PlaySpecificSound.
+                    VoicePlaybackEvent? hookEvent = null;
                     lock (fireGate)
                     {
-                        if (string.Equals(lastVoicePath, normalized, StringComparison.OrdinalIgnoreCase)
-                            && Math.Abs(nowTicks - lastPlayedTicks) < Stopwatch.Frequency * 15)
+                        if (recentHookVoices.TryGetValue(normalized, out var candidate)
+                            && Math.Abs(nowTicks - candidate.StartTicks) < Stopwatch.Frequency * 30)
                         {
-                            alreadyFromHook = true;
+                            hookEvent = candidate;
                         }
                     }
 
-                    if (!alreadyFromHook)
+                    if (hookEvent is not null && !poolTrackedVoices.ContainsKey(normalized))
+                        poolTrackedVoices[normalized] = hookEvent;
+                    continue;
+                }
+
+                if (poolTrackedVoices.ContainsKey(normalized))
+                    continue;
+
+                // Pool-only fallback (when native hooks are unavailable): if a cutscene preloaded
+                // this voice in a batch earlier, only emit once its playback clock actually advances.
+                if (poolPreloadedVoices.TryGetValue(normalized, out var preloadElapsed))
+                {
+                    if (elapsedValid > preloadElapsed + 0.01f)
                     {
-                        var ev = EmitVoice(normalized, kind, startTicks, "pool");
-                        poolTrackedVoices[normalized] = ev;
+                        poolPreloadedVoices.Remove(normalized);
+                        var startTicks = nowTicks - (long)(elapsedValid * Stopwatch.Frequency);
+                        poolTrackedVoices[normalized] = EmitVoice(normalized, kind, startTicks, "pool");
                     }
-                    else
-                    {
-                        poolTrackedVoices[normalized] = new VoicePlaybackEvent(normalized, kind, startTicks);
-                    }
+                    continue;
+                }
+
+                var candStart = nowTicks - (long)(elapsedValid * Stopwatch.Frequency);
+                (newPoolCandidates ??= new()).Add((normalized, kind, elapsedValid, candStart));
+            }
+
+            if (newPoolCandidates is { Count: > 0 })
+            {
+                // Cutscenes preload all dialogue .scd slots into SoundDataPool simultaneously at scene start.
+                if (newPoolCandidates.Count >= 3 && newPoolCandidates.TrueForAll(c => c.Kind == VoiceLineKind.Cutscene))
+                {
+                    foreach (var cand in newPoolCandidates)
+                        poolPreloadedVoices[cand.Path] = cand.Elapsed;
+                }
+                else
+                {
+                    foreach (var cand in newPoolCandidates)
+                        poolTrackedVoices[cand.Path] = EmitVoice(cand.Path, cand.Kind, cand.StartTicks, "pool");
+                }
+            }
+
+            if (poolPreloadedVoices.Count > 0)
+            {
+                List<string>? evictedPreloads = null;
+                foreach (var key in poolPreloadedVoices.Keys)
+                {
+                    if (activeNow is null || !activeNow.Contains(key))
+                        (evictedPreloads ??= new()).Add(key);
+                }
+
+                if (evictedPreloads is not null)
+                {
+                    foreach (var key in evictedPreloads)
+                        poolPreloadedVoices.Remove(key);
                 }
             }
 
@@ -309,6 +363,28 @@ public sealed unsafe class VoiceLineTracker : IDisposable
     {
         lastVoicePath = filePath;
         var ev = new VoicePlaybackEvent(filePath, kind, startTicks);
+        if (source == "hook")
+        {
+            lock (fireGate)
+            {
+                recentHookVoices[filePath] = ev;
+                if (recentHookVoices.Count > 32)
+                {
+                    var cutoff = startTicks - Stopwatch.Frequency * 60;
+                    List<string>? stale = null;
+                    foreach (var kv in recentHookVoices)
+                    {
+                        if (kv.Value.StartTicks < cutoff)
+                            (stale ??= new()).Add(kv.Key);
+                    }
+                    if (stale is not null)
+                    {
+                        foreach (var key in stale)
+                            recentHookVoices.Remove(key);
+                    }
+                }
+            }
+        }
         DiagnosticLog.Write("voice", $"Detected voiced line ({source}, {kind}): {filePath}");
 
         // Resolve exact duration off-thread from Lumina SCD headers so clipping never cuts early or pads dead air.
@@ -338,6 +414,55 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         return ev;
     }
 
+    private void SeedKnownVoicesFromPool(bool logCount)
+    {
+        try
+        {
+            var soundManager = SoundManager.Instance();
+            if (soundManager == null || soundManager->SoundDataPool == null)
+                return;
+
+            var entries = soundManager->SoundDataPool->Entries;
+            var seeded = 0;
+            for (var i = 0; i < entries.Length; i++)
+            {
+                ref var data = ref entries[i];
+                if (!data.IsActive || data.IsLoadingSoundResource || data.SoundResourceHandle == null)
+                    continue;
+
+                var path = ReadSoundPath(ref data);
+                if (!VoiceLinePath.IsVoiceLine(path, out var kind))
+                    continue;
+
+                var normalized = VoiceLinePath.Normalize(path)!;
+                if (!VoiceLinePath.IsValidVoiceSize(data.SoundResourceHandle->FileSize))
+                    continue;
+
+                if (RegisterResourceHandle((nint)data.SoundResourceHandle, normalized, kind))
+                    seeded++;
+            }
+
+            if (logCount && seeded > 0)
+                DiagnosticLog.Write("voice", $"Seeded {seeded} already-loaded voice line(s) from SoundManager pool.");
+        }
+        catch
+        {
+            // Non-fatal: hooks still capture newly loaded voice files.
+        }
+    }
+
+    private bool RegisterResourceHandle(nint resourceHandlePtr, string normalizedPath, VoiceLineKind kind)
+    {
+        if (resourceHandlePtr == nint.Zero)
+            return false;
+        var resourceDataPtr = Marshal.ReadIntPtr(resourceHandlePtr + ResourceDataOffset);
+        if (resourceDataPtr == nint.Zero)
+            return false;
+        var added = !knownVoiceLines.ContainsKey(resourceDataPtr);
+        knownVoiceLines[resourceDataPtr] = (normalizedPath, kind);
+        return added;
+    }
+
     private static string? ReadSoundPath(ref SoundData data)
     {
         var name = data.GetFileName().ToString();
@@ -354,6 +479,9 @@ public sealed unsafe class VoiceLineTracker : IDisposable
         loadSoundFileHook?.Dispose();
         playSpecificSoundHook?.Dispose();
         knownVoiceLines.Clear();
+        lock (fireGate)
+            recentHookVoices.Clear();
         poolTrackedVoices.Clear();
+        poolPreloadedVoices.Clear();
     }
 }

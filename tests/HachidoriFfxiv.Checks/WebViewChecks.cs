@@ -229,7 +229,15 @@ internal static class WebViewChecks
         // Full FFXIV text box sentence + full multi-dictionary glossaries restoration on Crystal/JL projected submits.
         var fullBox = "待て、ラウバーン局長！正式な裁きも経ず冒険者さん、お待たせしました！";
         var wordStart = fullBox.IndexOf("冒険者", StringComparison.Ordinal);
-        bridge.SetActiveLookupContext(fullBox, wordStart);
+        bridge.SetActiveLookupContext(fullBox, wordStart, lineId: 4242L);
+        await bridge.HandleRpcAsync(new JsonObject
+        {
+            ["target"] = "hachidori-anki",
+            ["type"] = "hd_anki_screenshot",
+            ["requestId"] = "shot-backlog-line",
+        });
+        check(backend.LastScreenshotLineId == 4242L,
+            "hd_anki_screenshot forwards the active historical lineId to CaptureScreenshotAsync");
         await bridge.HandleRpcAsync(new JsonObject
         {
             ["target"] = "hoshidicts-offscreen",
@@ -260,7 +268,8 @@ internal static class WebViewChecks
         });
         var enrichedDicts = (backend.SubmittedRequest?["term"]?["glossaries"] as JsonArray ?? [])
             .Select(g => g?["dictionary"]?.ToString() ?? string.Empty).ToArray();
-        check(backend.AttachedSentence == fullBox, "the Anki media hook receives the full FFXIV text box");
+        check(backend.AttachedSentence == fullBox && backend.AttachedLineId == 4242L,
+            "the Anki media hook receives the full FFXIV text box and exact historical lineId");
         check(enrichedDicts.SequenceEqual(["FFXIV", "Jitendex"]),
             $"bridge restores remaining lookup dictionaries while keeping clicked Crystal section first ([{string.Join(", ", enrichedDicts)}])");
 
@@ -730,8 +739,14 @@ internal static class WebViewChecks
             }).ToArray());
         }
 
-        public Task<ScreenshotMedia?> CaptureScreenshotAsync(CancellationToken ct) =>
-            Task.FromResult<ScreenshotMedia?>(new ScreenshotMedia("tok-1", "ffxiv-shot.jpg", "AQID"));
+        public long? LastScreenshotLineId { get; private set; }
+        public long? AttachedLineId { get; private set; }
+
+        public Task<ScreenshotMedia?> CaptureScreenshotAsync(long? lineId, string? sentence, CancellationToken ct)
+        {
+            LastScreenshotLineId = lineId;
+            return Task.FromResult<ScreenshotMedia?>(new ScreenshotMedia("tok-1", "ffxiv-shot.jpg", "AQID"));
+        }
 
         public Task<JsonObject> SubmitAnkiAsync(JsonObject request, ScreenshotMedia? screenshot, CancellationToken ct)
         {
@@ -747,10 +762,11 @@ internal static class WebViewChecks
             });
         }
 
-        public Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, CancellationToken ct)
+        public Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, long? lineId, CancellationToken ct)
         {
             AttachedNoteId = noteId;
             AttachedSentence = sentence;
+            AttachedLineId = lineId;
             return Task.FromResult<string?>("attached voice + AVIF");
         }
 

@@ -51,7 +51,7 @@ public sealed unsafe class NativeEngine : IDisposable
             import = (delegate* unmanaged[Cdecl]<byte*, byte*, int, byte*>)Export("hdw_import");
             var init = (delegate* unmanaged[Cdecl]<int>)Export("hdw_native_init");
             if (init() != 1)
-                DiagnosticLog.Write("offline", "hdw_native could not switch CRT paths to UTF-8; non-ASCII profile paths may not open on this OS/Wine build.");
+                DiagnosticLog.Milestone("offline", "hdw_native could not switch CRT paths to UTF-8; non-ASCII profile paths may not open on this OS/Wine build.");
             Version = NativeVersion.Parse(Utf8(version()));
         }
         catch

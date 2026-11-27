@@ -67,12 +67,12 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
     public bool CanAttachMedia => getMedia() is { AttachesMedia: true };
     public bool NpcPicturesAvailable => npcAvailable();
 
-    public Task<ScreenshotMedia?> CaptureScreenshotAsync(CancellationToken ct) =>
-        getMedia() is { } media ? media.ScreenshotAsync() : Task.FromResult<ScreenshotMedia?>(null);
+    public Task<ScreenshotMedia?> CaptureScreenshotAsync(long? lineId, string? sentence, CancellationToken ct) =>
+        getMedia() is { } media ? media.ScreenshotAsync(lineId, sentence) : Task.FromResult<ScreenshotMedia?>(null);
 
-    public async Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, CancellationToken ct) =>
+    public async Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, long? lineId, CancellationToken ct) =>
         getMedia() is { AttachesMedia: true } media
-            ? await media.AttachAsync(noteId, sentence, screenshotFilename).ConfigureAwait(false)
+            ? await media.AttachAsync(noteId, sentence, screenshotFilename, lineId).ConfigureAwait(false)
             : null;
 
     public void RecordLookup(JsonObject lookupReply)

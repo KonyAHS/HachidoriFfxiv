@@ -56,8 +56,7 @@ public sealed class AudioPlayer : IDisposable
             catch (Exception ex)
             {
                 LastError = ex.Message;
-                DiagnosticLog.Write("audio", ex.ToString());
-                DalamudServices.Log.Debug($"Audio failed: {ex.Message}");
+                DiagnosticLog.Fault("audio", ex, "Pronunciation playback failed");
             }
         });
     }

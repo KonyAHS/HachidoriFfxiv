@@ -33,6 +33,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
     private string? webLastSentence;
     private int webLastOffset = -1;
     private string? webLastTitle;
+    private long? webLastLineId;
     private float webLastAnchorY = float.NaN;
     private (int Depth, RichBlock Block, int Index)? webNestedLast;
     private DateTime webSustainedAt = DateTime.MinValue;
@@ -92,6 +93,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
         webLastSentence = null;
         webLastOffset = -1;
         webLastTitle = null;
+        webLastLineId = null;
         webLastAnchorY = float.NaN;
         webNestedLast = null;
     }
@@ -495,6 +497,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
             var sameBlock = webSourceBlock is not null && hit.Hit.Block == webSourceBlock && index == webSourceIndex;
             var sameContent = webLastSentence is not null
                               && hit.Context.MatchOffset == webLastOffset
+                              && hit.Context.LineId == webLastLineId
                               && string.Equals(hit.Context.Sentence, webLastSentence, StringComparison.Ordinal)
                               && string.Equals(hit.Context.DocumentTitle, webLastTitle, StringComparison.Ordinal);
             // Match by content as well as block reference, and regardless of wv.AnyOpen:
@@ -517,7 +520,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
                     webLastAnchorY = hit.Hit.Min.Y;
                     var tokenLen = hit.TokenEnd is { } end && end > index ? end - index : 1;
                     wv.ShowLookup(hit.Context.Sentence, hit.Context.MatchOffset,
-                        hit.Hit.Min, hit.Hit.Max, hit.Context.DocumentTitle, tokenLen);
+                        hit.Hit.Min, hit.Hit.Max, hit.Context.DocumentTitle, tokenLen, hit.Context.LineId);
                 }
             }
             else if (insideMatch && !scanning)
@@ -534,11 +537,12 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
                     webLastSentence = hit.Context.Sentence;
                     webLastOffset = hit.Context.MatchOffset;
                     webLastTitle = hit.Context.DocumentTitle;
+                    webLastLineId = hit.Context.LineId;
                     webLastAnchorY = hit.Hit.Min.Y;
                     webSustainedAt = now;
                     var tokenLen = hit.TokenEnd is { } end && end > index ? end - index : 1;
                     wv.ShowLookup(hit.Context.Sentence, hit.Context.MatchOffset,
-                        hit.Hit.Min, hit.Hit.Max, hit.Context.DocumentTitle, tokenLen);
+                        hit.Hit.Min, hit.Hit.Max, hit.Context.DocumentTitle, tokenLen, hit.Context.LineId);
                 }
                 else if (insideMatch)
                 {
@@ -991,12 +995,12 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
                 request["allowDuplicate"] = true;
             if (entry.Decision?.ClientSpeech is { } speech)
                 request["clientSpeech"] = speech.DeepClone();
-            // The Template maps {screenshot}: take the game picture now, without plugin windows.
+            // The Template maps {screenshot}: take the game picture (or the historical line's cached picture).
             ScreenshotMedia? screenshot = null;
             string? screenshotWarning = null;
             if (Media is not null && config.CaptureScreenshot && entry.Decision?.Screenshot == true)
             {
-                try { screenshot = await Media.ScreenshotAsync().ConfigureAwait(false); }
+                try { screenshot = await Media.ScreenshotAsync(state.Context.LineId, state.Context.Sentence).ConfigureAwait(false); }
                 catch (Exception ex) { screenshotWarning = $" Screenshot skipped: {ex.Message}"; }
             }
 
@@ -1013,7 +1017,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
                     entry.AnkiMessage = $"{added} Adding media…";
                     try
                     {
-                        var attached = await media.AttachAsync(noteId, state.Context.Sentence, screenshot?.Filename).ConfigureAwait(false);
+                        var attached = await media.AttachAsync(noteId, state.Context.Sentence, screenshot?.Filename, state.Context.LineId).ConfigureAwait(false);
                         attachedText = attached;
                         entry.AnkiMessage = attached.Length > 0 ? $"{added} {attached}" : added;
                         DiagnosticLog.Write("anki", $"Media attach for note {noteId}: {(attached.Length > 0 ? attached : "(nothing added)")}");
@@ -1174,7 +1178,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
             if (task.IsFaulted)
             {
                 state.Error = task.Exception?.GetBaseException().Message ?? "Lookup failed.";
-                DalamudServices.Log.Debug($"Lookup failed: {state.Error}");
+                DiagnosticLog.Fault("lookup", task.Exception!.GetBaseException(), "Lookup failed");
                 return;
             }
 

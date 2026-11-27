@@ -102,7 +102,7 @@ public sealed class WebViewPopupController : IDisposable
         if (config.UseWebViewPopup && PlatformSupported)
             StartInitialSync();
         else if (config.UseWebViewPopup && !PlatformSupported)
-            DiagnosticLog.Write("webview", $"Skipping WebView2 on {PlatformInfo.Current.DisplayName}; using built-in ImGui popup renderer.");
+            DiagnosticLog.Milestone("webview", $"Skipping WebView2 on {PlatformInfo.Current.DisplayName}; using built-in ImGui popup renderer.");
     }
 
     public HachidoriBundleManager Bundles { get; }
@@ -165,13 +165,13 @@ public sealed class WebViewPopupController : IDisposable
             (screenPos.Y - vp.Pos.Y) * lastScaleY);
     }
 
-    public void ShowLookup(string sentence, int charIndex, Vector2 anchorMinScreen, Vector2 anchorMaxScreen, string documentTitle, int tokenLength = 1)
+    public void ShowLookup(string sentence, int charIndex, Vector2 anchorMinScreen, Vector2 anchorMaxScreen, string documentTitle, int tokenLength = 1, long? lineId = null)
     {
         if (!Active) return;
         var vp = ImGui.GetMainViewport();
         var min = new Vector2((anchorMinScreen.X - vp.Pos.X) * lastScaleX, (anchorMinScreen.Y - vp.Pos.Y) * lastScaleY);
         var max = new Vector2((anchorMaxScreen.X - vp.Pos.X) * lastScaleX, (anchorMaxScreen.Y - vp.Pos.Y) * lastScaleY);
-        host!.ShowLookup(sentence, charIndex, min, max, documentTitle, tokenLength);
+        host!.ShowLookup(sentence, charIndex, min, max, documentTitle, tokenLength, lineId);
     }
 
     public void CloseAll() => host?.CloseAll();
@@ -583,7 +583,7 @@ public sealed class WebViewPopupController : IDisposable
             if (!WebViewPopupHost.IsRuntimeAvailable(out _))
             {
                 controllerError = "Microsoft Edge WebView2 Runtime is not installed.";
-                DiagnosticLog.Write("webview", "Microsoft Edge WebView2 Runtime not detected; falling back to ImGui popup renderer.");
+                DiagnosticLog.Milestone("webview", "Microsoft Edge WebView2 Runtime not detected; falling back to ImGui popup renderer.");
                 return;
             }
             try
@@ -595,7 +595,6 @@ public sealed class WebViewPopupController : IDisposable
                 host = new WebViewPopupHost(sessionFolder, bridge, Bundles, headless: false)
                 {
                     OnAudioPlaybackChanged = playing => getMedia()?.PluginAudio.SetExternalPlaying(playing),
-                    OnWarning = msg => DalamudServices.Log.Warning("HachidoriFfxiv: {Message}", msg),
                 };
                 if (controllerMode)
                     host.SetControllerMode(true);
@@ -616,7 +615,7 @@ public sealed class WebViewPopupController : IDisposable
             foreach (var dir in Directory.EnumerateDirectories(root, "run-*"))
                 TryDeleteDirectory(dir);
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Fault("webview", ex, "Could not prune old WebView2 session folders", DiagLevel.Info); }
     }
 
     private static void TryDeleteDirectory(string? path)
@@ -726,7 +725,7 @@ public sealed class WebViewPopupController : IDisposable
             var h = Process.GetCurrentProcess().MainWindowHandle;
             if (h != 0) return h;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Fault("webview", ex, "Could not read the game window handle"); }
         return 0;
     }
 

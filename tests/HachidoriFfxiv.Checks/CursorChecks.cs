@@ -127,5 +127,60 @@ static class CursorChecks
               && KeybindFormat.Format(0x05, false, false, false) == "Mouse 4"
               && KeybindFormat.Format(0x47, true, true, false) == "Ctrl + Shift + G",
             "keybind formatter labels F13, Mouse 4, and modifier chords cleanly");
+
+        // Hybrid dialogue backlog state machine (auto-fallback, auto-advance pinning, stepping, edge snapping).
+        check(ControllerBacklogState.ShouldAutoOpenOnEnter(true, hasLiveDialogue: false, hasNonHudWindow: false, backlogCount: 3),
+            "backlog auto-opens when entering controller mode with no live dialogue or non-HUD UI");
+        check(!ControllerBacklogState.ShouldAutoOpenOnEnter(true, hasLiveDialogue: true, hasNonHudWindow: false, backlogCount: 3)
+              && !ControllerBacklogState.ShouldAutoOpenOnEnter(true, hasLiveDialogue: false, hasNonHudWindow: true, backlogCount: 3)
+              && !ControllerBacklogState.ShouldAutoOpenOnEnter(true, hasLiveDialogue: false, hasNonHudWindow: false, backlogCount: 0)
+              && !ControllerBacklogState.ShouldAutoOpenOnEnter(false, hasLiveDialogue: false, hasNonHudWindow: false, backlogCount: 3),
+            "backlog does not auto-open over live dialogue, non-HUD UI, empty history, or when disabled");
+
+        check(ControllerBacklogState.ShouldPinOnLiveAdvance(true, trackedLiveLineId: 10, currentLiveDialogueId: 11, liveDialogueVisible: true)
+              && ControllerBacklogState.ShouldPinOnLiveAdvance(true, trackedLiveLineId: 10, currentLiveDialogueId: 10, liveDialogueVisible: false),
+            "live dialogue advancing or closing pins the tracked line in the backlog");
+        check(!ControllerBacklogState.ShouldPinOnLiveAdvance(true, trackedLiveLineId: 10, currentLiveDialogueId: 10, liveDialogueVisible: true)
+              && !ControllerBacklogState.ShouldPinOnLiveAdvance(false, trackedLiveLineId: 10, currentLiveDialogueId: 11, liveDialogueVisible: true)
+              && !ControllerBacklogState.ShouldPinOnLiveAdvance(true, trackedLiveLineId: 0, currentLiveDialogueId: 11, liveDialogueVisible: false),
+            "unchanged live dialogue or disabled pinning does not pin into backlog");
+
+        var backlog = new ControllerBacklogState();
+        long[] ids = [101, 102, 103];
+        check(!backlog.OpenAt([]), "opening backlog with empty history stays closed");
+        check(backlog.OpenAt(ids, offsetFromLatest: 1) && backlog.Open && backlog.SelectedLineId == 102 && !backlog.HasNewerSinceOpen,
+            "opening backlog at offset 1 selects the previous line");
+        check(backlog.ConsumePendingSnap(stops) == 0 && backlog.PendingSnap == BacklogSnapEdge.None,
+            "initial backlog open snaps to the first stop");
+
+        // Stepping older schedules BottomNearestX snap; stepping newer schedules TopNearestX snap.
+        check(backlog.Step(ids, -1, cursorX: 155f) && backlog.SelectedLineId == 101 && backlog.PendingSnap == BacklogSnapEdge.BottomNearestX,
+            "stepping older selects line -2 and snaps to its bottom row");
+        // In `stops`, block 0 has two rows (y=100..124, y=130..154) and block 1 has bottom row (y=300..324, x=170..230).
+        var twoRowStops = stops.Take(10).ToList();
+        check(backlog.ConsumePendingSnap(twoRowStops) == 7,
+            "BottomNearestX snap lands on the horizontally closest word on the last visual row");
+        check(!backlog.Step(ids, -1, cursorX: 155f) && backlog.SelectedLineId == 101,
+            "stepping older at the oldest line stays put");
+
+        // New line arrives while browsing older line -> HasNewerSinceOpen flips true.
+        long[] grown = [101, 102, 103, 104];
+        check(backlog.Sync(grown) == 0 && backlog.HasNewerSinceOpen,
+            "new captured lines flag HasNewerSinceOpen while keeping current line selected");
+
+        // Stepping down toward newer lines uses TopNearestX; reaching latest clears HasNewerSinceOpen.
+        check(backlog.Step(grown, 1, cursorX: 155f) && backlog.SelectedLineId == 102 && backlog.PendingSnap == BacklogSnapEdge.TopNearestX,
+            "stepping newer selects the next line and snaps to its top row");
+        check(backlog.ConsumePendingSnap(twoRowStops) == 2,
+            "TopNearestX snap lands on the horizontally closest word on the first visual row");
+        check(backlog.SelectLine(grown, 104) && backlog.SelectedLineId == 104 && !backlog.HasNewerSinceOpen && backlog.PendingSnap == BacklogSnapEdge.None,
+            "selecting the newest line via pointer clears HasNewerSinceOpen without forcing an edge snap");
+
+        // Pinned from advance and history trimming fallback.
+        check(backlog.OpenAt(grown, explicitLineId: 102, pinnedFromAdvance: true) && backlog.PinnedFromLiveLineId == 102 && backlog.HasNewerSinceOpen,
+            "opening pinned on an advanced line marks it pinned and notes newer dialogue");
+        long[] trimmed = [103, 104];
+        check(backlog.Sync(trimmed) == 0 && backlog.SelectedLineId == 103,
+            "trimming the selected line falls back cleanly to the oldest surviving line");
     }
 }

@@ -152,7 +152,35 @@ try
     DiagnosticLog.Write("test", "source failed https://user:secret@example.com/audio?key=secret");
     var logPath = DiagnosticLog.Export(logDirectory, new JsonObject { ["connected"] = true });
     var exported = File.ReadAllText(logPath);
-    Check(!exported.Contains("secret") && JsonNode.Parse(exported)!["events"]!.AsArray().Any(e => e!.ToString().Contains("<url>")), "debug log export redacts source URLs and credentials");
+    Check(!exported.Contains("secret") && JsonNode.Parse(exported)!["events"]!.AsArray().Any(e => (e is JsonObject o ? o["msg"]?.GetValue<string>() : e?.ToString())?.Contains("<url>") == true), "debug log export redacts source URLs and credentials");
+
+    var forwarded = new List<string>();
+    DiagnosticLog.Forward = (_, m) => forwarded.Add(m);
+    DiagnosticLog.StartSession(logDirectory, new JsonObject { ["plugin"] = "test+abc.dirty" });
+    DiagnosticLog.Milestone("test", "hooks installed");
+    DiagnosticLog.Write("test", "Offline sync failed: disk");
+    DiagnosticLog.Write("test", "Offline sync failed: disk");
+    DiagnosticLog.Write("test", "segment ok", DiagLevel.Debug, "op-1", 12.5);
+    for (var i = 0; i < 12; i++)
+    {
+        try { throw new InvalidOperationException("boom " + i); }
+        catch (Exception ex) { DiagnosticLog.Fault("test", ex, "Repeated failure"); }
+    }
+    for (var i = 0; i < 600; i++) DiagnosticLog.Write("noise", "tick", DiagLevel.Debug);
+    var session = DiagnosticLog.SessionFile!;
+    DiagnosticLog.StopSession();
+    DiagnosticLog.Forward = null;
+    var sessionLines = File.ReadAllLines(session);
+    var structured = JsonNode.Parse(File.ReadAllText(DiagnosticLog.Export(logDirectory, new JsonObject())))!;
+    Check(sessionLines[0].Contains("test+abc.dirty") && sessionLines.Any(l => l.Contains("\"op\":\"op-1\"") && l.Contains("\"ms\":12.5")),
+        "session log starts with the build stamp and keeps op ids and durations");
+    Check(structured["milestones"]!.AsArray().Any(e => e!["msg"]!.ToString() == "hooks installed")
+        && !structured["events"]!.AsArray().Any(e => e!["msg"]!.ToString() == "hooks installed"),
+        "startup milestones survive after the event ring evicts them");
+    Check(forwarded.Count(m => m.Contains("Offline sync failed")) == 1, "failure wording is forwarded to the host log once per cooldown");
+    var caught = structured["caughtExceptions"]!.AsArray().Single(c => c!["context"]!.ToString() == "Repeated failure")!;
+    Check(caught["count"]!.GetValue<int>() == 12 && sessionLines.Count(l => l.Contains("Repeated failure")) == 2,
+        "repeated exceptions are fingerprinted, counted, and logged at 1 and 10");
 }
 finally { Directory.Delete(logDirectory, recursive: true); }
 
@@ -573,6 +601,27 @@ static void CheckGameUiInterop(Action<bool, string> check)
     var (speakerEmpty, bodyEmpty) = HachidoriFfxiv.Capture.GameUiHeuristics.SelectTalkNodeIndices(emptyTransition);
     check(speakerEmpty == 0 && bodyEmpty == 1,
         "GameUiHeuristics keeps empty transition Talk body anchored instead of promoting speaker");
+
+    // Hidden body transition frame with wide speaker nameplate (e.g. エスティニアン, 140x32):
+    // body must remain anchored to the hidden multi-line box so speaker is never emitted as a phantom Talk line.
+    var hiddenBodyTransition = new HachidoriFfxiv.Capture.TalkTextNodeCandidate[]
+    {
+        new(0, 2, X: 20, Y: 10, Width: 140, Height: 32, Visible: true, MultiLine: false, WordWrap: false, HasText: true),
+        new(1, 3, X: 20, Y: 44, Width: 520, Height: 96, Visible: false, MultiLine: true, WordWrap: true, HasText: false),
+    };
+    var (speakerHidden, bodyHidden) = HachidoriFfxiv.Capture.GameUiHeuristics.SelectTalkNodeIndices(hiddenBodyTransition);
+    check(speakerHidden == 0 && bodyHidden == 1,
+        "GameUiHeuristics keeps hidden transition Talk body anchored instead of promoting wide speaker nameplate");
+
+    // Short 2-character speaker name (e.g. シド, Width < 40) must still resolve as speaker.
+    var shortSpeaker = new HachidoriFfxiv.Capture.TalkTextNodeCandidate[]
+    {
+        new(0, 2, X: 20, Y: 10, Width: 32, Height: 24, Visible: true, MultiLine: false, WordWrap: false, HasText: true),
+        new(1, 3, X: 20, Y: 44, Width: 520, Height: 96, Visible: true, MultiLine: true, WordWrap: true, HasText: true),
+    };
+    var (speakerShort, bodyShort) = HachidoriFfxiv.Capture.GameUiHeuristics.SelectTalkNodeIndices(shortSpeaker);
+    check(speakerShort == 0 && bodyShort == 1,
+        "GameUiHeuristics resolves short 2-character Talk speaker names (e.g. シド)");
 
     // Dynamic ChatLogPanel_* discovery supports 0..3 and future 4+.
     check(HachidoriFfxiv.Capture.GameUiHeuristics.TryParseChatPanelIndex("ChatLogPanel_0", out var p0) && p0 == 0

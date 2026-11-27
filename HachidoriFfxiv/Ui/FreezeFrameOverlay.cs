@@ -618,7 +618,11 @@ public sealed class FreezeFrameOverlay : Window, IDisposable
     private static bool IsGameKeyDown(VirtualKey vk)
     {
         try { return DalamudServices.KeyState.IsVirtualKeyValid(vk) && DalamudServices.KeyState[vk]; }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Fault("freeze-frame", ex, "Key state read failed; treating the key as up");
+            return false;
+        }
     }
 
     private static int PrimaryOsVk(FreezeHotkey key) => key switch

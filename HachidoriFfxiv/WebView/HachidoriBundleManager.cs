@@ -338,7 +338,7 @@ public sealed class HachidoriBundleManager : IDisposable
         if (changed)
         {
             catalogLoadedForPath = null;
-            DiagnosticLog.Write("webview-bundle", $"Activated Hachidori Web v{version} from {source} ({path})");
+            DiagnosticLog.Milestone("webview-bundle", $"Activated Hachidori Web v{version} from {source} ({path})");
             BundleChanged?.Invoke();
         }
     }
@@ -513,7 +513,11 @@ public sealed class HachidoriBundleManager : IDisposable
             var text = File.ReadAllText(manifestPath, Encoding.UTF8);
             return text.Contains("\"Hachidori\"", StringComparison.Ordinal);
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Fault("webview-bundle", ex, "Could not read an extension manifest; skipping that folder");
+            return false;
+        }
     }
 
     private async Task<(string Version, string Dir)> DownloadFromGitHubAsync(string? wantedVersion, CancellationToken ct)

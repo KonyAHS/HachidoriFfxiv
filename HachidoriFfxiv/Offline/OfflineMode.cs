@@ -89,13 +89,13 @@ public sealed class OfflineMode : IDisposable
             {
                 native = NativeEngine.LoadFrom(libraryDirectory);
                 engine = new LocalEngine(native, () => KanjiFurigana.Shared);
-                DiagnosticLog.Write("offline", $"Loaded {native.Version.Short}.");
+                DiagnosticLog.Milestone("offline", $"Loaded {native.Version.Short}.");
             }
             catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException
                                            or InvalidOperationException or OfflineEngineException or IOException)
             {
                 engineError = $"The offline engine could not load: {ex.Message}";
-                DiagnosticLog.Write("offline", engineError);
+                DiagnosticLog.Milestone("offline", engineError, DiagLevel.Warn);
             }
             return engine;
         }
@@ -115,9 +115,9 @@ public sealed class OfflineMode : IDisposable
             local.Load(plan);
             loaded = true;
             loadedState = state;
-            DiagnosticLog.Write("offline", $"Loaded {local.Loaded.Count} dictionaries ({local.DictionaryCount} kinds) in {(DateTime.UtcNow - started).TotalMilliseconds:0} ms; {local.Failures.Count} failed.");
+            DiagnosticLog.Milestone("offline", $"Loaded {local.Loaded.Count} dictionaries ({local.DictionaryCount} kinds) in {(DateTime.UtcNow - started).TotalMilliseconds:0} ms; {local.Failures.Count} failed.");
             foreach (var (dictionary, error) in local.Failures)
-                DalamudServices.Log.Warning($"Offline dictionary {dictionary.Title} did not load: {error}");
+                DiagnosticLog.Warn("offline", $"Offline dictionary {dictionary.Title} did not load: {error}");
         }
         Changed?.Invoke();
         return local;
@@ -189,8 +189,7 @@ public sealed class OfflineMode : IDisposable
         catch (Exception ex)
         {
             LastSyncError = ex.Message;
-            DiagnosticLog.Write("offline", $"Sync failed: {ex.Message}");
-            DalamudServices.Log.Warning(ex, "Offline dictionary sync failed");
+            DiagnosticLog.Fault("offline", ex, "Offline dictionary sync failed");
         }
     }
 
@@ -273,7 +272,7 @@ public sealed class OfflineMode : IDisposable
         link.SnapshotChanged -= OnSnapshotChanged;
         lifetime.Cancel();
         try { syncTask?.Wait(TimeSpan.FromSeconds(5)); }
-        catch (AggregateException) { }
+        catch (AggregateException ex) { DiagnosticLog.Fault("offline", ex.GetBaseException(), "Sync task faulted during shutdown"); }
         lock (engineGate)
         lock (gate)
         {

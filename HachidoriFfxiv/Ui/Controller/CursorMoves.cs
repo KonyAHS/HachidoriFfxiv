@@ -373,3 +373,200 @@ public sealed class ControllerScanState
         return ControllerScanPress.Close;
     }
 }
+
+public enum BacklogSnapEdge
+{
+    None,
+    FirstStop,
+    TopNearestX,
+    BottomNearestX,
+}
+
+/// <summary>
+/// Pure selection, auto-fallback, and auto-advance pinning state for the controller dialogue backlog.
+/// Kept free of ImGui/Dalamud types so every transition is covered by unit tests.
+/// </summary>
+public sealed class ControllerBacklogState
+{
+    private long openedLatestId;
+
+    public bool Open { get; private set; }
+    public long SelectedLineId { get; private set; }
+    public bool AutoOpened { get; private set; }
+    public long? PinnedFromLiveLineId { get; private set; }
+    public bool HasNewerSinceOpen { get; private set; }
+    public BacklogSnapEdge PendingSnap { get; private set; }
+    public float PendingSnapX { get; private set; }
+
+    /// <summary>True when entering controller mode should land directly in the backlog instead of HUD widgets.</summary>
+    public static bool ShouldAutoOpenOnEnter(bool autoOpenEnabled, bool hasLiveDialogue, bool hasNonHudWindow, int backlogCount) =>
+        autoOpenEnabled && !hasLiveDialogue && !hasNonHudWindow && backlogCount > 0;
+
+    /// <summary>True when FFXIV advanced or closed a live dialogue line while the user was actively scanning it.</summary>
+    public static bool ShouldPinOnLiveAdvance(bool pinEnabled, long trackedLiveLineId, long? currentLiveDialogueId, bool liveDialogueVisible) =>
+        pinEnabled && trackedLiveLineId > 0 && (!liveDialogueVisible || (currentLiveDialogueId is { } cur && cur != trackedLiveLineId));
+
+    /// <summary>Opens the backlog at an offset back from the newest line (0 = latest, 1 = previous), or at an explicit line id.</summary>
+    public bool OpenAt(
+        IReadOnlyList<long> lineIds,
+        int offsetFromLatest = 0,
+        long? explicitLineId = null,
+        bool autoOpened = false,
+        bool pinnedFromAdvance = false,
+        BacklogSnapEdge snap = BacklogSnapEdge.FirstStop,
+        float snapX = 0f)
+    {
+        if (lineIds.Count == 0)
+            return false;
+
+        var chosenIndex = -1;
+        if (explicitLineId is { } targetId)
+        {
+            for (var i = lineIds.Count - 1; i >= 0; i--)
+            {
+                if (lineIds[i] == targetId)
+                {
+                    chosenIndex = i;
+                    break;
+                }
+            }
+        }
+        if (chosenIndex < 0)
+            chosenIndex = Math.Clamp(lineIds.Count - 1 - Math.Max(0, offsetFromLatest), 0, lineIds.Count - 1);
+
+        Open = true;
+        SelectedLineId = lineIds[chosenIndex];
+        openedLatestId = lineIds[^1];
+        AutoOpened = autoOpened;
+        PinnedFromLiveLineId = pinnedFromAdvance ? SelectedLineId : null;
+        HasNewerSinceOpen = pinnedFromAdvance && SelectedLineId != openedLatestId;
+        PendingSnap = snap;
+        PendingSnapX = snapX;
+        return true;
+    }
+
+    public void Close()
+    {
+        Open = false;
+        SelectedLineId = 0;
+        openedLatestId = 0;
+        AutoOpened = false;
+        PinnedFromLiveLineId = null;
+        HasNewerSinceOpen = false;
+        PendingSnap = BacklogSnapEdge.None;
+        PendingSnapX = 0f;
+    }
+
+    /// <summary>Keeps selection valid as new lines arrive or old lines trim out. Returns the selected index or -1 if closed.</summary>
+    public int Sync(IReadOnlyList<long> lineIds)
+    {
+        if (!Open)
+            return -1;
+        if (lineIds.Count == 0)
+        {
+            Close();
+            return -1;
+        }
+
+        if (lineIds[^1] > openedLatestId)
+            HasNewerSinceOpen = true;
+
+        for (var i = lineIds.Count - 1; i >= 0; i--)
+        {
+            if (lineIds[i] == SelectedLineId)
+                return i;
+        }
+
+        // The previously selected line was trimmed from history; fall back to the oldest surviving line.
+        SelectedLineId = lineIds[0];
+        PendingSnap = BacklogSnapEdge.FirstStop;
+        return 0;
+    }
+
+    /// <summary>Steps to an older (-1) or newer (+1) dialogue entry, scheduling an edge snap at <paramref name="cursorX"/>.</summary>
+    public bool Step(IReadOnlyList<long> lineIds, int delta, float cursorX)
+    {
+        if (!Open || lineIds.Count == 0 || delta == 0)
+            return false;
+
+        var idx = Sync(lineIds);
+        if (idx < 0)
+            return false;
+
+        var next = Math.Clamp(idx + Math.Sign(delta), 0, lineIds.Count - 1);
+        if (next == idx)
+            return false;
+
+        SelectedLineId = lineIds[next];
+        PendingSnap = delta < 0 ? BacklogSnapEdge.BottomNearestX : BacklogSnapEdge.TopNearestX;
+        PendingSnapX = cursorX;
+        if (next == lineIds.Count - 1)
+        {
+            openedLatestId = lineIds[^1];
+            HasNewerSinceOpen = false;
+            PinnedFromLiveLineId = null;
+        }
+        return true;
+    }
+
+    /// <summary>Selects a specific visible line (e.g. from pointer glide or click) without forcing an edge snap.</summary>
+    public bool SelectLine(IReadOnlyList<long> lineIds, long lineId)
+    {
+        if (!Open || lineIds.Count == 0 || lineId == SelectedLineId)
+            return false;
+        for (var i = lineIds.Count - 1; i >= 0; i--)
+        {
+            if (lineIds[i] == lineId)
+            {
+                SelectedLineId = lineId;
+                PendingSnap = BacklogSnapEdge.None;
+                if (i == lineIds.Count - 1)
+                {
+                    openedLatestId = lineIds[^1];
+                    HasNewerSinceOpen = false;
+                    PinnedFromLiveLineId = null;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Consumes any pending snap and picks the matching stop index in the selected line.</summary>
+    public int? ConsumePendingSnap(IReadOnlyList<CursorStop> stops)
+    {
+        var edge = PendingSnap;
+        if (edge == BacklogSnapEdge.None || stops.Count == 0)
+            return null;
+
+        PendingSnap = BacklogSnapEdge.None;
+        if (edge == BacklogSnapEdge.FirstStop)
+            return 0;
+
+        var targetY = edge == BacklogSnapEdge.TopNearestX
+            ? float.MaxValue
+            : float.MinValue;
+        for (var i = 0; i < stops.Count; i++)
+        {
+            var y = stops[i].Center.Y;
+            if (edge == BacklogSnapEdge.TopNearestX ? y < targetY : y > targetY)
+                targetY = y;
+        }
+
+        var best = 0;
+        var bestDx = float.MaxValue;
+        for (var i = 0; i < stops.Count; i++)
+        {
+            var s = stops[i];
+            if (MathF.Abs(s.Center.Y - targetY) > MathF.Max(2f, s.Height * 0.5f))
+                continue;
+            var dx = MathF.Abs(s.Center.X - PendingSnapX);
+            if (dx < bestDx)
+            {
+                bestDx = dx;
+                best = i;
+            }
+        }
+        return best;
+    }
+}

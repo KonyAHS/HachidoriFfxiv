@@ -32,8 +32,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     {
         this.config = config;
         Link = new HachidoriLink(() => new UriBuilder("ws", config.RelayHost, config.RelayPort, "/link").Uri,
-            ex => DalamudServices.Log.Warning(ex, "Dropped a sharing frame"),
-            logWarning: msg => DalamudServices.Log.Warning("HachidoriFfxiv: {Message}", msg));
+            ex => DiagnosticLog.Fault("relay", ex, "Dropped a sharing frame"));
         Link.SnapshotChanged += OnSnapshotChanged;
         Link.ConnectionChanged += OnConnectionChanged;
         live = new LiveBackend(Link, http, () => $"http://{config.RelayHost}:{config.ApiPort}/");
@@ -132,11 +131,12 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     private async Task<IReadOnlyList<WordSpan>> SegmentUncachedAsync(string text)
     {
         var backend = Backend;
+        var started = DiagnosticLog.Now();
         var personal = config.UsePersonalDictionary && OptionBool("personalDictionaryEnabled", true);
         if (text.IndexOfAny(['\r', '\n']) < 0)
         {
             var direct = await backend.SegmentAsync(HachidoriPayloads.Segment(text, config.ScanLength, personal), text).ConfigureAwait(false);
-            DiagnosticLog.Write("segment", $"characters={text.Length}, words={direct.Count}, live={backend.IsLive}");
+            DiagnosticLog.Write("segment", $"characters={text.Length}, words={direct.Count}, backend={backend.Name}", DiagLevel.Debug, ms: DiagnosticLog.MsSince(started));
             return direct;
         }
 
@@ -173,15 +173,16 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
             var srcEnd = toSource[span.End - 1] + 1;
             mapped.Add(new WordSpan(srcStart, srcEnd - srcStart));
         }
-        DiagnosticLog.Write("segment", $"characters={text.Length}, words={mapped.Count}, live={backend.IsLive}");
+        DiagnosticLog.Write("segment", $"characters={text.Length}, words={mapped.Count}, backend={backend.Name}", DiagLevel.Debug, ms: DiagnosticLog.MsSince(started));
         return mapped;
     }
 
     public async Task<byte[]?> GetImageAsync(string dictionary, string path, long generation, CancellationToken ct)
     {
         var backend = Backend;
+        var started = DiagnosticLog.Now();
         var bytes = await backend.MediaAsync(dictionary, path, generation, ct).ConfigureAwait(false);
-        DiagnosticLog.Write("image", $"generation={generation}, bytes={bytes?.Length ?? 0}, live={backend.IsLive}");
+        DiagnosticLog.Write("image", $"generation={generation}, bytes={bytes?.Length ?? 0}, backend={backend.Name}", DiagLevel.Debug, ms: DiagnosticLog.MsSince(started));
         return bytes;
     }
 
@@ -369,12 +370,24 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     public async Task<AnkiDecision> AnkiSubmitAsync(JsonObject request, ScreenshotMedia? screenshot = null)
     {
-        if (UsingOffline && offlineAnki is not null)
-            return await offlineAnki.SubmitAsync(request, screenshot).ConfigureAwait(false);
-        DiagnosticLog.Write("anki", $"Submitting note with explicit client-media envelope (screenshot={screenshot is not null}).");
-        var reply = await Link.RequestAsync(AnkiTarget, "hd_anki_submit", HachidoriPayloads.Submit(request, screenshot))
-            .ConfigureAwait(false);
-        return ParseDecision(reply);
+        var op = DiagnosticLog.NewOp("mine");
+        var started = DiagnosticLog.Now();
+        var route = UsingOffline && offlineAnki is not null ? "offline" : "relay";
+        DiagnosticLog.Write("anki", $"Submitting note via {route} (screenshot={screenshot is not null}, template={NullIfBlank(config.AnkiTemplateId) ?? "host default"}).", DiagLevel.Info, op);
+        try
+        {
+            var decision = route == "offline"
+                ? await offlineAnki!.SubmitAsync(request, screenshot).ConfigureAwait(false)
+                : ParseDecision(await Link.RequestAsync(AnkiTarget, "hd_anki_submit", HachidoriPayloads.Submit(request, screenshot)).ConfigureAwait(false));
+            DiagnosticLog.Write("anki", $"Submit finished: state={decision.State}, notes={decision.NoteIds.Length}, error={decision.Error ?? "none"}",
+                decision.Error is null ? DiagLevel.Info : DiagLevel.Warn, op, DiagnosticLog.MsSince(started));
+            return decision;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("anki", $"Submit threw {ex.GetType().Name}: {ex.Message}", DiagLevel.Warn, op, DiagnosticLog.MsSince(started));
+            throw;
+        }
     }
 
     public async Task AnkiBrowseAsync(long[] noteIds, string expression, string? configKey, string? templateId = null)
@@ -433,8 +446,9 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     private async Task<byte[]?> FetchAudioAsync(string expression, string reading)
     {
         var backend = Backend;
+        var started = DiagnosticLog.Now();
         var data = await backend.AudioAsync(expression, reading).ConfigureAwait(false);
-        DiagnosticLog.Write("audio", $"Audio sources resolved; live={backend.IsLive}, returnedBytes={data?.Length ?? 0}");
+        DiagnosticLog.Write("audio", $"Audio sources resolved; backend={backend.Name}, returnedBytes={data?.Length ?? 0}", ms: DiagnosticLog.MsSince(started), level: DiagLevel.Info);
         return data;
     }
 
@@ -451,4 +465,4 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 }
 
 /// <summary>Where a scan came from: the game line it belongs to, for Anki's {sentence} and friends.</summary>
-public sealed record ScanContext(string Sentence, int MatchOffset, string DocumentTitle);
+public sealed record ScanContext(string Sentence, int MatchOffset, string DocumentTitle, long? LineId = null);

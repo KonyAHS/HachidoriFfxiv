@@ -33,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly StatsTracker stats;
     private readonly FfxivMsqResolver msqResolver;
     private readonly AnkiCardFeed ankiFeed;
+    private readonly DialogueBacklog backlog;
     private readonly GamepadNavigator gamepad;
     private readonly FreezeFrameOverlay freezeFrame;
     private readonly ReaderWindow reader;
@@ -43,7 +44,12 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
         DalamudServices.Initialize(pluginInterface);
-        DiagnosticLog.Write("plugin", $"Starting plugin on {PlatformInfo.Current.DisplayName} (wine={PlatformInfo.Current.IsWine}, steamDeck={PlatformInfo.Current.IsSteamDeck}, gamescope={PlatformInfo.Current.IsGamescope}, dcomp={PlatformInfo.Current.IsDirectCompositionAvailable}).");
+        DiagnosticLog.Forward = ForwardToDalamudLog;
+        DiagnosticLog.StartSession(
+            System.IO.Path.Combine(DalamudServices.PluginInterface.GetPluginConfigDirectory(), "logs"),
+            BuildStamp.Collect(pluginInterface));
+        DiagnosticLog.CaptureUnobservedTasks(true);
+        DiagnosticLog.Milestone("plugin", $"Starting plugin on {PlatformInfo.Current.DisplayName} (wine={PlatformInfo.Current.IsWine}, steamDeck={PlatformInfo.Current.IsSteamDeck}, gamescope={PlatformInfo.Current.IsGamescope}, dcomp={PlatformInfo.Current.IsDirectCompositionAvailable}).");
         // Floating subtitles are shown in cutscenes, when Dalamud normally hides
         // plugin drawing. Keep dictionary popups usable there; retain user/Gpose hiding.
         DalamudServices.PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
@@ -100,7 +106,8 @@ public sealed class Plugin : IDalamudPlugin
             _ => { if (configWindow is not null) configWindow.IsOpen = true; });
         popups.WebView = webView;
         nativeHover.ChatLinesChanged += OnChatLinesChanged;
-        gamepad = new GamepadNavigator(config, popups, nativeHover, service);
+        backlog = new DialogueBacklog(config, capture, media, popups, service, audio, fonts);
+        gamepad = new GamepadNavigator(config, popups, nativeHover, service, capture, backlog);
         reader = new ReaderWindow(config, capture, popups, fonts);
         search = new SearchWindow(config, popups, fonts);
         freezeFrame = new FreezeFrameOverlay(config, nativeHover, service, popups, text => search.SetText(text));
@@ -151,7 +158,7 @@ public sealed class Plugin : IDalamudPlugin
                     return migrated;
                 }
             }
-            catch (System.Exception ex) { DalamudServices.Log.Warning(ex, "Could not migrate the previous plugin settings."); }
+            catch (System.Exception ex) { DiagnosticLog.Fault("plugin", ex, "Could not migrate the previous plugin settings"); }
         }
         return new Configuration();
     }
@@ -212,6 +219,10 @@ public sealed class Plugin : IDalamudPlugin
             case "controller":
                 gamepad.Toggle();
                 return;
+            case "backlog":
+            case "history":
+                gamepad.ToggleBacklog();
+                return;
             case "freeze":
             case "tooltip":
             case "tooltips":
@@ -225,10 +236,15 @@ public sealed class Plugin : IDalamudPlugin
                 PrintDiagnostics();
                 return;
             case "help":
-                DalamudServices.ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori diag · /hachidori logs");
+                DalamudServices.ChatGui.Print("Hachidori for FFXIV: /hachidori (settings) · /hachidori <text> · /hachidori freeze (tooltips) · /hachidori stats · /hachidori reader · /hachidori search · /hachidori pictures · /hachidori pad (controller) · /hachidori backlog (history) · /hachidori diag · /hachidori logs");
                 return;
             case "logs":
-                try { DalamudServices.ChatGui.Print($"Hachidori for FFXIV debug log: {ExportLogs()}"); }
+                try
+                {
+                    DalamudServices.ChatGui.Print($"Hachidori for FFXIV debug log: {ExportLogs()}");
+                    if (DiagnosticLog.SessionFile is { } sessionLog)
+                        DalamudServices.ChatGui.Print($"Hachidori for FFXIV session log (survives crashes): {sessionLog}");
+                }
                 catch (System.Exception ex) { DalamudServices.ChatGui.PrintError($"Hachidori for FFXIV log export failed: {ex.Message}"); }
                 return;
             default:
@@ -253,13 +269,17 @@ public sealed class Plugin : IDalamudPlugin
         capture.Dispose();
         nativeHover.Dispose();
         gamepad.Dispose();
+        backlog.Dispose();
         popups.Dispose();
         media.Dispose();
         audio.Dispose();
         fonts.Dispose();
         service.Dispose();
         offline?.Dispose();
-        DiagnosticLog.Write("plugin", "Plugin stopped.");
+        DiagnosticLog.Milestone("plugin", "Plugin stopped.");
+        DiagnosticLog.CaptureUnobservedTasks(false);
+        DiagnosticLog.Forward = null;
+        DiagnosticLog.StopSession();
     }
 
     private void PrintDiagnostics()
@@ -297,6 +317,12 @@ public sealed class Plugin : IDalamudPlugin
             DalamudServices.ChatGui.Print(line);
             DiagnosticLog.Write("diag", line);
         }
+    }
+
+    private static void ForwardToDalamudLog(DiagLevel level, string message)
+    {
+        if (level >= DiagLevel.Error) DalamudServices.Log.Error("HachidoriFfxiv {Message}", message);
+        else DalamudServices.Log.Warning("HachidoriFfxiv {Message}", message);
     }
 
     private string ExportLogs()

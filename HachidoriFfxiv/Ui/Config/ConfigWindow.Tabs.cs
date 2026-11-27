@@ -693,6 +693,11 @@ public sealed partial class ConfigWindow
                 DrawControllerScanButtonControl();
             }
             Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v);
+            Checkbox("Open dialogue backlog when no dialogue is on screen", () => config.ControllerAutoOpenBacklog, v => config.ControllerAutoOpenBacklog = v);
+            HelpMarker("Entering controller mode right after a cutscene or battle-talk line ends opens the backlog on the latest line with its cached screenshot, voice, and clip.");
+            Checkbox("Pin current line if dialogue advances mid-lookup", () => config.ControllerPinOnAdvance, v => config.ControllerPinOnAdvance = v);
+            HelpMarker("If an auto-advancing cutscene moves to the next line while you are scanning, keeps your word cursor and popup pinned on that line in the backlog.");
+            Checkbox("Include captured chat lines in dialogue backlog", () => config.ControllerBacklogIncludeChat, v => config.ControllerBacklogIncludeChat = v);
             Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
             Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
             Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
@@ -725,6 +730,8 @@ public sealed partial class ConfigWindow
             BindCombo("Next entry", () => config.ControllerNextEntryButton, v => config.ControllerNextEntryButton = v);
             BindCombo("Look up inside popup", () => config.ControllerDiveButton, v => config.ControllerDiveButton = v);
             BindCombo("Cycle UI window", () => config.ControllerWindowButton, v => config.ControllerWindowButton = v);
+            BindCombo("Dialogue backlog", () => config.ControllerHistoryButton, v => config.ControllerHistoryButton = v);
+            BindCombo("Replay line voice", () => config.ControllerReplayVoiceButton, v => config.ControllerReplayVoiceButton = v);
 
             if (ImGui.SmallButton("Reset keybinds only"))
             {
@@ -738,6 +745,8 @@ public sealed partial class ConfigWindow
                 config.ControllerNextEntryButton = Defaults.ControllerNextEntryButton;
                 config.ControllerDiveButton = Defaults.ControllerDiveButton;
                 config.ControllerWindowButton = Defaults.ControllerWindowButton;
+                config.ControllerHistoryButton = Defaults.ControllerHistoryButton;
+                config.ControllerReplayVoiceButton = Defaults.ControllerReplayVoiceButton;
                 config.Save();
             }
         }
@@ -757,7 +766,9 @@ public sealed partial class ConfigWindow
             rows.Add((L(config.ControllerAudioButton), "play its pronunciation"));
             rows.Add(($"{L(config.ControllerPrevEntryButton)} / {L(config.ControllerNextEntryButton)}", "previous / next dictionary entry"));
             rows.Add((L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"));
-            rows.Add((L(config.ControllerWindowButton), "cycle between open UI windows (or back out of a nested popup)"));
+            rows.Add((L(config.ControllerWindowButton), "cycle between open UI windows (or return to game UI from the backlog)"));
+            rows.Add((L(config.ControllerHistoryButton), "toggle the dialogue backlog to mine previous lines (or push D-pad up at the top of dialogue)"));
+            rows.Add((L(config.ControllerReplayVoiceButton), "replay the captured voice clip for the selected dialogue line"));
             rows.Add((L(config.ControllerWordModeButton), "switch between words and characters"));
             rows.Add((L(config.ControllerBackExitButton), config.ControllerAutoScan
                 ? "back out of a nested popup, or leave the mode"

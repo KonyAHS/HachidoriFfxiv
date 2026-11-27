@@ -44,7 +44,7 @@
     <Compile Include="../../HachidoriFfxiv/Media/Video/GifEncoder.cs" Link="Media/Video/GifEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/Video/AnimationEncoder.cs" Link="Media/Video/AnimationEncoder.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/Translation/TranslationPrompt.cs" Link="Media/Translation/TranslationPrompt.cs" />
-    <Compile Include="../../HachidoriFfxiv/Ui/CursorMoves.cs" Link="Ui/CursorMoves.cs" />
+    <Compile Include="../../HachidoriFfxiv/Ui/Controller/CursorMoves.cs" Link="Ui/CursorMoves.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/AnkiConnect.cs" Link="Media/AnkiConnect.cs" />
     <Compile Include="../../HachidoriFfxiv/Media/Voice/GameAudioRecorder.cs" Link="Media/Voice/GameAudioRecorder.cs" />
     <Compile Include="../../HachidoriFfxiv/Stats/*.cs" Exclude="../../HachidoriFfxiv/Stats/FfxivMsqResolver.cs" Link="Stats/%(Filename)%(Extension)" />

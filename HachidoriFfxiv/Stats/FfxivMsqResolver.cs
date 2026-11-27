@@ -53,7 +53,7 @@ public sealed class FfxivMsqResolver
                 var built = BuildIndex();
                 index = built;
                 loadError = null;
-                DiagnosticLog.Write("stats", $"Indexed {built.Quests.Count} live FFXIV MSQ quests ({built.TotalMsqChars:N0} Japanese dialogue chars).");
+                DiagnosticLog.Milestone("stats", $"Indexed {built.Quests.Count} live FFXIV MSQ quests ({built.TotalMsqChars:N0} Japanese dialogue chars).");
             }
             catch (Exception ex)
             {

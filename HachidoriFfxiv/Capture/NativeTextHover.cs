@@ -88,6 +88,9 @@ public sealed unsafe class NativeTextHover : IDisposable
     /// <summary>Set while controller mode is on: read all visible dialogue text, not only the text under the mouse.</summary>
     public bool ControllerScan { get; set; }
 
+    /// <summary>True once <see cref="Update"/> has produced a snapshot with <see cref="ControllerScan"/> enabled.</summary>
+    public bool HasControllerScanSnapshot { get; private set; }
+
     public string? LastError { get; private set; }
     public int RegionCount => regions.Length;
     public bool SubtitleVisible { get; private set; }
@@ -215,6 +218,7 @@ public sealed unsafe class NativeTextHover : IDisposable
                 ReadChat(null, next, visited, seen, ignoreMouse: false);
             }
             regions = next.Count == 0 ? [] : next.ToArray();
+            HasControllerScanSnapshot = ControllerScan;
             if (cache.Count > 0)
             {
                 staleKeys.Clear();
@@ -232,8 +236,7 @@ public sealed unsafe class NativeTextHover : IDisposable
             if ((DateTime.UtcNow - lastError).TotalSeconds > 10)
             {
                 lastError = DateTime.UtcNow;
-                DiagnosticLog.Write("native-hover", ex.Message);
-                DalamudServices.Log.Warning(ex, "Native text hover skipped a frame");
+                DiagnosticLog.Fault("native-hover", ex, "Native text hover skipped a frame");
             }
         }
     }

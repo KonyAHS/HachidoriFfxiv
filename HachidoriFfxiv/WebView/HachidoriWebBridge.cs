@@ -66,9 +66,9 @@ public interface IHachidoriWebBackend
         }).ToArray();
         return Task.WhenAll(tasks);
     }
-    Task<ScreenshotMedia?> CaptureScreenshotAsync(CancellationToken ct);
+    Task<ScreenshotMedia?> CaptureScreenshotAsync(long? lineId, string? sentence, CancellationToken ct);
     Task<JsonObject> SubmitAnkiAsync(JsonObject request, ScreenshotMedia? screenshot, CancellationToken ct);
-    Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, CancellationToken ct);
+    Task<string?> AttachPostMineMediaAsync(long noteId, string sentence, string? screenshotFilename, long? lineId, CancellationToken ct);
     void RecordLookup(JsonObject lookupReply);
     void RecordMinedCard(long noteId, JsonObject miningRequest, string sentence, bool hasScreenshot);
 }
@@ -89,19 +89,19 @@ public sealed class HachidoriWebBridge
     private readonly object miningContextLock = new();
     private readonly List<JsonArray> recentLookupResults = [];
     private const int MaxCachedLookups = 8;
-    private (string Sentence, int CharIndex)? activeLookupContext;
+    private (string Sentence, int CharIndex, long? LineId)? activeLookupContext;
     private CancellationTokenSource? activePreflightCts;
     private string? lastProjectedOptionsJson;
     private int lastProjectedRevision;
 
     /// <summary>Records the full FFXIV text box for the active root WebView lookup so Anki mining preserves the entire line.</summary>
-    public void SetActiveLookupContext(string sentence, int charIndex)
+    public void SetActiveLookupContext(string sentence, int charIndex, long? lineId = null)
     {
         lock (miningContextLock)
         {
             activeLookupContext = string.IsNullOrEmpty(sentence)
                 ? null
-                : (sentence, Math.Clamp(charIndex, 0, sentence.Length));
+                : (sentence, Math.Clamp(charIndex, 0, sentence.Length), lineId);
         }
     }
 
@@ -413,13 +413,20 @@ public sealed class HachidoriWebBridge
         }
     }
 
+    private (string Sentence, int CharIndex, long? LineId)? SnapshotLookupContext()
+    {
+        lock (miningContextLock)
+            return activeLookupContext;
+    }
+
     private async Task<JsonObject> HandleScreenshotAsync(CancellationToken ct)
     {
         var opts = getOptions();
         if (!opts.CaptureScreenshot || !backend.CanCaptureScreenshot)
             return new JsonObject { ["ok"] = false, ["error"] = "FFXIV screenshot capture is disabled." };
 
-        var shot = await backend.CaptureScreenshotAsync(ct).ConfigureAwait(false);
+        var ctx = SnapshotLookupContext();
+        var shot = await backend.CaptureScreenshotAsync(ctx?.LineId, ctx?.Sentence, ct).ConfigureAwait(false);
         if (shot is null)
             return new JsonObject { ["ok"] = false, ["error"] = "No game frame is available yet." };
 
@@ -438,15 +445,21 @@ public sealed class HachidoriWebBridge
         var request = message["request"] as JsonObject
             ?? throw new InvalidOperationException("Anki submission is missing its request payload.");
         var copy = (JsonObject)request.DeepClone();
+        var ctx = SnapshotLookupContext();
         EnrichMiningRequest(copy);
         ApplyMediaCapabilities(copy, opts);
+
+        var submitSentence = copy["sentence"]?.ToString() ?? string.Empty;
+        var lineId = ctx is { } c && (string.IsNullOrEmpty(submitSentence) || string.Equals(c.Sentence, submitSentence, StringComparison.Ordinal))
+            ? c.LineId
+            : null;
 
         ScreenshotMedia? screenshot = null;
         if (copy["screenshot"]?["token"]?.ToString() is { Length: > 0 } token)
             pendingScreenshots.TryRemove(token, out screenshot);
 
         if (screenshot is null && opts.CaptureScreenshot && backend.CanCaptureScreenshot && copy["screenshot"] is JsonObject)
-            screenshot = await backend.CaptureScreenshotAsync(ct).ConfigureAwait(false);
+            screenshot = await backend.CaptureScreenshotAsync(lineId, submitSentence, ct).ConfigureAwait(false);
 
         var reply = await backend.SubmitAnkiAsync(copy, screenshot, ct).ConfigureAwait(false);
 
@@ -459,12 +472,12 @@ public sealed class HachidoriWebBridge
 
         if ((state is "added" or "updated") && noteId > 0)
         {
-            var sentence = copy["sentence"]?.ToString() ?? string.Empty;
+            var sentence = submitSentence;
             if (backend.CanAttachMedia)
             {
                 try
                 {
-                    var mediaSummary = await backend.AttachPostMineMediaAsync(noteId, sentence, screenshot?.Filename, ct).ConfigureAwait(false);
+                    var mediaSummary = await backend.AttachPostMineMediaAsync(noteId, sentence, screenshot?.Filename, lineId, ct).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(mediaSummary))
                     {
                         var warnings = reply["warnings"] as JsonArray ?? new JsonArray();
@@ -518,9 +531,7 @@ public sealed class HachidoriWebBridge
 
     private void RestoreFullSentence(JsonObject request)
     {
-        (string Sentence, int CharIndex)? ctx;
-        lock (miningContextLock)
-            ctx = activeLookupContext;
+        var ctx = SnapshotLookupContext();
         if (ctx is not { } active || active.Sentence.Length == 0)
             return;
 

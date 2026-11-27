@@ -103,6 +103,17 @@
     </Task>
   </UsingTask>
 
+  <!-- Marks builds from a modified working tree (2.0.4+<commit>.dirty) so a debug log names the exact source. -->
+  <Target Name="StampDirtyWorkingTree" AfterTargets="InitializeSourceControlInformation" Condition="'$(SourceRevisionId)' != ''">
+    <Exec Command="git status --porcelain --untracked-files=no" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitDirtyOutput" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitDirtyExit" />
+    </Exec>
+    <PropertyGroup Condition="'$(_GitDirtyExit)' == '0' and '$(_GitDirtyOutput)' != ''">
+      <SourceRevisionId>$(SourceRevisionId).dirty</SourceRevisionId>
+    </PropertyGroup>
+  </Target>
+
   <Target Name="RemoveUnusedWebView2UiRefs" BeforeTargets="ResolveAssemblyReferences">
     <ItemGroup>
       <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf' or '%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
