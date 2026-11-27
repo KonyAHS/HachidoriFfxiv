@@ -35,7 +35,7 @@ public static partial class AnkiFields
     ];
 
     /// <summary>Markers whose values offline mining cannot produce yet; a template using one stays live-only.</summary>
-    public static readonly HashSet<string> UnsupportedOffline = ["pitch-accent-graphs", "pitch-accent-graphs-jj"];
+    public static readonly HashSet<string> UnsupportedOffline = [];
 
     private static readonly Dictionary<string, string> MarkerAliases = new() { ["pitch-accent"] = "pitch", ["pitch-accents"] = "pitch" };
     private static readonly HashSet<string> Markers = CoreMarkers.Select(m => m.ToLowerInvariant()).Concat(MarkerAliases.Keys).ToHashSet();
@@ -236,6 +236,8 @@ public static partial class AnkiFields
             ["pitch-position"] = () => string.Join(", ", pitches.SelectMany(g => (g["pitches"] as JsonArray ?? []).OfType<JsonObject>())
                 .Select(PitchDownstep).Distinct()),
             ["pitch-accent-categories"] = () => PitchCategories(expression, reading, Str(term["rules"]), pitches),
+            ["pitch-accent-graphs"] = () => PitchAccentGraph.Render(reading.Length > 0 ? reading : expression, pitches, showMoraText: false),
+            ["pitch-accent-graphs-jj"] = () => PitchAccentGraph.Render(reading.Length > 0 ? reading : expression, pitches, showMoraText: true),
             ["audio"] = () => audio,
             ["screenshot"] = () => Screenshot(request),
             ["sentence-audio"] = () => request["sentenceAudio"]?["filename"] is JsonValue f && Str(f).Length > 0 && !Unavailable(request, "sentence-audio")

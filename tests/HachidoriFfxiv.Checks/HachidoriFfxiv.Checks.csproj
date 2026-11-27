@@ -28,6 +28,7 @@
     <Compile Include="../../HachidoriFfxiv/Host/DiagnosticLog.cs" Link="Host/DiagnosticLog.cs" />
     <Compile Include="../../HachidoriFfxiv/Capture/GameUiHeuristics.cs" Link="Capture/GameUiHeuristics.cs" />
     <Compile Include="../../HachidoriFfxiv/Host/PlatformInfo.cs" Link="Host/PlatformInfo.cs" />
+    <Compile Include="../../HachidoriFfxiv/Host/PerformanceModel.cs" Link="Host/PerformanceModel.cs" />
     <Compile Include="../../HachidoriFfxiv/Host/Ffmpeg.cs" Link="Host/Ffmpeg.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/IAudioPlaybackObserver.cs" Link="Audio/IAudioPlaybackObserver.cs" />
     <Compile Include="../../HachidoriFfxiv/Audio/PronunciationDecoder.cs" Link="PronunciationDecoder.cs" />

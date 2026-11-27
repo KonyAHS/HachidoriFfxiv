@@ -22,6 +22,191 @@ namespace HachidoriFfxiv.Ui;
 
 public sealed partial class ConfigWindow
 {
+    // -------------------------------------------------------------- consolidated & performance controls
+
+    /// <summary>Combines UseWebViewPopup + FollowHachidoriTheme into one clear renderer selector.</summary>
+    private void DrawPopupRendererControl()
+    {
+        var choices = new[] { "Hachidori Web (WebView2)", "Built-in (Themed)", "Built-in (Minimal)" };
+        var idx = config.UseWebViewPopup && config.FollowHachidoriTheme ? 0
+            : config.FollowHachidoriTheme ? 1
+            : 2;
+        ImGui.SetNextItemWidth(240 * ImGuiHelpers.GlobalScale);
+        if (ImGui.Combo("Popup renderer", ref idx, choices, choices.Length))
+        {
+            config.UseWebViewPopup = idx == 0;
+            config.FollowHachidoriTheme = idx != 2;
+            config.PerformancePreset = PerformancePresets.Detect(config);
+            config.Save();
+            webView?.NotifySettingsChanged();
+        }
+        HelpMarker("WebView2 matches Hachidori's Chrome themes exactly (~300 MB in its own process). Built-in renders via Dalamud ImGui with zero extra processes.");
+    }
+
+    /// <summary>Combines CaptureScreenshot + CaptureGif + AnimationFormat into one visual capture selector.</summary>
+    private void DrawVisualCaptureControl()
+    {
+        var choices = new[]
+        {
+            "Off",
+            "Screenshot only (lightweight)",
+            "Animated AVIF (smallest)",
+            "Animated WebP",
+            "Animated GIF (no FFmpeg needed)",
+        };
+        var idx = !config.CaptureScreenshot && !config.CaptureGif ? 0
+            : !config.CaptureGif ? 1
+            : config.AnimationFormat switch
+            {
+                AnimationFormat.Avif => 2,
+                AnimationFormat.Webp => 3,
+                _ => 4,
+            };
+        ImGui.SetNextItemWidth(260 * ImGuiHelpers.GlobalScale);
+        if (ImGui.Combo("Visual capture", ref idx, choices, choices.Length))
+        {
+            switch (idx)
+            {
+                case 0:
+                    config.CaptureScreenshot = false;
+                    config.CaptureGif = false;
+                    break;
+                case 1:
+                    config.CaptureScreenshot = true;
+                    config.CaptureGif = false;
+                    break;
+                case 2:
+                    config.CaptureScreenshot = true;
+                    config.CaptureGif = true;
+                    config.AnimationFormat = AnimationFormat.Avif;
+                    break;
+                case 3:
+                    config.CaptureScreenshot = true;
+                    config.CaptureGif = true;
+                    config.AnimationFormat = AnimationFormat.Webp;
+                    break;
+                case 4:
+                    config.CaptureScreenshot = true;
+                    config.CaptureGif = true;
+                    config.AnimationFormat = AnimationFormat.Gif;
+                    break;
+            }
+            config.PerformancePreset = PerformancePresets.Detect(config);
+            config.Save();
+        }
+        HelpMarker("Clean game screenshot or short clip with plugin UI hidden.");
+    }
+
+    /// <summary>Combines RecordVoiceLines + TtsMode into one unified sentence audio selector.</summary>
+    private void DrawSentenceAudioControl()
+    {
+        var choices = new[]
+        {
+            "Off",
+            "Game voice only",
+            "Game voice → VOICEVOX TTS fallback",
+            "Game voice → Custom TTS fallback",
+            "VOICEVOX TTS only",
+            "Custom TTS only",
+        };
+        var idx = (config.RecordVoiceLines, config.TtsMode) switch
+        {
+            (false, TtsMode.Off) => 0,
+            (true, TtsMode.Off) => 1,
+            (true, TtsMode.Voicevox) => 2,
+            (true, TtsMode.Custom) => 3,
+            (false, TtsMode.Voicevox) => 4,
+            _ => 5,
+        };
+        ImGui.SetNextItemWidth(260 * ImGuiHelpers.GlobalScale);
+        if (ImGui.Combo("Sentence audio", ref idx, choices, choices.Length))
+        {
+            (config.RecordVoiceLines, config.TtsMode) = idx switch
+            {
+                0 => (false, TtsMode.Off),
+                1 => (true, TtsMode.Off),
+                2 => (true, TtsMode.Voicevox),
+                3 => (true, TtsMode.Custom),
+                4 => (false, TtsMode.Voicevox),
+                _ => (false, TtsMode.Custom),
+            };
+            if (config.TtsMode == TtsMode.Voicevox && !config.TtsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                config.TtsUrl = "http://127.0.0.1:50021";
+            config.PerformancePreset = PerformancePresets.Detect(config);
+            config.Save();
+        }
+        HelpMarker("Records voiced FFXIV lines directly (isolating FFXIV on Windows 10 2004+), with optional TTS fallback for unvoiced lines.");
+    }
+
+    private void DrawClipEncodingModeControl()
+    {
+        var choices = new[] { "On-demand when mining (Low CPU)", "Pre-encode every line (Instant mine)" };
+        var idx = config.EagerEncodeClips ? 1 : 0;
+        ImGui.SetNextItemWidth(260 * ImGuiHelpers.GlobalScale);
+        if (ImGui.Combo("Clip encoding", ref idx, choices, choices.Length))
+        {
+            config.EagerEncodeClips = idx == 1;
+            config.PerformancePreset = PerformancePresets.Detect(config);
+            config.Save();
+            media.ApplyPerformanceSettings();
+        }
+        HelpMarker("On-demand skips FFmpeg on unmined cutscene lines, eliminating background CPU spikes. Pre-encode makes mining instant.");
+    }
+
+    private void DrawLookupCacheSizeControl() =>
+        NumberInt("Lookup cache", () => config.LookupCacheSize, v => { config.LookupCacheSize = v; }, 0, 2048, Defaults.LookupCacheSize,
+            "Max dictionary lookups cached in memory (0 disables).", deferSave: () => Changed(true));
+
+    private void DrawSegmentCacheSizeControl() =>
+        NumberInt("Word segment cache", () => config.SegmentCacheSize, v => { config.SegmentCacheSize = v; }, 0, 512, Defaults.SegmentCacheSize,
+            "Max tokenized sentences cached in memory (0 disables).", deferSave: () => Changed(true));
+
+    private void DrawAudioCacheSizeControl() =>
+        NumberInt("Pronunciation audio cache", () => config.AudioCacheSize, v => { config.AudioCacheSize = v; }, 0, 256, Defaults.AudioCacheSize,
+            "Max fetched word pronunciations kept in RAM (0 disables).", deferSave: () => Changed(true));
+
+    private void DrawCacheLineScreenshotsControl()
+    {
+        Toggle("Cache line screenshots", config.CacheLineScreenshots, v =>
+        {
+            config.CacheLineScreenshots = v;
+            media.ApplyPerformanceSettings();
+        });
+        HelpMarker("Keeps a JPEG per recent dialogue line so you can mine past lines with their original scene.");
+        if (config.CacheLineScreenshots)
+        {
+            using var indent = ImRaii.PushIndent();
+            NumberInt("Max cached screenshots", () => config.MaxCachedScreenshots, v => config.MaxCachedScreenshots = v, 0, 100, Defaults.MaxCachedScreenshots,
+                deferSave: () => { config.PerformancePreset = PerformancePresets.Detect(config); config.Save(); media.ApplyPerformanceSettings(); });
+        }
+    }
+
+    private void DrawCacheReplayAudioControl()
+    {
+        Toggle("Cache voice replays", config.CacheReplayAudio, v =>
+        {
+            config.CacheReplayAudio = v;
+            media.ApplyPerformanceSettings();
+        });
+        HelpMarker("Caches decoded voice clips for instant cutscene repeat and backlog playback.");
+        if (config.CacheReplayAudio)
+        {
+            using var indent = ImRaii.PushIndent();
+            NumberInt("Max cached voice replays", () => config.MaxCachedReplayAudio, v => config.MaxCachedReplayAudio = v, 0, 100, Defaults.MaxCachedReplayAudio,
+                deferSave: () => { config.PerformancePreset = PerformancePresets.Detect(config); config.Save(); media.ApplyPerformanceSettings(); });
+        }
+    }
+
+    private void DrawMaxCachedClipsControl() =>
+        NumberInt("Cached animated clips", () => config.MaxCachedClips, v => config.MaxCachedClips = v, 0, 40, Defaults.MaxCachedClips,
+            "How many recent lines keep frames/clips ready for retroactive mining (0 uses live buffer only).",
+            deferSave: () => { config.PerformancePreset = PerformancePresets.Detect(config); config.Save(); media.ApplyPerformanceSettings(); });
+
+    private void DrawMaxConcurrentEncodesControl() =>
+        NumberInt("Parallel FFmpeg encodes", () => config.MaxConcurrentEncodes, v => config.MaxConcurrentEncodes = v, 1, 4, Defaults.MaxConcurrentEncodes,
+            "Maximum FFmpeg processes allowed to encode clips simultaneously.",
+            deferSave: () => { config.PerformancePreset = PerformancePresets.Detect(config); config.Save(); });
+
     // -------------------------------------------------------------- individual controls (shared by tabs & search!)
 
     private void DrawScanModifierControl()
@@ -523,7 +708,8 @@ public sealed partial class ConfigWindow
 
     private void DrawControllerQuickReplayTriggerModeControl()
     {
-        var modes = new[] { "Press to repeat", "Hold to repeat" };
+        // Enum order: ControllerTriggerMode.Hold == 0, ControllerTriggerMode.Press == 1.
+        var modes = new[] { "Hold to repeat", "Press to repeat" };
         var mode = (int)config.ControllerQuickReplayTriggerMode;
         if (ImGui.Combo("Repeat trigger style", ref mode, modes, modes.Length))
         {

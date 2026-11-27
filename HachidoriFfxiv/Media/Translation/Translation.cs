@@ -378,7 +378,47 @@ public sealed class Translator : IDisposable
         if (ai["max_output_tokens"] is JsonValue m && m.TryGetValue<int>(out var max)) config.TranslationMaxTokens = max;
         var native = profileNode?["general"]?["native_language"]?.ToString();
         if (native is { Length: > 0 }) config.TranslationLanguage = LanguageName(native);
-        return $"Imported GSM's AI settings ({S("provider")}, field “{config.TranslationField}”).";
+
+        // Also import GSM's AnkiConnect URL, media fields, and FFmpeg path when present.
+        var extras = new List<string>();
+        if (profileNode?["anki"] is JsonObject anki)
+        {
+            string A(string key) => anki[key]?.ToString()?.Trim() ?? string.Empty;
+            if (A("url") is { Length: > 0 } ankiUrl)
+            {
+                config.AnkiConnectUrl = ankiUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? ankiUrl : "http://" + ankiUrl;
+                extras.Add("AnkiConnect URL");
+            }
+            if (A("sentence_audio_field") is { Length: > 0 } audioField)
+            {
+                config.SentenceAudioField = audioField;
+                extras.Add($"audio→{audioField}");
+            }
+            var animField = A("animated_field");
+            var picField = A("picture_field");
+            if (animField.Length > 0)
+            {
+                config.GifField = animField;
+                extras.Add($"anim→{animField}");
+            }
+            else if (picField.Length > 0)
+            {
+                config.GifField = picField;
+                extras.Add($"pic→{picField}");
+            }
+            if (A("sentence_translation_field") is { Length: > 0 } tlField && S("anki_field").Length == 0)
+                config.TranslationField = tlField;
+        }
+
+        var gsmFfmpeg = Path.Combine(Path.GetDirectoryName(path)!, "ffmpeg", "ffmpeg.exe");
+        if (string.IsNullOrWhiteSpace(config.FfmpegPath) && File.Exists(gsmFfmpeg))
+        {
+            config.FfmpegPath = gsmFfmpeg;
+            extras.Add("FFmpeg");
+        }
+
+        var extraNote = extras.Count > 0 ? $" + {string.Join(", ", extras)}" : string.Empty;
+        return $"Imported GSM settings ({S("provider")}, translation→“{config.TranslationField}”{extraNote}).";
     }
 
     private static string? FindGsmConfigPath()

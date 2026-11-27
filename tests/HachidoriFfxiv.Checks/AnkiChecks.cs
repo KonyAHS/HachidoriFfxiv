@@ -21,8 +21,180 @@ internal static class AnkiChecks
         CheckWordSplit(check);
         CheckSvg(check);
         CheckFields(check);
+        CheckPitchGraphsAndPresets(check);
         await CheckBatchedPreflightAsync(check);
         await CheckApiKeyAndBatchedMediaUploadAsync(check);
+        await CheckOfflineOverwriteAndPitchGraphsAsync(check);
+    }
+
+    private static void CheckPitchGraphsAndPresets(Action<bool, string> check)
+    {
+        var groups = new List<JsonObject>
+        {
+            JsonNode.Parse("""{"dictionary":"Kanjium","pitches":[{"position":3,"pattern":"","nasal":[2],"devoice":[]}],"transcriptions":[]}""")!.AsObject(),
+        };
+        var svg = PitchAccentGraph.Render("ぼうけんしゃ", groups, showMoraText: false);
+        var svgJj = PitchAccentGraph.Render("ぼうけんしゃ", groups, showMoraText: true);
+        check(svg.Contains("<svg class=\"pronunciation-graph\"", StringComparison.Ordinal)
+              && svg.Contains("pronunciation-graph-dot-downstep", StringComparison.Ordinal)
+              && svg.Contains("pronunciation-graph-dot-nasal", StringComparison.Ordinal)
+              && !svg.Contains("<text ", StringComparison.Ordinal),
+            "pitch-accent-graphs renders inline SVG with downstep and nasal markers");
+        check(svgJj.Contains("<text ", StringComparison.Ordinal) && svgJj.Contains("しゃ</text>", StringComparison.Ordinal),
+            "pitch-accent-graphs-jj includes combined-mora kana labels (しゃ as one mora)");
+
+        var sa = new HachidoriFfxiv.StandaloneAnkiConfig();
+        var modelFields = new[]
+        {
+            "Expression", "ExpressionReading", "ExpressionAudio", "MainDefinition", "DefinitionPicture",
+            "Sentence", "Picture", "IsAudioCard", "IsWordAndSentenceCard", "SentenceAudio", "SentenceTranslation",
+        };
+        var mapped = StandaloneAnkiTemplates.AutoMapFields(sa, modelFields);
+        check(mapped.MappedCount >= 5 && sa.Fields["Expression"] == "{expression}"
+              && sa.Fields["ExpressionAudio"] == "{audio}"
+              && !sa.Fields.ContainsKey("IsAudioCard")
+              && !sa.Fields.ContainsKey("IsWordAndSentenceCard")
+              && !sa.Fields.ContainsKey("DefinitionPicture")
+              && mapped.SentenceAudioField == "SentenceAudio" && mapped.TranslationField == "SentenceTranslation",
+            "Smart Auto-Map maps standard fields, skips Is* toggle flags and DefinitionPicture, and detects media targets");
+
+        var seeded = new HachidoriFfxiv.StandaloneAnkiConfig();
+        var hostTpl = JsonNode.Parse("""
+            {
+              "id": "default",
+              "deck": "Japanese Mining",
+              "model": "Kiku",
+              "duplicateBehavior": "new",
+              "duplicateScope": "deck",
+              "tags": ["hachidori", "ffxiv"],
+              "fieldTemplates": {
+                "Expression": { "value": "{expression}" },
+                "Sentence": { "value": "{sentence}" }
+              }
+            }
+            """)!.AsObject();
+        check(StandaloneAnkiTemplates.SeedFromTemplateJson(seeded, hostTpl)
+              && seeded.Deck == "Japanese Mining" && seeded.Model == "Kiku"
+              && seeded.DuplicateBehavior == "new" && seeded.Fields["Expression"] == "{expression}",
+            "SeedFromTemplateJson copies synced Hachidori template deck, model, behavior, and fields cleanly");
+
+        var lapis = StandaloneAnkiTemplates.Presets.First(p => p.Id == "lapis");
+        var lapisRes = StandaloneAnkiTemplates.ApplyPreset(sa, lapis, modelFields);
+        check(lapisRes.MappedCount >= 5 && sa.Fields["MainDefinition"] == "{glossary-first}",
+            "Lapis preset maps matching fields cleanly onto the user's note type");
+    }
+
+    private static async Task CheckOfflineOverwriteAndPitchGraphsAsync(Action<bool, string> check)
+    {
+        var updatedFields = new Dictionary<string, string>();
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        await using var app = builder.Build();
+
+        JsonNode? Dispatch(string action, JsonObject? p) => action switch
+        {
+            "deckNames" => new JsonArray("Japanese"),
+            "modelNamesAndIds" => new JsonObject { ["Lapis"] = 123456L },
+            "modelFieldNames" => new JsonArray("Expression", "Sentence", "PitchGraph"),
+            "canAddNotesWithErrorDetail" => new JsonArray(new JsonObject { ["canAdd"] = false, ["error"] = "cannot create note because it is a duplicate" }),
+            "findNotes" => new JsonArray(4242L),
+            "notesInfo" => new JsonArray(new JsonObject
+            {
+                ["noteId"] = 4242L,
+                ["fields"] = new JsonObject
+                {
+                    ["Expression"] = new JsonObject { ["order"] = 0, ["value"] = "冒険者" },
+                    ["Sentence"] = new JsonObject { ["order"] = 1, ["value"] = "古い文" },
+                    ["PitchGraph"] = new JsonObject { ["order"] = 2, ["value"] = "" },
+                },
+            }),
+            "guiSelectedNotes" => new JsonArray(),
+            "updateNoteFields" => RecordUpdate(p),
+            _ => null,
+        };
+
+        JsonNode? RecordUpdate(JsonObject? p)
+        {
+            if (p?["note"]?["fields"] is JsonObject f)
+                foreach (var (k, v) in f)
+                    updatedFields[k] = v?.ToString() ?? string.Empty;
+            return null;
+        }
+
+        app.MapPost("/", async ctx =>
+        {
+            var body = await JsonNode.ParseAsync(ctx.Request.Body) as JsonObject;
+            var action = body?["action"]?.ToString() ?? "";
+            JsonNode? result;
+            if (action == "multi")
+            {
+                var sub = new JsonArray();
+                foreach (var item in (body?["params"]?["actions"] as JsonArray ?? []).OfType<JsonObject>())
+                    sub.Add(new JsonObject { ["result"] = Dispatch(item["action"]?.ToString() ?? "", item["params"] as JsonObject), ["error"] = null });
+                result = sub;
+            }
+            else
+            {
+                result = Dispatch(action, body?["params"] as JsonObject);
+            }
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(new JsonObject { ["result"] = result, ["error"] = null }.ToJsonString());
+        });
+        await app.StartAsync();
+        var url = app.Urls.Single();
+
+        var snap = JsonNode.Parse($$"""
+        {
+          "options": {
+            "anki": {
+              "url": "{{url}}",
+              "apiKey": "",
+              "templates": [{
+                "id": "ow",
+                "name": "Overwrite",
+                "deck": "Japanese",
+                "model": "Lapis",
+                "duplicateBehavior": "overwrite",
+                "duplicateScope": "deck",
+                "captureScreenshot": false,
+                "tags": [],
+                "fieldTemplates": {
+                  "Expression": { "value": "{expression}", "overwriteMode": "coalesce" },
+                  "Sentence": { "value": "{sentence}", "overwriteMode": "append" },
+                  "PitchGraph": { "value": "{pitch-accent-graphs}", "overwriteMode": "coalesce" }
+                }
+              }]
+            }
+          }
+        }
+        """)!.AsObject();
+
+        using var native = HachidoriFfxiv.Offline.NativeEngine.LoadFrom(AppContext.BaseDirectory);
+        using var localEngine = new HachidoriFfxiv.Offline.LocalEngine(native);
+        using var http = new HttpClient();
+        using var miner = new OfflineAnkiMiner(() => snap, () => localEngine, http);
+
+        var st = await miner.StatusAsync("ow");
+        check(st.Available, "offline Anki accepts overwrite duplicateBehavior and {pitch-accent-graphs} templates");
+
+        var req = StandaloneAnkiTemplates.SamplePreviewRequest("FINAL FANTASY XIV");
+        req["generation"] = localEngine.Generation;
+        req["configKey"] = st.ConfigKey;
+        req["templateId"] = "ow";
+
+        var pf = await miner.PreflightManyAsync([req]);
+        check(pf.Length == 1 && pf[0].State == "duplicate" && pf[0].CanAdd && pf[0].NoteIds.SequenceEqual([4242L]),
+            "offline preflight marks duplicate notes as updatable when duplicateBehavior is overwrite");
+
+        var res = await miner.SubmitAsync(req, null);
+        check(res.State == "updated" && res.NoteIds.SequenceEqual([4242L])
+              && !updatedFields.ContainsKey("Expression")
+              && updatedFields.GetValueOrDefault("Sentence", "").StartsWith("古い文<br>", StringComparison.Ordinal)
+              && updatedFields.GetValueOrDefault("PitchGraph", "").Contains("<svg", StringComparison.Ordinal),
+            "offline overwrite updates existing note fields honoring coalesce/append modes and renders SVG pitch graphs");
+
+        await app.StopAsync();
     }
 
     private static void CheckWordSplit(Action<bool, string> check)

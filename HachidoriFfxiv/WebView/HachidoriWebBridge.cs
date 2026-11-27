@@ -208,6 +208,13 @@ public sealed class HachidoriWebBridge
     /// template). Bumps <c>options.revision</c> monotonically so Hachidori's <c>adoptOptions</c>
     /// applies every local setting change immediately without mutating the host's snapshot.
     /// </summary>
+    /// <summary>Forces the next projected snapshot to bump <c>options.revision</c> so Hachidori Web refreshes cached Anki status across backend transitions.</summary>
+    public void InvalidateProjection()
+    {
+        lock (projectionLock)
+            lastProjectedOptionsJson = null;
+    }
+
     public JsonObject BuildProjectedSnapshot(JsonObject? sourceSnapshot = null)
     {
         var opts = getOptions();

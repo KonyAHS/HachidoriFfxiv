@@ -50,8 +50,9 @@ public static class AnkiNoteRenderer
             .GroupBy(d => AnkiFields.Str(d["title"])).ToDictionary(g => g.Key, g => AnkiFields.Str(g.First()["path"]));
         string? FilenameFor(string dictionary, string path)
         {
-            if (!paths.TryGetValue(dictionary, out var generationPath) || generationPath.Length == 0)
-                throw new InvalidOperationException($"The dictionary generation is no longer available: {dictionary}");
+            var generationPath = paths.TryGetValue(dictionary, out var foundPath) && foundPath.Length > 0
+                ? foundPath
+                : $"local:{dictionary}";
             var existing = images.FirstOrDefault(i => i.Dictionary == dictionary && i.Path == path);
             if (existing is not null) return existing.Filename;
             var suffix = path.Split('.').Last().ToLowerInvariant();

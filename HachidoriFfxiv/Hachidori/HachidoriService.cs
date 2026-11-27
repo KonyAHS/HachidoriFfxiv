@@ -15,18 +15,23 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 {
     private const string EngineTarget = LiveBackend.EngineTarget;
     private const string AnkiTarget = "hachidori-anki";
-    private const int CacheLimit = 512;
 
     private readonly Configuration config;
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(15) };
     private readonly ConcurrentDictionary<string, Task<LookupReply>> cache = new();
     private readonly ConcurrentQueue<string> cacheOrder = new();
     private readonly ConcurrentDictionary<string, Task<byte[]?>> audioCache = new();
+    private readonly ConcurrentQueue<string> audioCacheOrder = new();
     private readonly ConcurrentDictionary<string, Task<IReadOnlyList<WordSpan>>> segmentCache = new();
+    private readonly ConcurrentQueue<string> segmentCacheOrder = new();
     private readonly LiveBackend live;
     private IOfflineDictionaryBackend? local;
     private IOfflineAnkiMiner? offlineAnki;
     private string? lastCacheKey;
+
+    public int LookupCacheCount => cache.Count;
+    public int SegmentCacheCount => segmentCache.Count;
+    public int AudioCacheCount => audioCache.Count;
 
     public HachidoriService(Configuration config)
     {
@@ -53,17 +58,23 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     public HachidoriLink Link { get; }
 
     /// <summary>
-    /// Live Hachidori whenever it is linked; the offline copy only while it is
-    /// not and offline mode is set up; otherwise live, which reports why it is unreachable.
+    /// Live Hachidori whenever it is linked (unless Built-in source is explicitly chosen);
+    /// the local engine when Built-in is selected or the live host is unreachable and local
+    /// dictionaries are ready; otherwise live, which reports why it is unreachable.
     /// </summary>
-    public IDictionaryBackend Backend => !Link.Connected && local is { Ready: true } ? local : live;
+    public IDictionaryBackend Backend =>
+        (config.DictionarySource == DictionarySource.BuiltIn || !Link.Connected) && local is { Ready: true }
+            ? local
+            : live;
 
     public bool UsingOffline => !Backend.IsLive;
 
-    /// <summary>Hachidori's settings: the host's, or the copy offline mode saved when it is not linked.</summary>
-    public JsonObject Snapshot => Link.Connected || Link.Snapshot.Count > 0 || local?.SavedSnapshot is not { } saved
+    /// <summary>Hachidori's settings: the host's when live is active, else the offline copy (including standalone dicts/templates).</summary>
+    public JsonObject Snapshot => !UsingOffline && Link.Connected
         ? Link.Snapshot
-        : saved;
+        : local?.SavedSnapshot is { } saved
+            ? saved
+            : Link.Snapshot;
 
     public JsonObject Options => Snapshot["options"] as JsonObject ?? new JsonObject();
 
@@ -107,25 +118,36 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     public string OptionString(string name, string fallback) =>
         Options[name] is JsonValue v && v.TryGetValue<string>(out var s) ? s : fallback;
 
+    public event Action? CacheCleared;
+
     public void ClearCache()
     {
         cache.Clear();
         segmentCache.Clear();
         audioCache.Clear();
         offlineAnki?.InvalidateCache();
-        while (cacheOrder.TryDequeue(out _))
-        {
-        }
+        while (cacheOrder.TryDequeue(out _)) { }
+        while (segmentCacheOrder.TryDequeue(out _)) { }
+        while (audioCacheOrder.TryDequeue(out _)) { }
+        CacheCleared?.Invoke();
     }
 
     // ---------------------------------------------------------------- lookups
 
     public Task<IReadOnlyList<WordSpan>> SegmentAsync(string text)
     {
+        var limit = Math.Clamp(config.SegmentCacheSize, 0, 512);
+        if (limit <= 0)
+            return SegmentUncachedAsync(text);
         var key = $"{config.ScanLength}|{config.UsePersonalDictionary}|{text}";
-        if (segmentCache.TryGetValue(key, out var task)) return task;
-        if (segmentCache.Count >= 128) segmentCache.Clear();
-        return segmentCache[key] = SegmentUncachedAsync(text);
+        if (segmentCache.TryGetValue(key, out var task) && !task.IsFaulted && !task.IsCanceled)
+            return task;
+        var created = SegmentUncachedAsync(text);
+        segmentCache[key] = created;
+        segmentCacheOrder.Enqueue(key);
+        while (segmentCache.Count > limit && segmentCacheOrder.TryDequeue(out var old))
+            segmentCache.TryRemove(old, out _);
+        return created;
     }
 
     private async Task<IReadOnlyList<WordSpan>> SegmentUncachedAsync(string text)
@@ -225,12 +247,15 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     private Task<LookupReply> Cached(string key, Func<Task<LookupReply>> factory)
     {
+        var limit = Math.Clamp(config.LookupCacheSize, 0, 2048);
+        if (limit <= 0)
+            return factory();
         if (cache.TryGetValue(key, out var existing) && !existing.IsFaulted && !existing.IsCanceled)
             return existing;
         var task = factory();
         cache[key] = task;
         cacheOrder.Enqueue(key);
-        while (cacheOrder.Count > CacheLimit && cacheOrder.TryDequeue(out var old))
+        while (cache.Count > limit && cacheOrder.TryDequeue(out var old))
             cache.TryRemove(old, out _);
         return task;
     }
@@ -249,12 +274,14 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
 
     // -------------------------------------------------------------------- Anki
 
+    public bool UseOfflineAnki => (UsingOffline || config.StandaloneAnki.PreferStandalone) && offlineAnki is not null;
+
     public async Task<AnkiStatus> AnkiStatusAsync(string? templateId = null)
     {
         var effectiveTemplateId = NullIfBlank(templateId) ?? NullIfBlank(config.AnkiTemplateId);
-        // Offline, the plugin renders the note from the saved Template and writes it through AnkiConnect.
-        if (UsingOffline && offlineAnki is not null)
-            return await offlineAnki.StatusAsync(effectiveTemplateId).ConfigureAwait(false);
+        // Offline or standalone template: render the note locally and talk directly to AnkiConnect.
+        if (UseOfflineAnki)
+            return await offlineAnki!.StatusAsync(effectiveTemplateId).ConfigureAwait(false);
         var payload = new JsonObject();
         if (effectiveTemplateId is not null)
             payload["templateId"] = effectiveTemplateId;
@@ -337,8 +364,8 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
         if (requests.Count == 0)
             return [];
 
-        if (UsingOffline && offlineAnki is not null)
-            return await offlineAnki.PreflightManyAsync(requests, ct).ConfigureAwait(false);
+        if (UseOfflineAnki)
+            return await offlineAnki!.PreflightManyAsync(requests, ct).ConfigureAwait(false);
 
         if (IsLocalRelayHost && offlineAnki is not null)
         {
@@ -372,7 +399,7 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     {
         var op = DiagnosticLog.NewOp("mine");
         var started = DiagnosticLog.Now();
-        var route = UsingOffline && offlineAnki is not null ? "offline" : "relay";
+        var route = UseOfflineAnki ? "offline" : "relay";
         DiagnosticLog.Write("anki", $"Submitting note via {route} (screenshot={screenshot is not null}, template={NullIfBlank(config.AnkiTemplateId) ?? "host default"}).", DiagLevel.Info, op);
         try
         {
@@ -393,9 +420,9 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     public async Task AnkiBrowseAsync(long[] noteIds, string expression, string? configKey, string? templateId = null)
     {
         var effectiveTemplateId = NullIfBlank(templateId) ?? NullIfBlank(config.AnkiTemplateId);
-        if (UsingOffline && offlineAnki is not null)
+        if (UseOfflineAnki)
         {
-            await offlineAnki.BrowseAsync(noteIds, expression, effectiveTemplateId).ConfigureAwait(false);
+            await offlineAnki!.BrowseAsync(noteIds, expression, effectiveTemplateId).ConfigureAwait(false);
             return;
         }
         var request = new JsonObject
@@ -433,13 +460,18 @@ public sealed class HachidoriService : IDisposable, INpcPictureHost
     /// <summary>Pronunciation audio: Hachidori's sources through the relay, or fetched directly offline.</summary>
     public Task<byte[]?> GetAudioAsync(string expression, string reading)
     {
+        var limit = Math.Clamp(config.AudioCacheSize, 0, 256);
+        if (limit <= 0)
+            return FetchAudioAsync(expression, reading);
         var key = $"{expression}\u0001{reading}";
         if (audioCache.TryGetValue(key, out var existing) && !existing.IsFaulted && !existing.IsCanceled
             && !(existing.IsCompletedSuccessfully && existing.Result is null))
             return existing;
-        if (audioCache.Count >= 64) audioCache.Clear();
         var task = FetchAudioAsync(expression, reading);
         audioCache[key] = task;
+        audioCacheOrder.Enqueue(key);
+        while (audioCache.Count > limit && audioCacheOrder.TryDequeue(out var old))
+            audioCache.TryRemove(old, out _);
         return task;
     }
 

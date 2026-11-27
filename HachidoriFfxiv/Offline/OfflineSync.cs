@@ -133,7 +133,12 @@ public sealed class OfflineSync
             }
 
             var remoteIds = remote.Select(d => d.Id).ToHashSet(StringComparer.Ordinal);
-            var removed = before.Dictionaries.Where(d => !remoteIds.Contains(d.Id)).ToList();
+            var preservedLocal = before.Dictionaries
+                .Where(d => string.Equals(d.Source, "local", StringComparison.OrdinalIgnoreCase) && !remoteIds.Contains(d.Id))
+                .ToList();
+            next.AddRange(preservedLocal);
+            var keptIds = next.Select(d => d.Id).ToHashSet(StringComparer.Ordinal);
+            var removed = before.Dictionaries.Where(d => !keptIds.Contains(d.Id)).ToList();
             retired.AddRange(removed.Select(store.PathOf));
 
             store.SaveManifest(new OfflineManifest

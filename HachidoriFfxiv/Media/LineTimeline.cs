@@ -33,10 +33,82 @@ public sealed class LineTimeline
     public const int MaxCachedScreenshots = 40;
     public const int MaxCachedReplayAudio = 40;
 
+    private readonly Func<int> screenshotLimit;
+    private readonly Func<int> replayAudioLimit;
     private readonly List<LineSpan> spans = new();
     private readonly List<VoicePlaybackEvent> recentVoices = new();
     private readonly HashSet<VoicePlaybackEvent> claimedVoices = new();
     private readonly object gate = new();
+
+    public LineTimeline(Func<int>? maxScreenshots = null, Func<int>? maxReplayAudio = null)
+    {
+        screenshotLimit = maxScreenshots ?? (() => MaxCachedScreenshots);
+        replayAudioLimit = maxReplayAudio ?? (() => MaxCachedReplayAudio);
+    }
+
+    public (int Screenshots, long ScreenshotBytes, int ReplayAudios, long ReplayAudioBytes) CacheStats()
+    {
+        lock (gate)
+        {
+            int shots = 0, audios = 0;
+            long shotBytes = 0, audioBytes = 0;
+            foreach (var s in spans)
+            {
+                if (s.ScreenshotJpeg is { Length: > 0 } jpg)
+                {
+                    shots++;
+                    shotBytes += jpg.Length;
+                }
+                if (s.ReplayAudio is { Length: > 0 } aud)
+                {
+                    audios++;
+                    audioBytes += aud.Length;
+                }
+            }
+            return (shots, shotBytes, audios, audioBytes);
+        }
+    }
+
+    public void ClearMediaCaches()
+    {
+        lock (gate)
+        {
+            foreach (var s in spans)
+            {
+                s.ScreenshotJpeg = null;
+                s.ReplayAudio = null;
+                s.ReplayAudioIsTts = false;
+            }
+        }
+    }
+
+    public void TrimMediaCaches()
+    {
+        lock (gate)
+        {
+            var maxShots = Math.Max(0, screenshotLimit());
+            var maxAudios = Math.Max(0, replayAudioLimit());
+            int keptShots = 0, keptAudios = 0;
+            for (var i = spans.Count - 1; i >= 0; i--)
+            {
+                if (spans[i].ScreenshotJpeg is not null)
+                {
+                    keptShots++;
+                    if (keptShots > maxShots)
+                        spans[i].ScreenshotJpeg = null;
+                }
+                if (spans[i].ReplayAudio is not null)
+                {
+                    keptAudios++;
+                    if (keptAudios > maxAudios)
+                    {
+                        spans[i].ReplayAudio = null;
+                        spans[i].ReplayAudioIsTts = false;
+                    }
+                }
+            }
+        }
+    }
 
     public void OnLine(GameLine line, long now, BgmSnapshot? bgm = null)
     {
@@ -184,17 +256,21 @@ public sealed class LineTimeline
             if (isTts && target.ReplayAudio is { Length: > 0 } && !target.ReplayAudioIsTts)
                 return false;
 
+            var maxAudios = Math.Max(0, replayAudioLimit());
+            if (maxAudios == 0)
+                return false;
+
             target.ReplayAudio = audio;
             target.ReplayAudioIsTts = isTts;
 
-            // Keep cached replay audio memory bounded to the newest MaxCachedReplayAudio lines.
+            // Keep cached replay audio memory bounded to the newest configured lines.
             var kept = 0;
             for (var i = spans.Count - 1; i >= 0; i--)
             {
                 if (spans[i].ReplayAudio is null)
                     continue;
                 kept++;
-                if (kept > MaxCachedReplayAudio)
+                if (kept > maxAudios)
                 {
                     spans[i].ReplayAudio = null;
                     spans[i].ReplayAudioIsTts = false;
@@ -222,16 +298,20 @@ public sealed class LineTimeline
             if (target is null)
                 return false;
 
+            var maxShots = Math.Max(0, screenshotLimit());
+            if (maxShots == 0)
+                return false;
+
             target.ScreenshotJpeg = jpeg;
 
-            // Keep screenshot memory bounded to the newest MaxCachedScreenshots lines.
+            // Keep screenshot memory bounded to the newest configured lines.
             var kept = 0;
             for (var i = spans.Count - 1; i >= 0; i--)
             {
                 if (spans[i].ScreenshotJpeg is null)
                     continue;
                 kept++;
-                if (kept > MaxCachedScreenshots)
+                if (kept > maxShots)
                     spans[i].ScreenshotJpeg = null;
             }
             return true;

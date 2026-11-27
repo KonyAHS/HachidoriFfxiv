@@ -69,15 +69,33 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
     /// <summary>reader-options.js ankiTemplateConfig: the Template's settings with the shared Anki address.</summary>
     private JsonObject? TemplateConfig(string? templateId)
     {
-        var settings = Options["anki"] as JsonObject;
+        var settings = EffectiveAnkiOptions();
         var templates = (settings?["templates"] as JsonArray ?? []).OfType<JsonObject>().ToList();
-        var template = string.IsNullOrWhiteSpace(templateId) ? templates.FirstOrDefault()
+        var template = string.IsNullOrWhiteSpace(templateId)
+            ? templates.FirstOrDefault()
             : templates.FirstOrDefault(t => AnkiFields.Str(t["id"]) == templateId);
+        // If standalone template was selected before its deck/model were configured, fall back
+        // to any synced template rather than failing mining with "no longer available".
+        if (template is null && templateId == StandaloneDictionaries.StandaloneTemplateId)
+            template = templates.FirstOrDefault();
         if (template is null) return null;
         var config = (JsonObject)template.DeepClone();
         config["url"] = AnkiFields.Str(settings?["url"]) is { Length: > 0 } url ? url : "http://127.0.0.1:8765";
         config["apiKey"] = AnkiFields.Str(settings?["apiKey"]);
         return config;
+    }
+
+    private JsonObject? EffectiveAnkiOptions()
+    {
+        if (Options["profiles"] is JsonArray profiles && profiles.Count > 0)
+        {
+            var jaProfile = profiles.OfType<JsonObject>().FirstOrDefault(p =>
+                string.Equals(AnkiFields.Str(p["language"]), "ja", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(AnkiFields.Str(p["id"]), "ja", StringComparison.OrdinalIgnoreCase));
+            if (jaProfile?["options"]?["anki"] is JsonObject profAnki)
+                return profAnki;
+        }
+        return Options["anki"] as JsonObject;
     }
 
     private AnkiConnect Anki(JsonObject config)
@@ -211,12 +229,8 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
         var unsupported = templates.Values.SelectMany(t => AnkiFields.MarkerNames(t.Value)).Where(AnkiFields.UnsupportedOffline.Contains).Distinct().ToList();
         if (unsupported.Count > 0)
             yield return $"Offline mining cannot fill {string.Join(", ", unsupported.Select(m => $"{{{m}}}"))} yet.{Suffix}";
-        if (AnkiFields.Str(config["duplicateBehavior"]) == "overwrite")
-            yield return $"Offline mining does not overwrite existing notes yet.{Suffix}";
         if (Options["smallerAnkiCards"] is JsonValue small && small.GetValueKind() == JsonValueKind.True)
             yield return $"Offline mining does not make Smaller Anki cards yet.{Suffix}";
-        if (Options["profiles"] is JsonArray { Count: > 0 })
-            yield return $"Offline mining does not support language profiles yet.{Suffix}";
     }
 
     private static List<string> Names(JsonNode? reply) =>
@@ -364,6 +378,8 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
         var check = await CheckAsync(prepared, allowDuplicate: false, ct).ConfigureAwait(false);
         if (!check.Duplicate) return new Decision(check.Addable ? "addable" : "invalid", check.Addable, check.Error, []);
         var noteIds = await DuplicateNotesAsync(prepared, ct).ConfigureAwait(false);
+        if (behavior == "overwrite")
+            return new Decision("duplicate", noteIds.Length > 0, noteIds.Length == 0 ? "Could not locate existing duplicate note to overwrite." : null, noteIds);
         if (behavior == "new")
         {
             var addable = await CheckAsync(prepared, allowDuplicate: true, ct).ConfigureAwait(false);
@@ -692,10 +708,11 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
                 }
                 else
                 {
+                    var canAdd = behaviorMode == "new" || (behaviorMode == "overwrite" && noteIds.Length > 0);
                     decisions[entry.Index] = new AnkiDecision
                     {
                         State = "duplicate",
-                        CanAdd = behaviorMode == "new",
+                        CanAdd = canAdd,
                         NoteIds = noteIds,
                         Screenshot = current.WantsScreenshot,
                     };
@@ -790,6 +807,39 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
                 ?? throw new InvalidOperationException("The dictionary image is no longer available or is malformed.");
             files.Add(new MediaFile(image.Filename, Convert.ToBase64String(bytes), "picture", "dictionary image", Required: true));
         }
+
+        // Overwrite existing duplicate note via updateNoteFields instead of addNote.
+        var behavior = AnkiFields.Str(prepared.Current.Config["duplicateBehavior"]);
+        if (decision.State == "duplicate" && behavior == "overwrite" && decision.NoteIds.Length > 0)
+        {
+            var targetId = decision.NoteIds[0];
+            var existingFields = await prepared.Anki.FieldsAsync(targetId, ct).ConfigureAwait(false);
+            var existingMap = existingFields.ToDictionary(f => f.Name, f => f.Value, StringComparer.Ordinal);
+            var merged = MergeOverwriteFields(existingMap, noteFields, prepared.Current.Templates);
+            var neededFiles = files.Where(f => merged.Values.Any(v => v.Contains(f.Filename, StringComparison.Ordinal))).ToList();
+            if (neededFiles.Count > 0)
+            {
+                var replies = await prepared.Anki.MultiAsync(
+                    neededFiles.Select(u => ("storeMediaFile", (JsonObject?)new JsonObject
+                    {
+                        ["filename"] = u.Filename,
+                        ["data"] = u.Data,
+                        ["deleteExisting"] = false,
+                    })).ToList(),
+                    readOnly: false,
+                    ct).ConfigureAwait(false);
+                for (var i = 0; i < neededFiles.Count; i++)
+                {
+                    if (!string.IsNullOrEmpty(replies[i].Error))
+                        warnings.Add($"{neededFiles[i].Kind}: {replies[i].Error}");
+                }
+            }
+            if (merged.Count > 0)
+                await prepared.Anki.UpdateFieldsAsync(targetId, merged, ct).ConfigureAwait(false);
+            foreach (var warning in warnings) DiagnosticLog.Write("anki", $"Offline overwrite warning: {warning}");
+            return new AnkiDecision { State = "updated", CanAdd = true, NoteIds = [targetId], Warnings = warnings.ToArray() };
+        }
+
         warnings.AddRange(await AttachMediaAsync(note, files, prepared.Anki, ct).ConfigureAwait(false));
 
         long noteId;
@@ -886,6 +936,33 @@ public sealed class OfflineAnkiMiner : IOfflineAnkiMiner
         "\"" + Regex.Replace(expression.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;"), @"[\\""*_:]", m => "\\" + m.Value) + "\"";
 
     // ---------------------------------------------------------------- helpers
+
+    /// <summary>Merges rendered fields into an existing note according to each field template's <c>overwriteMode</c>.</summary>
+    internal static Dictionary<string, string> MergeOverwriteFields(
+        IReadOnlyDictionary<string, string> existing,
+        JsonObject rendered,
+        IReadOnlyDictionary<string, FieldTemplate> templates)
+    {
+        var updates = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (name, node) in rendered)
+        {
+            var incoming = AnkiFields.Str(node);
+            if (incoming.Trim().Length == 0)
+                continue;
+            var current = existing.TryGetValue(name, out var val) ? val : string.Empty;
+            var mode = templates.TryGetValue(name, out var tpl) ? tpl.OverwriteMode : "coalesce";
+            var next = mode.ToLowerInvariant() switch
+            {
+                "overwrite" => incoming,
+                "append" => current.Trim().Length == 0 ? incoming : $"{current}<br>{incoming}",
+                "prepend" => current.Trim().Length == 0 ? incoming : $"{incoming}<br>{current}",
+                _ => current.Trim().Length == 0 ? incoming : current,
+            };
+            if (!string.Equals(next, current, StringComparison.Ordinal))
+                updates[name] = next;
+        }
+        return updates;
+    }
 
     private static string AudioExtension(OfflineAudio.AudioFile file)
     {

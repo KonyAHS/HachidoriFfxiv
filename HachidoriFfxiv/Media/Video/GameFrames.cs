@@ -74,7 +74,7 @@ public sealed class GameFrames : IDisposable
             Error = null;
 
         var now = Stopwatch.GetTimestamp();
-        if (config.CaptureScreenshot && viewport.IsCompletedSuccessfully && !capturingLineShot)
+        if (config.CaptureScreenshot && config.CacheLineScreenshots && config.MaxCachedScreenshots > 0 && viewport.IsCompletedSuccessfully && !capturingLineShot)
         {
             long? shotLineId = null;
             lock (gate)
@@ -206,14 +206,25 @@ public sealed class GameFrames : IDisposable
     {
         lock (gate)
         {
-            if (config.CaptureScreenshot && lineId > 0)
+            if (config.CaptureScreenshot && config.CacheLineScreenshots && config.MaxCachedScreenshots > 0 && lineId > 0)
                 pendingLineShot = (lineId, ticks + Stopwatch.Frequency / 5); // ~200 ms so cutscene/dialog fade settles
-            if (config.CaptureGif)
+            if (config.CaptureGif && config.MaxCachedClips > 0)
             {
                 pendingLines.Add(ticks);
                 if (pendingLines.Count > 8)
                     pendingLines.RemoveAt(0);
             }
+        }
+    }
+
+    /// <summary>Drops buffered animation frames and pending capture queues.</summary>
+    public void ClearBuffers()
+    {
+        lock (gate)
+        {
+            frames.Clear();
+            pendingLines.Clear();
+            pendingLineShot = null;
         }
     }
 

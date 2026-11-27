@@ -34,7 +34,7 @@ public enum FreezeHotkey
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 2;
+    public int Version { get; set; } = 3;
 
     // Connection to Hachidori (through the Hachidori Relay add-on running inside Anki).
     public string RelayHost { get; set; } = "127.0.0.1";
@@ -167,6 +167,25 @@ public sealed class Configuration : IPluginConfiguration
     // Settings window: everyday options only, unless the user asks for all of them.
     public bool AdvancedSettings { get; set; } = false;
     public bool QuickGuideDismissed { get; set; } = false;
+    public bool FirstRunCompleted { get; set; } = false;
+    public SetupStyle SetupStyle { get; set; } = SetupStyle.Unset;
+    public DictionarySource DictionarySource { get; set; } = DictionarySource.Auto;
+
+    // Performance & caching controls (Performance tab)
+    public PerformancePreset PerformancePreset { get; set; } = PerformancePreset.Balanced;
+    public int LookupCacheSize { get; set; } = 512;
+    public int SegmentCacheSize { get; set; } = 128;
+    public int AudioCacheSize { get; set; } = 64;
+    public bool CacheLineScreenshots { get; set; } = true;
+    public int MaxCachedScreenshots { get; set; } = 24;
+    public bool CacheReplayAudio { get; set; } = true;
+    public int MaxCachedReplayAudio { get; set; } = 24;
+    public bool EagerEncodeClips { get; set; } = false;
+    public int MaxCachedClips { get; set; } = 4;
+    public int MaxConcurrentEncodes { get; set; } = 1;
+
+    // Built-in standalone Anki template (works without Chrome / Hachidori Relay).
+    public StandaloneAnkiConfig StandaloneAnki { get; set; } = new();
 
     // Card media from the game (replaces GSM): screenshot, voice line or TTS, GIF.
     public bool NotifyOnAnkiMine { get; set; } = true;
@@ -219,6 +238,14 @@ public sealed class Configuration : IPluginConfiguration
             Version = 2;
             changed = true;
         }
+        if (Version < 3)
+        {
+            // Existing users upgrading from v2 already configured the plugin; don't pop open first-run Setup.
+            FirstRunCompleted = true;
+            Version = 3;
+            changed = true;
+        }
+        StandaloneAnki ??= new StandaloneAnkiConfig();
         return changed;
     }
     public string AnkiConnectUrl { get; set; } = "http://127.0.0.1:8765";
@@ -445,6 +472,46 @@ public sealed class Configuration : IPluginConfiguration
         ApiPort = d.ApiPort;
         AnkiTemplateId = d.AnkiTemplateId;
         DocumentTitle = d.DocumentTitle;
+    }
+
+    public void ResetPerformanceDefaults()
+    {
+        var d = new Configuration();
+        PerformancePreset = d.PerformancePreset;
+        LookupCacheSize = d.LookupCacheSize;
+        SegmentCacheSize = d.SegmentCacheSize;
+        AudioCacheSize = d.AudioCacheSize;
+        CacheLineScreenshots = d.CacheLineScreenshots;
+        MaxCachedScreenshots = d.MaxCachedScreenshots;
+        CacheReplayAudio = d.CacheReplayAudio;
+        MaxCachedReplayAudio = d.MaxCachedReplayAudio;
+        EagerEncodeClips = d.EagerEncodeClips;
+        MaxCachedClips = d.MaxCachedClips;
+        MaxConcurrentEncodes = d.MaxConcurrentEncodes;
+        VoiceBufferSeconds = d.VoiceBufferSeconds;
+        HistorySize = d.HistorySize;
+        GifWidth = d.GifWidth;
+        GifFps = d.GifFps;
+        GifSeconds = d.GifSeconds;
+        UseWebViewPopup = d.UseWebViewPopup;
+    }
+
+    /// <summary>Resets setup choices and plugin settings to defaults without touching immersion stats.</summary>
+    public void ResetSetup()
+    {
+        SetupStyle = SetupStyle.Unset;
+        DictionarySource = DictionarySource.Auto;
+        QuickGuideDismissed = false;
+        StandaloneAnki = new StandaloneAnkiConfig();
+        ResetPopupDefaults();
+        ResetThemeDefaults();
+        ResetMiningDefaults();
+        ResetPerformanceDefaults();
+        ResetControllerDefaults();
+        ResetReaderDefaults();
+        ResetCaptureDefaults();
+        ResetPublishDefaults();
+        ResetConnectionDefaults();
     }
 
     public void Save() => DalamudServices.PluginInterface.SavePluginConfig(this);

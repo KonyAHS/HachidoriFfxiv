@@ -23,6 +23,10 @@ public sealed record OfflineDictionary
     public long FrequencyCount { get; init; }
     public long PitchCount { get; init; }
     public long KanjiCount { get; init; }
+    /// <summary>"synced" (from live Hachidori) or "local" (imported directly from a Yomitan .zip).</summary>
+    public string Source { get; init; } = "synced";
+    /// <summary>Used for standalone/local dictionaries when no host snapshot overrides enabled state.</summary>
+    public bool Enabled { get; init; } = true;
 }
 
 public sealed record OfflineManifest

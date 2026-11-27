@@ -75,7 +75,8 @@ Lookup results are cached (up to 512 lookups), as are word splits and pronunciat
 
 - **Idle:** close to zero. The voice recorder thread wakes for each small packet of game audio. The stats saver wakes every 15 seconds and only writes if something changed.
 - **Each dialogue line:** split into words in the background for stats. This is the same work as a lookup.
-- **Animated clips** are the main CPU cost. Every dialogue and battle talk line is encoded as it finishes, not only lines you mine. That is why mining is instant. In AVIF or WebP format, each encode is a short FFmpeg run at normal priority, with at most two at once. GIF uses a built-in encoder. If lines arrive faster than they encode, the oldest waiting encodes are dropped. On a CPU-limited machine (Steam Deck, older laptops), this is the first feature to turn off or to lower in FPS and width.
+- **Animated clips** default to **on-demand encoding** (`EagerEncodeClips = false`): recent line frames stay in RAM and FFmpeg only runs when you actually click `+` to mine, eliminating continuous CPU spikes during cutscenes. Switch **Clip encoding** to **Pre-encode every line** under `/hachidori` → **Performance** if you prefer instant mining with background encodes.
+- **Performance Presets & Cache Limits:** Open `/hachidori` → **Performance** to pick a premade preset (**Low / Steam Deck**, **Balanced**, or **High / Instant**), view live cache usage, clear caches immediately, or tune lookup, segment, pronunciation audio, line screenshot, voice replay, and clip cache caps individually.
 - **Sentence translation** only runs when you mine a card. Local models (Ollama, LM Studio) use your own CPU/GPU for that moment.
 
 ---

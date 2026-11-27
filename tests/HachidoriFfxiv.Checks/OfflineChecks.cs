@@ -41,11 +41,45 @@ internal static class OfflineChecks
 
             CheckEngine(check, native, package);
             await CheckSync(check, native, package, Path.Combine(root, "store"));
+            CheckStandaloneImport(check, native, FindDictionaryArchive(), Path.Combine(root, "standalone"));
         }
         finally
         {
             OfflineStore.TryDelete(root);
         }
+    }
+
+    private static void CheckStandaloneImport(Action<bool, string> check, NativeEngine native, string zipPath, string storeRoot)
+    {
+        var store = new OfflineStore(storeRoot);
+        var entry = StandaloneDictionaries.ImportZip(native, store, zipPath);
+        check(entry.Source == "local" && entry.Enabled && entry.TermCount > 0 && store.HasDictionaries,
+            "standalone ZIP import compiles a Yomitan archive directly without Chrome or Relay");
+
+        var sa = new HachidoriFfxiv.StandaloneAnkiConfig
+        {
+            Deck = "Japanese",
+            Model = "Lapis",
+            Fields = new Dictionary<string, string> { ["Expression"] = "{expression}", ["Sentence"] = "{sentence}" },
+        };
+        var snap = StandaloneDictionaries.BuildEffectiveSnapshot(store, sa);
+        check((snap["dictionaryState"]?["dictionaries"] as JsonArray)?.Count == 1
+              && snap["options"]?["anki"]?["templates"]?[0]?["id"]?.ToString() == StandaloneDictionaries.StandaloneTemplateId
+              && (snap["options"]?["audioSources"] as JsonArray)?.Count > 0,
+            "standalone effective snapshot supplies local dict metadata, default audio source, and standalone Anki template");
+
+        var plan = OfflinePlan.For(store, snap);
+        check(plan.Count == 1 && plan[0].Enabled && plan[0].Title == entry.Title,
+            "offline load plan loads standalone local dictionaries without a Chrome snapshot");
+
+        check(StandaloneDictionaries.SetLocalEnabled(store, entry.Id, false)
+              && !OfflinePlan.For(store, null)[0].Enabled,
+            "toggling a standalone dictionary disabled persists in the manifest and load plan");
+
+        check(StandaloneDictionaries.RemoveLocal(store, entry.Id, out var retired)
+              && retired is not null && !store.HasDictionaries,
+            "removing a standalone dictionary clears it from the manifest and returns its folder for cleanup");
+        if (retired is not null) OfflineStore.TryDelete(retired);
     }
 
     private static void CheckFurigana(Action<bool, string> check)

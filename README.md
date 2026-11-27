@@ -25,19 +25,28 @@ Dalamud plugin for FFXIV on **Windows**, with automatic fallbacks for **Linux, S
 
 ## First Setup
 
-1. **Install Hachidori for Chrome** — Follow [Hachidori's install guide](https://github.com/bee-san/hachidori#install-in-15-seconds) and import your Japanese dictionaries.
-   - *Optional:* Download and import [`FFXIV-Hachidori-JP-EN.zip`](https://github.com/KonyAHS/HachidoriFfxiv/releases/latest/download/FFXIV-Hachidori-JP-EN.zip) (37,729 game terms & 190 portraits — **contains expansion spoilers**).
-2. **Install Hachidori Relay in Anki** — In Hachidori, open **Settings → Sharing → Download the Anki add-on**, install [Hachidori Relay](https://github.com/bee-san/hachidori-anki#install) in Anki (**Tools → Add-ons → Install from file**), then restart Anki.
-3. **Confirm Sharing** — Keep Chrome and Anki open and verify **Sharing through Anki** is active in Hachidori **Settings → Sharing**.
-4. **Add the Dalamud Repository** — In FFXIV (**Dalamud Settings → Experimental → Custom Plugin Repositories**), add:
+### 1. Install the Plugin in Dalamud
+
+1. In FFXIV (**Dalamud Settings → Experimental → Custom Plugin Repositories**), add:
 
    ```text
    https://github.com/KonyAHS/HachidoriFfxiv/releases/latest/download/pluginmaster.json
    ```
 
-5. **Install & Verify** — Save, open `/xlplugins`, install **Hachidori for FFXIV**, and run `/hachidori config` to confirm a linked host and dictionary count.
+2. Save, open `/xlplugins`, and install **Hachidori for FFXIV**.
+3. The **Setup** tab opens automatically on first install (or run `/hachidori`) with a **Setup Style** picker (**Keep GSM**, **Lightweight**, or **Full Media**) and a live **Connection Doctor**.
 
-> Uses your Hachidori dictionaries and templates directly (not a standalone dictionary or generic Yomitan API). Local defaults work out of the box on one PC.
+### 2. Connect Dictionaries — Two Ways
+
+- **Option A — Standalone Offline (No Chrome Required):**
+  1. In `/hachidori` → **Setup**, click **Browse Yomitan `.zip`…** to import your existing Yomitan dictionaries directly, or click **Install JMdict (EN)** / **Install FFXIV Dict** (37,729 game terms & 190 portraits — *contains expansion spoilers*).
+  2. For one-click Anki mining, install **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** (Anki add-on code `2055492159`), then open **Mining → Anki Card Mapping** to pick your deck, note type, or a one-click preset (**Lapis**, **JPMN**, **Senren**, **Kaishi**, or **Smart Auto-Map**).
+- **Option B — Live Hachidori Sync (Chrome + Relay):**
+  1. Install [Hachidori for Chrome](https://github.com/bee-san/hachidori#install-in-15-seconds) and import your dictionaries.
+  2. Install **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** (`2055492159`) and **[Hachidori Relay](https://github.com/bee-san/hachidori-anki#install)** in Anki, then restart Anki.
+  3. Enable **Sharing through Anki** in Hachidori **Settings → Sharing** and confirm green checks in the plugin's **Connection Doctor**.
+
+> Already use **GameSentenceMiner**, **exSTATic**, **Kechimochi**, or **Tidepool**? Choose **Keep GSM** in Setup to use native in-game hover alongside GSM, click **Import settings from GSM** in **Mining**, and import/export your reading history under `/hachidori stats` → **Data**.
 
 ---
 

@@ -66,7 +66,10 @@ public sealed class Plugin : IDalamudPlugin
                 assemblyDir);
             localBackend = new LocalBackend(offline, service.Http, () => service.Options);
         }
-        var offlineAnki = new OfflineAnkiMiner(() => service.Snapshot, () => offline is { Ready: true } o ? o.Loaded() : null, service.Http);
+        var offlineAnki = new OfflineAnkiMiner(
+            () => config.StandaloneAnki.PreferStandalone && offline is not null ? offline.EffectiveSnapshot : service.Snapshot,
+            () => offline is { Ready: true } o ? o.Loaded() : null,
+            service.Http);
         service.AttachOffline(localBackend, offlineAnki);
         audio = new AudioPlayer(config);
         fonts = new Fonts(config);
@@ -119,7 +122,8 @@ public sealed class Plugin : IDalamudPlugin
             openPictures: popups.NpcImages.Open,
             webView: webView,
             triggerFreezeFrame: freezeFrame.Toggle,
-            gamepad: gamepad);
+            gamepad: gamepad,
+            clearStats: stats.ClearAll);
         windows.AddWindow(reader);
         windows.AddWindow(search);
         windows.AddWindow(statsWindow);
@@ -138,6 +142,14 @@ public sealed class Plugin : IDalamudPlugin
 
         DalamudServices.PluginInterface.UiBuilder.Draw += Draw;
         DalamudServices.PluginInterface.UiBuilder.OpenConfigUi += configWindow.Toggle;
+
+        // On a brand-new install, open the Setup guide once so the user isn't met with silence.
+        if (!config.FirstRunCompleted)
+        {
+            config.FirstRunCompleted = true;
+            config.Save();
+            configWindow.IsOpen = true;
+        }
     }
 
     private static Configuration LoadConfiguration()
@@ -265,6 +277,7 @@ public sealed class Plugin : IDalamudPlugin
         DalamudServices.CommandManager.RemoveHandler(Command);
         DalamudServices.CommandManager.RemoveHandler(LegacyCommand);
         windows.RemoveAllWindows();
+        configWindow.Dispose();
         capture.LineCaptured -= OnLineCapturedForStats;
         nativeHover.ChatLinesChanged -= OnChatLinesChanged;
         freezeFrame.Dispose();

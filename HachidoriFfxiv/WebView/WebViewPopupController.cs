@@ -53,6 +53,7 @@ public sealed class WebViewPopupController : IDisposable
     private string? lastConfigFingerprint;
     private bool snapshotDirty = true;
     private bool lastUsingOffline;
+    private bool lastUseOfflineAnki;
     private DateTime lastSyncKick = DateTime.MinValue;
     private float lastScaleX = 1f;
     private float lastScaleY = 1f;
@@ -81,6 +82,7 @@ public sealed class WebViewPopupController : IDisposable
         this.offline = offline;
         this.getMedia = getMedia;
         lastUsingOffline = service.UsingOffline;
+        lastUseOfflineAnki = service.UseOfflineAnki;
         userDataRoot = Path.Combine(configDirectory, "webview2-data");
         Bundles = new HachidoriBundleManager(Path.Combine(configDirectory, "hachidori-web"));
         _ = Task.Run(() => PruneStaleSessionFolders(userDataRoot));
@@ -274,7 +276,8 @@ public sealed class WebViewPopupController : IDisposable
         if (host is null || !host.IsReady)
             return;
 
-        // Detect any configuration change (including Theme tab edits) without requiring explicit callbacks everywhere.
+        // Detect backend mode changes (e.g. DictionarySource or PreferStandalone toggle) as well as settings edits.
+        HandleBackendModeChange();
         var fingerprint = ConfigFingerprint();
         if (snapshotDirty || !string.Equals(fingerprint, lastConfigFingerprint, StringComparison.Ordinal))
         {
@@ -632,12 +635,17 @@ public sealed class WebViewPopupController : IDisposable
     private void HandleBackendModeChange()
     {
         var usingOffline = service.UsingOffline;
-        if (usingOffline != lastUsingOffline)
+        var useOfflineAnki = service.UseOfflineAnki;
+        if (usingOffline != lastUsingOffline || useOfflineAnki != lastUseOfflineAnki)
         {
             lastUsingOffline = usingOffline;
+            lastUseOfflineAnki = useOfflineAnki;
             // Live and offline backends use different dictionary generations and Anki configKeys;
-            // close any open popup so the next lookup fetches fresh status/generation from the active backend.
+            // force options.revision to bump so Hachidori Web re-queries hd_anki_status immediately.
+            bridge.InvalidateProjection();
+            snapshotDirty = true;
             host?.CloseAll();
+            host?.NotifyWordStatusChanged();
         }
     }
 
@@ -702,6 +710,14 @@ public sealed class WebViewPopupController : IDisposable
             config.AudioVolume,
             config.AnkiTemplateId,
             config.CaptureScreenshot,
+            config.DictionarySource,
+            config.StandaloneAnki.PreferStandalone,
+            config.StandaloneAnki.Deck,
+            config.StandaloneAnki.Model,
+            config.StandaloneAnki.DuplicateBehavior,
+            config.StandaloneAnki.Fields.Count,
+            service.UsingOffline,
+            service.UseOfflineAnki,
             adapter.NpcPicturesAvailable);
 
     private static void OpenExternalUrlSafely(string url)
