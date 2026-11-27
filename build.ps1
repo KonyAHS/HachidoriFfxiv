@@ -63,6 +63,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Regression checks failed.' }
         & $taskDotnet run --project tests/HachidoriFfxiv.ArchCheck -c Release -- --self-test --allow .deslop.allow --strict-allow
         if ($LASTEXITCODE -ne 0) { throw 'Architectural checks failed.' }
+        & (Join-Path $PSScriptRoot 'scripts/release-notes.ps1') -SelfTest -ValidateAll -ValidateProjectVersion
     }
     # Package only this assembly's runtime dependencies. Old binaries from the
     # project rename must not be included just because they remain in bin.

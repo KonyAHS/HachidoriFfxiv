@@ -114,6 +114,7 @@ Want to dig into configuration, platform fallbacks, or building from source?
 - **[FFXIV Custom Dictionary](dictionaries/ffxiv/README.md)** — Dictionary contents, installation, sources, and generator code.
 - **[Performance & Resource Use](docs/PERFORMANCE.md)** — Memory, CPU, GPU, disk and network cost of each feature, and lighter setups for low-end PCs and Steam Deck.
 - **[Troubleshooting & Limits](docs/TROUBLESHOOTING.md)** — Common fixes, diagnostics, and privacy scope.
+- **[Changelog](CHANGELOG.md)** — Feature log for every release.
 - **[Build & Release](docs/DEVELOPMENT.md)** — Building `hdw_native.dll`, parity tests, and packaging.
 
 ---

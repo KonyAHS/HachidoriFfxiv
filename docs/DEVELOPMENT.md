@@ -48,12 +48,16 @@ rejects version downgrades, backs up replaced files and checks the installed has
 `./deploy-local.ps1 -WhatIf` runs the checks without replacing any files.
 Check `%APPDATA%/XIVLauncher/dalamud.log` for a successful reload.
 
-To release, update `<Version>` in the project, commit to `main`, then push a
-matching tag, for example `v2.0` (trailing `.0` parts may be omitted; the
-assembly version is still `2.0.0.0`). The workflow builds, runs offline checks,
+To release, add a `## v<version>` section with bullet-point feature descriptions
+to `CHANGELOG.md`, update `<Version>` in `HachidoriFfxiv/HachidoriFfxiv.csproj`,
+verify with `./build.ps1 -Verify`, commit to `main`, then push a matching tag,
+for example `v2.0.5` (trailing `.0` parts may be omitted; the assembly version
+is still four parts). Both `./build.ps1 -Verify` and the release workflow
+validate `CHANGELOG.md` via `scripts/release-notes.ps1` and refuse to publish a
+release without curated feature notes. The workflow builds, runs offline checks,
 and publishes `latest.zip`, `pluginmaster.json`, `source.zip`,
 `native-source.zip` (the patched sources `hdw_native.dll` was built from) and
-checksums.
+checksums using the validated `CHANGELOG.md` section as the GitHub Release body.
 The feed uses version-specific package links; the installation URL always
 points to the latest release's feed. No manual feed commits are needed.
 

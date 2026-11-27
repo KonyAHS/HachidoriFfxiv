@@ -40,7 +40,7 @@ jobs:
       - name: Prepare release assets
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
-        run: ./scripts/package-release.ps1 -Repository $env:GITHUB_REPOSITORY -Tag $env:RELEASE_TAG
+        run: ./scripts/package-release.ps1 -Repository $env:GITHUB_REPOSITORY -Tag $env:RELEASE_TAG -NotesOut "$env:RUNNER_TEMP/release-notes.md"
         env:
           RELEASE_TAG: ${{ github.ref_name }}
       - uses: actions/upload-artifact@v4
@@ -52,6 +52,11 @@ jobs:
         with:
           name: release-assets
           path: dist/*
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/release-notes.md
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
@@ -63,19 +68,27 @@ jobs:
         with:
           name: release-assets
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          tag_type="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.type')"
-          if [ "$tag_type" = "tag" ]; then
-            tag_sha="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
-            gh api "repos/$GH_REPO/git/tags/$tag_sha" --jq '.message' > release-notes.md
+          notes_file="release-notes/release-notes.md"
+          if [ ! -s "$notes_file" ]; then
+            echo "::error::Missing or empty release notes for $RELEASE_TAG. Add a '## $RELEASE_TAG' feature section to CHANGELOG.md."
+            exit 1
           fi
-          if grep -q '[^[:space:]]' release-notes.md 2>/dev/null; then
-            gh release create "$RELEASE_TAG" dist/* --verify-tag --title "Hachidori for FFXIV $RELEASE_TAG" --notes-file release-notes.md
-          else
-            gh release create "$RELEASE_TAG" dist/* --verify-tag --title "Hachidori for FFXIV $RELEASE_TAG" --generate-notes
+          if grep -Eiq '\b(TODO|TBD|WIP|FIXME)\b' "$notes_file"; then
+            echo "::error::Release notes for $RELEASE_TAG contain placeholder text (TODO/TBD/WIP/FIXME)."
+            exit 1
           fi
+          if ! grep -Eq '^[[:space:]]*[-*+][[:space:]]+.{15,}' "$notes_file"; then
+            echo "::error::Release notes for $RELEASE_TAG must contain at least one descriptive feature bullet ('- ...')."
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --title "Hachidori for FFXIV $RELEASE_TAG" --notes-file "$notes_file"

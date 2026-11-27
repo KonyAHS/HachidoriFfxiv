@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')][string]$Repository,
-    [Parameter(Mandatory)][string]$Tag
+    [Parameter(Mandatory)][string]$Tag,
+    [string]$NotesOut
 )
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path $PSScriptRoot -Parent
@@ -14,6 +15,18 @@ function Get-TaskFullVersion([string]$taskValue) {
 }
 if ($Tag -cnotmatch '^v\d+(\.\d+){1,3}$' -or (Get-TaskFullVersion $Tag.Substring(1)) -ne (Get-TaskFullVersion $taskManifest.AssemblyVersion)) {
     throw "Tag $Tag must match the plugin version $($taskManifest.AssemblyVersion), e.g. v2.0 or v2.0.0.0."
+}
+# Every release must have a curated description of features in CHANGELOG.md.
+$notesParams = @{
+    Tag        = $Tag
+    Repository = $Repository
+}
+if (-not [string]::IsNullOrWhiteSpace($NotesOut)) {
+    $notesParams.OutFile = $NotesOut
+    & (Join-Path $PSScriptRoot 'release-notes.ps1') @notesParams
+}
+else {
+    $null = & (Join-Path $PSScriptRoot 'release-notes.ps1') @notesParams
 }
 $taskDist = Join-Path $taskRoot 'dist'
 New-Item -ItemType Directory -Force -Path $taskDist | Out-Null
