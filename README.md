@@ -11,7 +11,7 @@ Hover dialogue, subtitles, battle talk, chat, and frozen tooltips for Hachidori 
 
 [First Setup](#first-setup) · [Features](#features) · [Modes](#built-in-extension--gsm) · [Commands](#commands) · [Docs](#documentation) · [Credits](#credits)
 
-Dalamud plugin for FFXIV on **Windows**, with automatic fallbacks for **Linux, Steam Deck, and macOS**.
+Dalamud plugin for FFXIV on **Windows**.
 
 </div>
 
@@ -58,7 +58,7 @@ Dalamud plugin for FFXIV on **Windows**, with automatic fallbacks for **Linux, S
 
 <a href="docs/screenshots/freeze-frame.webp"><img src="docs/screenshots/freeze-frame.webp" alt="Freeze Frame scanning a frozen FFXIV action tooltip with a live dictionary popup" width="560"></a>
 
-**One-Click Anki Mining with Game Media** — Mine directly via AnkiConnect using built-in note-type presets, live field dropdowns & **Dry-Run Preview** (or your Hachidori template). Attaches clean game screenshots (plugin UI hidden), recorded voice lines or local TTS, animated AVIF/WebP/GIF clips (encoded on demand, with one-click FFmpeg setup), pitch-accent graphs, and AI sentence translations — no GSM required.
+**One-Click Anki Mining with Game Media** — Attaches clean game screenshots, recorded voice lines or local TTS, animated clips, pitch-accent graphs, and AI sentence translations
 
 <a href="docs/screenshots/anki-card.webp"><img src="docs/screenshots/anki-card.webp" alt="Mined Anki card featuring an animated FFXIV cutscene clip, pitch accent, audio, and dictionary definition" width="380"></a>
 
@@ -66,12 +66,12 @@ Dalamud plugin for FFXIV on **Windows**, with automatic fallbacks for **Linux, S
 
 <a href="docs/screenshots/controller-mode.webp"><img src="docs/screenshots/controller-mode.webp" alt="Controller reading mode navigating FFXIV dialogue with the Hachidori Web popup and bottom button hints" width="560"></a>
 
-**Immersion Stats & Anki Card Feed (`/hachidori stats`)** — Track reading pace, streaks, rank, heatmaps, chattiest NPCs, frequent & most-looked-up ("Nemesis") words, kanji encountered, and recent Anki cards.
+**Immersion Stats & Anki Card Feed (`/hachidori stats`)** — Track reading pace, streaks, rank, heatmaps, chattiest NPCs, frequent & most-looked-up words, kanji encountered, and recent Anki cards.
 
 <a href="docs/screenshots/immersion-stats.png"><img src="docs/screenshots/immersion-stats.png" alt="Hachidori Immersion Stats dashboard showing reading rank, KPI cards, daily chart, 30-day heatmap, and Immersion Clock" width="560"></a>
 
 **Also included:**
-- **Built-in & offline dictionaries** — Import Yomitan `.zip` archives directly into the plugin or auto-sync from Hachidori, with full offline Anki mining, pitch-accent SVG graphs, and duplicate note updates.
+- **Built-in & offline dictionaries** — Import Yomitan `.zip` archives directly into the plugin or auto-sync from Hachidori, with full offline Anki mining.
 - **Performance & cache presets** — Choose **Low / Steam Deck**, **Balanced**, or **High / Instant** in **Performance**, view live memory footprint and cache counts, tune individual cache sizes, or clear caches on demand.
 - **Reader, search, katakana character name & NPC pictures** — Optional line-history overlay, manual search, natural player name readings, and in-game NPC portrait cropping (`/hachidori pictures`).
 - **FFXIV JP–EN dictionary** — Optional 37,729-entry dictionary for patch 7.58 with 190 portraits, installable directly from **Setup** ([guide & sources](dictionaries/ffxiv/README.md)).
