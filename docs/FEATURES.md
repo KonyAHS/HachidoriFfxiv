@@ -48,19 +48,18 @@ Run `/hachidori stats` to view progress across **Session**, **Today**, **7 Days*
 
 By default, lookups go to Hachidori in Chrome. Offline mode stores a synced copy of your dictionaries and settings in the plugin's config folder so lookups, audio, and mining keep working with Chrome closed.
 
-### Setup
+### Offline & Standalone Setup
 
-1. With Hachidori linked, open `/hachidori config` → **Connection** (or **Quick Guide**) and click **Set up offline mode**. Dictionaries download once (~same disk space as Hachidori).
-2. Live Hachidori is always preferred while linked. On each reconnect, the plugin compares dictionary revisions, downloads only changes, and removes deleted dictionaries. Settings (order, theme, audio sources) sync automatically.
-3. The **Connection** tab shows the active backend, disk usage, last sync time, and **Turn off and delete offline data**.
+1. **Standalone (no Chrome needed):** Open `/hachidori` → **Setup** or **Connection** and click **Browse Yomitan `.zip`…** (or install JMdict / the FFXIV dictionary in one click). Dictionaries compile directly through the bundled `hdw_native.dll` engine.
+2. **Sync from Chrome Hachidori (optional):** With Hachidori linked, click **Sync Chrome dicts offline** in **Connection**. On each reconnect, the plugin compares dictionary revisions, downloads only changes, and keeps locally imported `.zip` dictionaries intact.
 
 ### Offline behavior & caveats
 
-- **Engine parity:** Uses Hachidori's compiled `hoshidicts` engine (`hdw_native.dll`) and settings so results match Chrome.
-- **Anki mining:** Renders your Hachidori Anki Template locally and adds the note via AnkiConnect (with pronunciation, screenshot, and dictionary images).
+- **Engine parity:** Uses Hachidori's compiled `hoshidicts` engine (`hdw_native.dll`) so lookups match Chrome.
+- **Anki mining:** Renders either your Hachidori template or the plugin's built-in **Standalone Template** (with presets for **Lapis**, **JPMN**, **Senren**, **Kaishi**, and **Smart Auto-Map**) and writes directly via AnkiConnect — including inline SVG `{pitch-accent-graphs}` / `{pitch-accent-graphs-jj}` and `overwrite` duplicate updates.
   - Duplicate checking uses Anki's first-field check rather than Hachidori's word index.
-  - Templates that overwrite existing notes, use Smaller Anki cards, or use pitch graph markers require Chrome.
-- **Audio:** Uses Audio URL and Yomitan JSON sources directly (browser speech requires Chrome).
+  - Templates using *Smaller Anki cards* still require Chrome.
+- **Audio:** Uses Audio URL and Yomitan JSON sources directly (defaults to JapanesePod101 in standalone mode; browser speech requires Chrome).
 - **Other limits:** Lookup counts sync on the next Chrome link; NPC picture edits require Chrome. If Hachidori updates to a newer dictionary format than the bundled engine, incompatible dictionaries stay live-only until the plugin updates.
 
 ---
@@ -77,7 +76,7 @@ Configure card media under `/hachidori config` → **Mining**:
 
 ### AnkiConnect field mapping
 
-Voice lines, TTS audio, animations, and translations are attached through [AnkiConnect](https://ankiweb.net/shared/info/2055492159) right after Hachidori creates the note. Default target fields match names like *Sentence Audio*, *GIF* (without a GIF field, the animation replaces the screenshot), and *SentenceTranslation*. Customize field names under **Mining → AnkiConnect & Fields** with **Show advanced** on.
+Voice lines, TTS audio, animations, and translations are attached through [AnkiConnect](https://ankiweb.net/shared/info/2055492159) right after the note is created. Open **Mining → Anki Card Mapping** to pick your deck, note type, preset (**Lapis**, **JPMN**, **Senren**, **Kaishi**, or **Smart Auto-Map**), and live field dropdowns for *Sentence Audio*, *Animation/GIF*, and *Translation*, or click **Dry-Run Preview** to inspect a sample card before mining.
 
 ---
 

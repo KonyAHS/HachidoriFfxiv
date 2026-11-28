@@ -1,370 +1,161 @@
 using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Numerics;
-using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.GamePad;
-using Dalamud.Game.Text;
-using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Windowing;
-using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Media;
-using HachidoriFfxiv.Publishing;
-using HachidoriFfxiv.Rendering.Css;
-using HachidoriFfxiv.WebView;
+using HachidoriFfxiv.Offline;
 
 namespace HachidoriFfxiv.Ui;
 
 public sealed partial class ConfigWindow
 {
-    // -------------------------------------------------------------- Quick Guide tab
-
-    private void DrawQuickGuideTab()
-    {
-        var scale = ImGuiHelpers.GlobalScale;
-        var connected = service.Link.Connected;
-        var offlineReady = service.UsingOffline;
-        var dictReady = connected || offlineReady;
-
-        ImGui.TextWrapped("Hover Japanese in dialogue, battle talk and chat to look it up, then mine Anki cards with game media in one click.");
-
-        DrawPlatformCompatibilityGuide();
-
-        if (Section("guide-step1", dictReady ? "1. Connect dictionaries  ·  Ready" : "1. Connect dictionaries", defaultOpen: !dictReady, accent: dictReady ? AccentGreen : AccentAmber))
-        {
-            if (connected)
-            {
-                ImGui.TextColored(AccentGreen, $"Linked to Hachidori v{service.Link.HostVersion} with {service.Link.DictionaryCount} dictionaries.");
-            }
-            else if (offlineReady)
-            {
-                ImGui.TextColored(AccentAmber, "Offline mode: using your synced dictionaries.");
-            }
-            else
-            {
-                ImGui.BulletText("Open Anki with the Hachidori Relay add-on.");
-                ImGui.BulletText("Open Chrome with Hachidori and turn on Settings → Sharing.");
-                ImGui.BulletText("Once linked, Offline Mode lets you play without Chrome.");
-            }
-
-            ImGui.Spacing();
-            if (ImGui.Button("Reconnect"))
-                service.Link.Reconnect();
-            ImGui.SameLine(0, 6 * scale);
-            if (ImGui.Button("Connection settings"))
-                pendingSelectTab = "Connection";
-            if (!config.OfflineMode && connected && offline is { } off)
-            {
-                ImGui.SameLine(0, 6 * scale);
-                using (ImRaii.Disabled(off.Sync.Running))
-                {
-                    if (ImGui.Button("Set up Offline Mode"))
-                        _ = off.SetUpAsync();
-                }
-            }
-        }
-
-        // The FFXIV dictionary step disappears once it is installed and enabled (the Connection tab keeps it).
-        var installedFfxivDict = FindInstalledFfxivDictionary();
-        if (installedFfxivDict is not { Enabled: true }
-            && Section("guide-ffxiv-dict",
-                installedFfxivDict is null ? "Optional: FFXIV dictionary" : "Optional: FFXIV dictionary  ·  Disabled",
-                defaultOpen: installedFfxivDict is null,
-                accent: installedFfxivDict is null ? null : AccentAmber))
-        {
-            DrawFfxivDictionaryBody(scale, installedFfxivDict, "guide");
-        }
-
-        if (Section("guide-step2", "2. Hover Japanese text", defaultOpen: true))
-        {
-            Checkbox("Hover game text", () => config.NativeTextHover, v => config.NativeTextHover = v);
-            ImGui.SameLine(0, 16 * scale);
-            Checkbox("Include chat", () => config.NativeChatHover, v => config.NativeChatHover = v);
-            DrawScanModifierControl();
-            ImGui.Spacing();
-            if (openSearchSample is not null)
-            {
-                if (ImGui.Button("Try a sample sentence"))
-                    openSearchSample(SearchWindow.SampleLine);
-                ImGui.SameLine(0, 6 * scale);
-            }
-            if (ImGui.Button("Popup settings"))
-                pendingSelectTab = "Popup";
-        }
-
-        if (Section("guide-step3", ankiConnectedHint ? "3. Mine to Anki  ·  Ready" : "3. Mine to Anki (optional)", defaultOpen: !dictReady, accent: ankiConnectedHint ? AccentGreen : null))
-        {
-            ImGui.TextWrapped("Click + on a popup entry to make a card. Choose what to attach:");
-            Checkbox("Screenshot", () => config.CaptureScreenshot, v => config.CaptureScreenshot = v);
-            ImGui.SameLine(0, 12 * scale);
-            Checkbox("Voice line", () => config.RecordVoiceLines, v => config.RecordVoiceLines = v);
-            ImGui.SameLine(0, 12 * scale);
-            Checkbox("Animation", () => config.CaptureGif, v => config.CaptureGif = v);
-            ImGui.SameLine(0, 12 * scale);
-            Checkbox("Translation", () => config.TranslationEnabled, v => config.TranslationEnabled = v);
-
-            if (ImGui.Button("Test AnkiConnect##guide"))
-            {
-                mediaTest = "Checking AnkiConnect…";
-                _ = TestAnkiConnectAsync();
-            }
-            ImGui.SameLine(0, 6 * scale);
-            if (ImGui.Button("Mining settings"))
-                pendingSelectTab = "Mining";
-            if (mediaTest is not null)
-                ImGui.TextWrapped(mediaTest);
-        }
-
-        if (Section("guide-commands", "Chat commands", defaultOpen: false))
-        {
-            using var tbl = ImRaii.Table("##guide-commands", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp);
-            if (tbl.Success)
-            {
-                ImGui.TableSetupColumn("Command", ImGuiTableColumnFlags.WidthFixed, 160 * scale);
-                ImGui.TableSetupColumn("What it does", ImGuiTableColumnFlags.WidthStretch);
-                foreach (var (cmd, desc) in new[]
-                {
-                    ("/hachidori", "Open or close Settings"),
-                    ("/hachidori stats", "Immersion stats"),
-                    ("/hachidori search", "Search window"),
-                    ("/hachidori <text>", "Look up text"),
-                    ("/hachidori reader", "Pin or unpin the reader overlay"),
-                    ("/hachidori pad", "Controller reading mode (put it on a hotbar macro)"),
-                    ("/hachidori backlog", "Open the dialogue backlog (previous lines)"),
-                    ("/hachidori replay", "Repeat the cached voice for the latest dialogue line"),
-                    ("/hachidori freeze", "Freeze the screen to look up tooltips"),
-                    ("/hachidori pictures", "NPC picture dictionary"),
-                    ("/hachidori logs", "Export a debug log"),
-                })
-                {
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    ImGui.TextUnformatted(cmd);
-                    ImGui.TableNextColumn();
-                    ImGui.TextUnformatted(desc);
-                }
-            }
-        }
-
-        ImGui.Spacing();
-        var dismissed = config.QuickGuideDismissed;
-        if (ImGui.Checkbox("Open the Popup tab first next time", ref dismissed))
-        {
-            config.QuickGuideDismissed = dismissed;
-            config.Save();
-        }
-    }
-
-    private void DrawPlatformCompatibilityGuide()
-    {
-        var platform = PlatformInfo.Current;
-        var missingWebView = platform.SupportsWebView2Overlay && webView is { RuntimeAvailable: false };
-        // Full native support needs no explanation; only surface the section when something falls back.
-        if (!platform.IsWine && platform.SupportsProcessAudioLoopback && !missingWebView)
-            return;
-
-        if (!Section("guide-platform", $"Compatibility: {platform.DisplayName}", defaultOpen: true, accent: AccentAmber))
-            return;
-
-        if (platform.IsWine)
-        {
-            ImGui.BulletText("Popups use the built-in renderer (Hachidori Web needs Windows).");
-            ImGui.BulletText(platform.HostOs == HostOsKind.MacOs
-                ? "Voice recording: macOS has no audio loopback. Use TTS (Mining tab) or a virtual loopback device."
-                : "Voice recording uses system audio, so other apps can be heard. Lower BGM for cleaner clips.");
-            ImGui.BulletText("Install FFmpeg on the host for MP3/AAC audio and AVIF/WebP animations.");
-            ImGui.BulletText("Run Anki (with Hachidori Relay) and Chrome natively; they share 127.0.0.1 with the game.");
-
-            if (platform.IsSteamDeck)
-            {
-                ImGui.Spacing();
-                ImGui.TextUnformatted("Steam Deck");
-                ImGui.BulletText("Link Hachidori once in Desktop Mode, then turn on Offline Mode to play in Gaming Mode without Chrome.");
-                ImGui.BulletText("Put /hachidori pad and /hachidori freeze on cross-hotbar macros (B / Circle exits Freeze Frame).");
-                ImGui.BulletText("Turn on \"plugin gamepad input\" in Dalamud settings; the stick and trackpads move the cursor.");
-            }
-
-            ImGui.TextDisabled("Support outside Windows is best-effort.");
-            return;
-        }
-
-        if (!platform.SupportsProcessAudioLoopback)
-            ImGui.BulletText("This Windows version can't record FFXIV alone, so voice recording uses system audio.");
-        if (missingWebView)
-            ImGui.BulletText("The Microsoft Edge WebView2 Runtime isn't installed, so popups use the built-in renderer.");
-    }
-
     // -------------------------------------------------------------- Popup tab
 
     private void DrawPopupTab()
     {
         var scale = ImGuiHelpers.GlobalScale;
 
-        if (Section("popup-scan", "Hover & Scanning", defaultOpen: true))
+        using (var card = ConfigStyle.Card("popup-scan", "Hover & Scanning", ConfigStyle.Primary,
+            badge: config.NativeTextHover ? "ON" : "OFF",
+            badgeColor: config.NativeTextHover ? ConfigStyle.Primary : ConfigStyle.Muted))
         {
-            Checkbox("Hover game text", () => config.NativeTextHover, v => config.NativeTextHover = v);
-            ImGui.SameLine(0, 16 * scale);
-            Checkbox("Include chat", () => config.NativeChatHover, v => config.NativeChatHover = v);
-            DrawScanModifierControl();
-            DrawFreezeHotkeyControl();
-
-            if (Advanced)
+            if (card.IsOpen)
             {
-                AdvancedDivider();
-                Checkbox("Hover whole words (Hachidori tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v);
-                Checkbox("Other native windows (experimental)", () => config.NativeOtherTextHover, v => config.NativeOtherTextHover = v);
-                Checkbox("Only start scans on Japanese characters", () => config.ScanOnlyJapanese, v => config.ScanOnlyJapanese = v);
-                Checkbox("Use the personal dictionary", () => config.UsePersonalDictionary, v => config.UsePersonalDictionary = v);
-                DrawScanLengthControl();
-                DrawMaxResultsControl();
-                DrawMaxPopupDepthControl();
-                Checkbox("Show native hover targets (debug)", () => config.NativeHoverDebug, v => config.NativeHoverDebug = v);
-                if (config.NativeHoverDebug)
+                Checkbox("Hover game text", () => config.NativeTextHover, v => config.NativeTextHover = v);
+                ImGui.SameLine(0, 18 * scale);
+                Checkbox("Include chat", () => config.NativeChatHover, v => config.NativeChatHover = v);
+                DrawScanModifierControl();
+                DrawFreezeHotkeyControl();
+
+                if (Advanced)
                 {
-                    ImGui.TextDisabled($"Native text regions under mouse: {nativeHover.RegionCount}");
-                    if (nativeHover.LastError is { } error) ImGui.TextWrapped(error);
+                    AdvancedDivider();
+                    Checkbox("Whole-word hover (tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v);
+                    ImGui.SameLine(0, 14 * scale);
+                    Checkbox("Other native windows (exp.)", () => config.NativeOtherTextHover, v => config.NativeOtherTextHover = v);
+                    Checkbox("Japanese characters only", () => config.ScanOnlyJapanese, v => config.ScanOnlyJapanese = v);
+                    ImGui.SameLine(0, 14 * scale);
+                    Checkbox("Personal dictionary", () => config.UsePersonalDictionary, v => config.UsePersonalDictionary = v);
+                    DrawScanLengthControl();
+                    DrawMaxResultsControl();
+                    DrawMaxPopupDepthControl();
+                    Checkbox("Show hover target boxes (debug)", () => config.NativeHoverDebug, v => config.NativeHoverDebug = v);
+                    if (config.NativeHoverDebug)
+                    {
+                        ImGui.TextDisabled($"Targets under mouse: {nativeHover.RegionCount}");
+                        if (nativeHover.LastError is { } error) ImGui.TextWrapped(error);
+                    }
                 }
             }
         }
 
-        if (Section("popup-appearance", "Appearance", defaultOpen: true))
-            DrawAppearanceSection();
-
-        if (Section("popup-size", "Size & Behavior", defaultOpen: true))
+        var rendererBadge = webView is { Active: true } ? "WEBVIEW2" : "BUILT-IN";
+        using (var card = ConfigStyle.Card("popup-look", "Look, Renderer & Size", ConfigStyle.Secondary,
+            badge: rendererBadge, badgeColor: ConfigStyle.Secondary))
         {
-            DrawPopupWidthControl();
-            DrawPopupMaxHeightControl();
-            DrawPopupFontSizeControl();
-
-            if (!config.FollowHachidoriTheme || !config.FollowHachidoriOpacity)
-                DrawPopupOpacityControl();
-            else
-                ImGui.TextDisabled("Opacity follows Hachidori's theme.");
-
-            if (Advanced)
+            if (card.IsOpen)
             {
-                AdvancedDivider();
-                DrawHideDelayControl();
-                Checkbox("Hide the popup when the mouse leaves", () => config.AutoHideRootPopup, v => config.AutoHideRootPopup = v);
+                DrawPopupRendererControl();
+                if (config.FollowHachidoriTheme)
+                {
+                    DrawThemeOverrideControl();
+                    DrawVariantOverrideControl();
+                }
+                DrawRendererStatus(scale);
+
+                ImGui.Spacing();
+                DrawPopupWidthControl();
+                DrawPopupMaxHeightControl();
+                DrawPopupFontSizeControl();
+                if (!config.FollowHachidoriTheme || !config.FollowHachidoriOpacity)
+                    DrawPopupOpacityControl();
+
+                if (Advanced)
+                {
+                    AdvancedDivider();
+                    DrawHideDelayControl();
+                    Checkbox("Hide popup when mouse leaves", () => config.AutoHideRootPopup, v => config.AutoHideRootPopup = v);
+                    if (config.FollowHachidoriTheme)
+                    {
+                        DrawFollowOpacityControl();
+                        DrawApplyCustomCssControl();
+                        DrawAutoSyncWebViewControl();
+                        DrawWebViewBundlePathControl();
+                        DrawExtraCssControl();
+                    }
+                }
             }
         }
 
-        if (Section("popup-display", "Popup Contents", defaultOpen: true))
+        using (var card = ConfigStyle.Card("popup-contents", "Contents & Audio", ConfigStyle.Primary))
         {
-            Checkbox("Frequencies", () => config.ShowFrequencies, v => config.ShowFrequencies = v);
-            ImGui.SameLine(0, 16 * scale);
-            Checkbox("Pitch accent", () => config.ShowPitchAccent, v => config.ShowPitchAccent = v);
-            ImGui.SameLine(0, 16 * scale);
-            Checkbox("Dictionary names", () => config.ShowDictionaryNames, v => config.ShowDictionaryNames = v);
-            if (Advanced)
+            if (card.IsOpen)
             {
-                AdvancedDivider();
-                Checkbox("Deinflection", () => config.ShowInflections, v => config.ShowInflections = v);
-                Checkbox("Definition tags", () => config.ShowDefinitionTags, v => config.ShowDefinitionTags = v);
-                Checkbox("Attribution", () => config.ShowAttribution, v => config.ShowAttribution = v);
-                Checkbox("Lookup counts (Hachidori statistics)", () => config.ShowLookupCounts, v => config.ShowLookupCounts = v);
-                Checkbox("Honour Hachidori's lookup blur", () => config.HonourDefinitionBlur, v => config.HonourDefinitionBlur = v);
+                using (var tbl = ImRaii.Table("##popup-contents-grid", 2, ImGuiTableFlags.SizingStretchSame))
+                {
+                    if (tbl.Success)
+                    {
+                        ImGui.TableNextColumn();
+                        Checkbox("Frequencies", () => config.ShowFrequencies, v => config.ShowFrequencies = v);
+                        Checkbox("Dictionary names", () => config.ShowDictionaryNames, v => config.ShowDictionaryNames = v);
+                        ImGui.TableNextColumn();
+                        Checkbox("Pitch accent", () => config.ShowPitchAccent, v => config.ShowPitchAccent = v);
+                        Checkbox("Auto-play audio", () => config.AutoPlayAudio, v => config.AutoPlayAudio = v);
+                    }
+                }
+                DrawAudioVolumeControl();
+
+                if (Advanced)
+                {
+                    AdvancedDivider();
+                    using var tbl = ImRaii.Table("##popup-adv-grid", 2, ImGuiTableFlags.SizingStretchSame);
+                    if (tbl.Success)
+                    {
+                        ImGui.TableNextColumn();
+                        Checkbox("Deinflection trace", () => config.ShowInflections, v => config.ShowInflections = v);
+                        Checkbox("Definition tags", () => config.ShowDefinitionTags, v => config.ShowDefinitionTags = v);
+                        Checkbox("Attribution", () => config.ShowAttribution, v => config.ShowAttribution = v);
+                        ImGui.TableNextColumn();
+                        Checkbox("Lookup counts", () => config.ShowLookupCounts, v => config.ShowLookupCounts = v);
+                        Checkbox("Honour lookup blur", () => config.HonourDefinitionBlur, v => config.HonourDefinitionBlur = v);
+                    }
+                }
             }
-        }
-
-        if (Section("popup-audio", "Pronunciation Audio", defaultOpen: false))
-        {
-            Checkbox("Auto-play pronunciation", () => config.AutoPlayAudio, v => config.AutoPlayAudio = v);
-            DrawAudioVolumeControl();
-        }
-    }
-
-    private void DrawAppearanceSection()
-    {
-        var scale = ImGuiHelpers.GlobalScale;
-
-        DrawFollowThemeControl();
-        if (config.FollowHachidoriTheme)
-        {
-            DrawThemeOverrideControl();
-            DrawVariantOverrideControl();
-            if (service.Link.Connected)
-            {
-                var hostTheme = service.OptionString("popupTheme", "default");
-                var hostVariant = service.OptionString("popupThemeVariant", "auto");
-                ImGui.TextDisabled($"Hachidori is set to \"{hostTheme}\"{(hostVariant != "auto" ? $" ({hostVariant})" : string.Empty)}.");
-            }
-            else
-            {
-                ImGui.TextDisabled("Not linked: using theme defaults until Hachidori connects.");
-            }
-        }
-
-        DrawRendererStatus(scale);
-
-        if (!Advanced)
-            return;
-
-        AdvancedDivider();
-        DrawUseWebViewControl();
-        if (config.FollowHachidoriTheme)
-        {
-            DrawFollowOpacityControl();
-            DrawApplyCustomCssControl();
-            DrawAutoSyncWebViewControl();
-            DrawWebViewBundlePathControl();
-            if (webView?.Bundles.ActivePath is { Length: > 0 } activePath)
-                ImGui.TextDisabled($"Active bundle: {activePath}");
-            if (webView?.Bundles.LastGoodVersion is { Length: > 0 } lastGood)
-                ImGui.TextDisabled($"Last verified version: v{lastGood}");
-            DrawExtraCssControl();
-        }
-
-        if (webView is not { Active: true })
-        {
-            var current = PopupTheme.Current;
-            ImGui.TextDisabled($"Built-in look: {current.Renderer}{(current.Renderer == "default" ? $" / {current.Palette}" : string.Empty)}{(current.Variant.Length > 0 && current.Renderer == "crystal" ? $" / {current.Variant}" : string.Empty)}, {(current.Dark ? "dark" : "light")}.");
         }
     }
 
     private void DrawRendererStatus(float scale)
     {
-        var supported = webView is { PlatformSupported: true };
-        if (!supported)
-            ImGui.TextDisabled("Renderer: built-in (Hachidori Web is Windows-only).");
-        else if (!config.UseWebViewPopup)
-            ImGui.TextDisabled("Renderer: built-in.");
-        else if (!config.FollowHachidoriTheme)
-            ImGui.TextDisabled("Renderer: built-in. Use Hachidori's theme to render with Hachidori Web.");
-        else if (webView!.Active)
-            ImGui.TextColored(AccentGreen, $"Renderer: Hachidori Web v{webView.LoadedVersion}");
-        else if (!webView.RuntimeAvailable)
-            ImGui.TextColored(AccentAmber, "Renderer: built-in. Install the Microsoft Edge WebView2 Runtime to use Hachidori Web.");
-        else if (webView.Bundles.Syncing)
-            ImGui.TextDisabled("Renderer: syncing Hachidori Web…");
-        else if (webView.Bundles.Ready)
-            ImGui.TextColored(AccentAmber, $"Renderer: built-in until Hachidori Web is ready ({webView.StatusText}).");
-        else
-            ImGui.TextColored(AccentAmber, "Renderer: built-in until Hachidori Web is downloaded.");
-
-        if (supported && config.UseWebViewPopup && webView!.LastError is { Length: > 0 } wvError)
-            ImGui.TextColored(AccentRed, wvError);
-        if (webView is not { Active: true } && themes.Error is { } themeError)
-            ImGui.TextColored(AccentRed, $"Theme error: {themeError}");
-
-        // Manual sync is only needed when the bundle isn't running, or for advanced users.
-        if (!supported || !config.UseWebViewPopup || (!Advanced && webView!.Active))
-            return;
-
-        using (ImRaii.Disabled(webView!.Bundles.Syncing))
+        if (webView is { PlatformSupported: true } && config.UseWebViewPopup && config.FollowHachidoriTheme)
         {
-            if (ImGui.SmallButton("Sync Hachidori Web now"))
-                _ = webView.SyncBundleNowAsync(force: true);
+            if (webView.Active)
+                ImGui.TextColored(ConfigStyle.Muted, $"Hachidori Web v{webView.LoadedVersion} active.");
+            else if (!webView.RuntimeAvailable)
+                ImGui.TextColored(ConfigStyle.Emphasis, "WebView2 Runtime missing — using built-in renderer.");
+            else if (webView.Bundles.Syncing)
+                ImGui.TextColored(ConfigStyle.Primary, "Syncing Hachidori Web bundle…");
+            else
+                ImGui.TextColored(ConfigStyle.Emphasis, $"Built-in fallback ({webView.StatusText}).");
+
+            if (webView.LastError is { Length: > 0 } wvError)
+                ImGui.TextColored(ConfigStyle.Bad, wvError);
+
+            if (Advanced || !webView.Active)
+            {
+                using (ImRaii.Disabled(webView.Bundles.Syncing))
+                {
+                    if (ImGui.SmallButton("Sync Web UI"))
+                        _ = webView.SyncBundleNowAsync(force: true);
+                }
+            }
         }
-        if (webView.Bundles.SyncedAt is { } syncedAt)
+        else if (webView is not { Active: true } && themes.Error is { } themeError)
         {
-            ImGui.SameLine(0, 10 * scale);
-            ImGui.TextDisabled($"Last synced {Ago(new DateTimeOffset(DateTime.SpecifyKind(syncedAt, DateTimeKind.Utc)))}");
+            ImGui.TextColored(ConfigStyle.Bad, $"Theme error: {themeError}");
         }
     }
 
@@ -372,193 +163,218 @@ public sealed partial class ConfigWindow
 
     private void DrawMiningTab()
     {
-        ImGui.TextDisabled("What gets added to cards you mine with + in a popup.");
-        DrawAnkiNotifyToggleControl();
+        var scale = ImGuiHelpers.GlobalScale;
+        var source = ActiveSource;
+        var keepGsm = config.SetupStyle == SetupStyle.KeepGsm;
 
-        if (Section("mining-visuals", "Screenshots & Animation", defaultOpen: true))
+        // If user picked "Keep GSM", surface GSM Bridge first and collapse duplicate built-in capture by default.
+        if (keepGsm)
+            DrawGsmCard(scale, defaultOpen: true);
+
+        using (var card = ConfigStyle.Card("mining-media", "Card Media", ConfigStyle.Primary,
+            subtitle: "What gets attached when you mine a word from a popup.",
+            defaultOpen: !keepGsm))
         {
-            DrawScreenshotToggleControl();
-            if (media.Frames.Error is { } frameError)
-                ImGui.TextColored(AccentAmber, frameError);
-            if (Advanced && config.CaptureScreenshot)
+            if (card.IsOpen)
             {
-                using (ImRaii.PushIndent())
-                {
-                    DrawScreenshotMaxWidthControl();
-                    DrawScreenshotQualityControl();
-                }
-            }
+                DrawVisualCaptureControl();
+                if (media.Frames.Error is { } frameError)
+                    ImGui.TextColored(ConfigStyle.Emphasis, frameError);
 
-            ImGui.Spacing();
-            DrawGifToggleControl();
-            if (config.CaptureGif)
-            {
-                using var indent = ImRaii.PushIndent();
-                DrawAnimationFormatControl();
-                if (config.AnimationFormat != AnimationFormat.Gif)
+                if (config.CaptureGif)
                 {
-                    var ffmpeg = media.FfmpegPath;
-                    var caps = ffmpeg is null ? default : Ffmpeg.Capabilities(ffmpeg);
-                    var ready = config.AnimationFormat == AnimationFormat.Avif ? caps.Av1 is not null : caps.Webp;
-                    if (ready)
-                        ImGui.TextDisabled($"FFmpeg: {ffmpeg}");
-                    else
-                        ImGui.TextColored(AccentAmber, ffmpeg is null
-                            ? "FFmpeg not found, so GIF is saved instead. Install FFmpeg (GSM includes one) or set its path under Show advanced."
-                            : $"This FFmpeg cannot write {(config.AnimationFormat == AnimationFormat.Avif ? "AVIF" : "WebP")}: saving {(caps.Webp ? "WebP" : "GIF")} instead.");
-                }
-
-                if (Advanced)
-                {
-                    DrawGifWidthControl();
-                    DrawGifFpsControl();
-                    DrawGifSecondsControl();
-                    DrawAvifCrfControl();
-                    DrawWebpQualityControl();
-                    DrawFfmpegPathControl();
-                }
-            }
-        }
-
-        if (Section("mining-audio", "Voice Recording & TTS", defaultOpen: true))
-        {
-            DrawVoiceRecordToggleControl();
-            if (config.RecordVoiceLines && media.Recorder is { } recorder)
-            {
-                if (recorder.Error is { } audioError)
-                    ImGui.TextColored(AccentAmber, audioError);
-                else if (recorder.Running)
-                {
-                    if (recorder.Mode == GameAudioCaptureMode.SystemLoopback)
-                        ImGui.TextColored(AccentAmber, "Recording all system audio, so other apps can be heard.");
-                    if (!media.Voices.HooksActive)
-                        ImGui.TextColored(AccentAmber, $"Voice detection: {media.Voices.DetectionModeSummary}.");
-                    else if (Advanced)
-                        ImGui.TextDisabled($"Recording FFXIV audio only · {media.Voices.DetectionModeSummary}.");
-                }
-            }
-
-            if (Advanced && config.RecordVoiceLines)
-            {
-                using (ImRaii.PushIndent())
-                {
-                    DrawVoiceRatioControl();
-                    DrawMaxLineSecondsControl();
-                    DrawVoiceBufferSecondsControl();
-                }
-            }
-
-            ImGui.Spacing();
-            DrawTtsModeControl();
-            if (config.TtsMode != TtsMode.Off)
-            {
-                using var indent = ImRaii.PushIndent();
-                DrawTtsUrlControl();
-                DrawTtsSpeakerControl();
-                if (config.TtsMode == TtsMode.Custom)
-                    Toggle("Send as POST with JSON {text, speaker}", config.TtsPost, v => config.TtsPost = v);
-
-                ImGui.Spacing();
-                DrawTtsInjectOstControl();
-                if (config.TtsInjectOst)
-                {
-                    using var ostIndent = ImRaii.PushIndent();
-                    DrawTtsOstVolumeControl();
-                    if (Advanced)
+                    using var indent = ImRaii.PushIndent();
+                    var keepStill = !config.GifReplacesScreenshot;
+                    if (ImGui.Checkbox("Also keep still screenshot (uses separate GIF field)", ref keepStill))
                     {
-                        DrawTtsOstRespectMuteControl();
-                        DrawCurrentOstStatus();
+                        config.GifReplacesScreenshot = !keepStill;
+                        config.Save();
+                    }
+
+                    if (config.AnimationFormat != AnimationFormat.Gif)
+                    {
+                        var ffmpeg = media.FfmpegPath;
+                        var caps = ffmpeg is null ? default : Ffmpeg.Capabilities(ffmpeg);
+                        var ready = config.AnimationFormat == AnimationFormat.Avif ? caps.Av1 is not null : caps.Webp;
+                        if (!ready)
+                        {
+                            ImGui.TextColored(ConfigStyle.Emphasis, ffmpeg is null
+                                ? "FFmpeg not found — saving GIF until installed."
+                                : "Installed FFmpeg lacks AV1/WebP support — falling back.");
+                            if (ffmpeg is null && !PlatformInfo.Current.IsWine)
+                            {
+                                ImGui.SameLine(0, 8 * scale);
+                                using (ImRaii.Disabled(ffmpegDownloading))
+                                {
+                                    if (ConfigStyle.AccentButton(ffmpegDownloading ? "Downloading…" : "Download FFmpeg", ConfigStyle.Emphasis))
+                                        StartManagedFfmpegDownload();
+                                }
+                            }
+                        }
+                        else if (Advanced)
+                        {
+                            ImGui.TextDisabled($"FFmpeg: {ffmpeg}");
+                        }
                     }
                 }
 
-                if (ImGui.Button("Test TTS"))
+                ImGui.Spacing();
+                DrawSentenceAudioControl();
+                if (config.RecordVoiceLines && media.Recorder is { } recorder)
                 {
-                    mediaTest = "Speaking…";
-                    _ = TestTtsAsync();
+                    if (recorder.Error is { } audioError)
+                        ImGui.TextColored(ConfigStyle.Emphasis, audioError);
+                    else if (recorder.Running && recorder.Mode == GameAudioCaptureMode.SystemLoopback)
+                        ImGui.TextColored(ConfigStyle.Emphasis, "Capturing system audio (lower other apps for clean clips).");
+                    else if (recorder.Running && !media.Voices.HooksActive)
+                        ImGui.TextColored(ConfigStyle.Emphasis, $"Voice detection fallback: {media.Voices.DetectionModeSummary}.");
+                }
+
+                if (config.TtsMode != TtsMode.Off)
+                {
+                    using var indent = ImRaii.PushIndent();
+                    DrawTtsUrlControl();
+                    DrawTtsSpeakerControl();
+                    if (config.TtsMode == TtsMode.Custom)
+                        Toggle("POST JSON {text, speaker}", config.TtsPost, v => config.TtsPost = v);
+                    DrawTtsInjectOstControl();
+                    if (config.TtsInjectOst)
+                    {
+                        DrawTtsOstVolumeControl();
+                        if (Advanced)
+                        {
+                            DrawTtsOstRespectMuteControl();
+                            DrawCurrentOstStatus();
+                        }
+                    }
+                    if (ImGui.SmallButton("Test TTS"))
+                    {
+                        mediaTest = "Speaking…";
+                        _ = TestTtsAsync();
+                    }
+                }
+
+                ImGui.Spacing();
+                DrawAnkiNotifyToggleControl();
+
+                if (Advanced)
+                {
+                    AdvancedDivider();
+                    if (config.CaptureScreenshot)
+                    {
+                        DrawScreenshotMaxWidthControl();
+                        DrawScreenshotQualityControl();
+                    }
+                    if (config.CaptureGif)
+                    {
+                        DrawAvifCrfControl();
+                        DrawWebpQualityControl();
+                        DrawFfmpegPathControl();
+                    }
+                    if (config.RecordVoiceLines)
+                    {
+                        DrawVoiceRatioControl();
+                        DrawMaxLineSecondsControl();
+                    }
                 }
             }
         }
 
-        if (Section("mining-translation", "Sentence Translation", defaultOpen: config.TranslationEnabled))
+        using (var card = ConfigStyle.Card("mining-anki-map", "Anki Card Mapping", ConfigStyle.Secondary,
+            badge: ankiMapper.Connected ? "READY" : "OFFLINE",
+            badgeColor: ankiMapper.Connected ? ConfigStyle.Good : ConfigStyle.Emphasis,
+            defaultOpen: !keepGsm))
         {
-            DrawTranslationSection();
-        }
-
-        if (Section("mining-anki", "AnkiConnect & Fields", defaultOpen: false))
-        {
-            if (ImGui.Button("Test AnkiConnect"))
+            if (card.IsOpen)
             {
-                mediaTest = "Checking AnkiConnect…";
-                _ = TestAnkiConnectAsync();
-            }
-            HelpMarker("Voice lines, TTS and animations are added through the AnkiConnect add-on after Hachidori creates the note.");
-
-            if (Advanced)
-            {
-                AdvancedDivider();
-                ImGui.TextDisabled("Leave a field blank to detect it by name.");
-                DrawSentenceAudioFieldControl();
-                DrawGifFieldControl();
-                Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v);
-                DrawAnkiConnectUrlControl();
-                DrawAnkiConnectApiKeyControl();
+                ankiMapper.Draw(Advanced, source);
+                if (Advanced)
+                {
+                    AdvancedDivider();
+                    DrawAnkiConnectUrlControl();
+                    DrawAnkiConnectApiKeyControl();
+                }
             }
         }
+
+        using (var card = ConfigStyle.Card("mining-translation", "AI Sentence Translation", ConfigStyle.Secondary,
+            badge: config.TranslationEnabled ? "ON" : null,
+            badgeColor: ConfigStyle.Emphasis,
+            defaultOpen: config.TranslationEnabled))
+        {
+            if (card.IsOpen)
+                DrawTranslationSection();
+        }
+
+        if (!keepGsm)
+            DrawGsmCard(scale, defaultOpen: config.PublishEnabled);
 
         if (mediaTest is not null)
         {
             ImGui.Spacing();
-            ImGui.TextWrapped(mediaTest);
+            ImGui.TextColored(mediaTest.Contains("failed", StringComparison.OrdinalIgnoreCase) ? ConfigStyle.Bad : ConfigStyle.Good, mediaTest);
         }
+    }
+
+    private void DrawGsmCard(float scale, bool defaultOpen)
+    {
+        using var card = ConfigStyle.Card("mining-gsm", "GameSentenceMiner (GSM)", ConfigStyle.Secondary,
+            badge: config.PublishEnabled ? "FEED ON" : null,
+            badgeColor: ConfigStyle.Primary,
+            defaultOpen: defaultOpen);
+        if (!card.IsOpen)
+            return;
+
+        if (ConfigStyle.AccentButton("Import Settings from GSM", ConfigStyle.Primary))
+        {
+            try
+            {
+                mediaTest = media.Translator.ImportFromGsm();
+                media.RefreshFfmpegPath();
+                config.Save();
+            }
+            catch (Exception ex) { mediaTest = $"Import failed: {ex.Message}"; }
+        }
+        HelpMarker("Copies AI provider, keys, prompts, Anki media fields, AnkiConnect URL, and FFmpeg path from GameSentenceMiner.");
+
+        ImGui.Spacing();
+        DrawGsmBridgeSection(scale);
     }
 
     private void DrawTranslationSection()
     {
-        Toggle("Sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v);
-        HelpMarker("Translates the mined line with an AI provider, using nearby dialogue as context.");
-        ImGui.SameLine(0, 10 * ImGuiHelpers.GlobalScale);
-        if (ImGui.SmallButton("Import from GSM"))
-        {
-            try { mediaTest = media.Translator.ImportFromGsm(); config.Save(); }
-            catch (Exception ex) { mediaTest = $"Import failed: {ex.Message}"; }
-        }
-        HelpMarker("Copies the provider, models, keys, prompts and Anki field from GameSentenceMiner.");
-
+        Toggle("Enable AI sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v);
         if (!config.TranslationEnabled)
             return;
 
         using var indent = ImRaii.PushIndent();
         DrawTranslationProviderControl();
-
         var settings = media.Translator.Settings(config.TranslationProvider);
         var cli = config.TranslationProvider is TranslationProvider.Codex or TranslationProvider.ClaudeCode;
+
         if (cli)
         {
-            ImGui.TextWrapped(config.TranslationProvider == TranslationProvider.Codex
-                ? "Runs `codex exec` read-only in an empty folder with your Codex login. Nothing else is installed."
-                : "Runs `claude -p` with no tools in an empty folder with your Claude Code login. Nothing else is installed.");
+            ImGui.TextColored(ConfigStyle.Muted, config.TranslationProvider == TranslationProvider.Codex
+                ? "Uses your local `codex exec` login (read-only)."
+                : "Uses your local `claude -p` login (no tools).");
         }
         else if (config.TranslationProvider is not (TranslationProvider.Ollama or TranslationProvider.LmStudio))
         {
             var key = settings.ApiKey;
             if (ImGui.InputText("API key", ref key, 512, ImGuiInputTextFlags.Password))
                 settings.ApiKey = key.Trim();
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
         }
 
         if (config.TranslationProvider != TranslationProvider.DeepL)
         {
             var model = settings.Model;
-            if (ImGui.InputTextWithHint("Model", cli ? "blank: the CLI's default" : "", ref model, 256))
+            if (ImGui.InputTextWithHint("Model", cli ? "blank: CLI default" : "", ref model, 256))
                 settings.Model = model.Trim();
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
         }
 
-        DrawTranslationFieldControl();
-
-        if (ImGui.Button("Test translation"))
+        if (ImGui.SmallButton("Test translation"))
         {
             mediaTest = "Translating…";
             _ = TestTranslationAsync();
@@ -568,58 +384,42 @@ public sealed partial class ConfigWindow
             return;
 
         AdvancedDivider();
-
         if (!cli && config.TranslationProvider != TranslationProvider.DeepL)
         {
             var backup = settings.BackupModel;
-            if (ImGui.InputText("Backup model", ref backup, 256))
-                settings.BackupModel = backup.Trim();
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.InputText("Backup model", ref backup, 256)) settings.BackupModel = backup.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
         }
-
         if (!cli)
         {
             var url = settings.Url;
-            if (ImGui.InputTextWithHint("API address", Translator.Defaults[config.TranslationProvider].Url, ref url, 512))
-                settings.Url = url.Trim();
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.InputTextWithHint("API address", Translator.Defaults[config.TranslationProvider].Url, ref url, 512)) settings.Url = url.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
         }
-
         if (config.TranslationProvider == TranslationProvider.OpenAI)
         {
             var effort = settings.ReasoningEffort;
-            if (ImGui.InputTextWithHint("Reasoning effort", "blank, low, medium, high", ref effort, 32))
-                settings.ReasoningEffort = effort.Trim();
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.InputTextWithHint("Reasoning effort", "blank, low, medium, high", ref effort, 32)) settings.ReasoningEffort = effort.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
         }
-
         if (config.TranslationProvider == TranslationProvider.DeepL)
         {
             var target = config.DeepLTargetLanguage;
-            if (ImGui.InputText("DeepL target language", ref target, 16))
-                config.DeepLTargetLanguage = target.Trim();
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.InputText("DeepL target language", ref target, 16)) config.DeepLTargetLanguage = target.Trim();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
             return;
         }
-
         if (cli)
         {
             var path = config.TranslationProvider == TranslationProvider.Codex ? config.CodexPath : config.ClaudeCodePath;
-            if (ImGui.InputTextWithHint("CLI path", "blank: find automatically", ref path, 512))
+            if (ImGui.InputTextWithHint("CLI path", "blank: auto-detect", ref path, 512))
             {
                 if (config.TranslationProvider == TranslationProvider.Codex) config.CodexPath = path.Trim();
                 else config.ClaudeCodePath = path.Trim();
             }
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
         }
-
         DrawTranslationLanguageControl();
-
         var promptKinds = new[] { "Canned translation prompt", "Canned context prompt", "Custom prompt" };
         var kind = config.UseCannedTranslationPrompt ? 0 : config.UseCannedContextPrompt ? 1 : 2;
         if (ImGui.Combo("Prompt", ref kind, promptKinds, promptKinds.Length))
@@ -628,24 +428,13 @@ public sealed partial class ConfigWindow
             config.UseCannedContextPrompt = kind == 1;
             config.Save();
         }
-
         if (kind == 2)
         {
             var custom = config.CustomTranslationPrompt;
-            if (ImGui.InputTextMultiline("##custom-prompt", ref custom, 8192, new Vector2(-1, 80 * ImGuiHelpers.GlobalScale)))
+            if (ImGui.InputTextMultiline("##custom-prompt", ref custom, 8192, new Vector2(-1, 70 * ImGuiHelpers.GlobalScale)))
                 config.CustomTranslationPrompt = custom;
-            if (ImGui.IsItemDeactivatedAfterEdit())
-                config.Save();
+            if (ImGui.IsItemDeactivatedAfterEdit()) config.Save();
         }
-
-        var full = config.CustomFullPrompt;
-        ImGui.TextUnformatted("Full prompt template (blank: GSM's)");
-        HelpMarker("Placeholders: {game_title} {character_context} {dialogue_context} {prompt_to_use} {sentence} {native_language}. Must include {sentence}.");
-        if (ImGui.InputTextMultiline("##full-prompt", ref full, 16384, new Vector2(-1, 80 * ImGuiHelpers.GlobalScale)))
-            config.CustomFullPrompt = full;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            config.Save();
-
         DrawDialogueContextControl();
         if (!cli)
         {
@@ -655,320 +444,419 @@ public sealed partial class ConfigWindow
         }
     }
 
+    private void DrawGsmBridgeSection(float scale)
+    {
+        Checkbox("Publish game text to GSM (WebSocket feed)", () => config.PublishEnabled, v => config.PublishEnabled = v);
+        HelpMarker("Sends live FFXIV lines over localhost WebSocket so you can keep using GameSentenceMiner alongside native hover.");
+        if (!config.PublishEnabled)
+            return;
+
+        using var indent = ImRaii.PushIndent();
+        var preset = Array.FindIndex(PublishPresets, p => p.Talk == config.PublishTalk && p.Battle == config.PublishBattleTalk && p.Popups == config.PublishPopups && p.Chat == config.PublishChat);
+        var custom = preset < 0 || customPublishSources;
+        var presetNames = PublishPresets.Select(p => p.Name).Append("Custom").ToArray();
+        var selected = custom ? PublishPresets.Length : preset;
+        ImGui.SetNextItemWidth(240 * scale);
+        if (ImGui.Combo("Feed scope", ref selected, presetNames, presetNames.Length))
+        {
+            customPublishSources = selected >= PublishPresets.Length;
+            if (!customPublishSources)
+            {
+                var p = PublishPresets[selected];
+                config.PublishTalk = p.Talk;
+                config.PublishBattleTalk = p.Battle;
+                config.PublishPopups = p.Popups;
+                config.PublishChat = p.Chat;
+                Changed(true);
+            }
+        }
+        if (Advanced || custom)
+        {
+            Checkbox("Dialogue & subtitles", () => config.PublishTalk, v => config.PublishTalk = v);
+            ImGui.SameLine(0, 12 * scale);
+            Checkbox("Battle talk", () => config.PublishBattleTalk, v => config.PublishBattleTalk = v);
+            Checkbox("Popups & choices", () => config.PublishPopups, v => config.PublishPopups = v);
+            ImGui.SameLine(0, 12 * scale);
+            Checkbox("Chat", () => config.PublishChat, v => config.PublishChat = v);
+        }
+        Checkbox("Prepend speaker name", () => config.PublishSpeaker, v => config.PublishSpeaker = v);
+
+        var portIndex = Array.FindIndex(PublishPorts, p => p.Port == config.PublishPort);
+        var portNames = PublishPorts.Select(p => $"{p.Name} ({p.Port})").Append("Custom").ToArray();
+        var customPort = portIndex < 0 || customPublishPort;
+        var portSelected = customPort ? PublishPorts.Length : portIndex;
+        ImGui.SetNextItemWidth(200 * scale);
+        if (ImGui.Combo("WebSocket slot", ref portSelected, portNames, portNames.Length))
+        {
+            customPublishPort = portSelected >= PublishPorts.Length;
+            if (!customPort)
+            {
+                config.PublishPort = PublishPorts[portSelected].Port;
+                Changed(true);
+            }
+        }
+        if (Advanced || customPort)
+            DrawPublishPortControl();
+
+        if (publisher.Error is { } error)
+            ImGui.TextColored(ConfigStyle.Bad, error);
+        else if (publisher.Listening)
+            ImGui.TextColored(publisher.ClientCount > 0 ? ConfigStyle.Good : ConfigStyle.Muted,
+                publisher.ClientCount == 0 ? $"Listening on localhost:{config.PublishPort} — waiting for GSM…" : $"GSM connected ({publisher.ClientCount} client)");
+
+        using (ImRaii.Disabled(publisher.ClientCount == 0))
+        {
+            ImGui.SameLine(0, 10 * scale);
+            if (ImGui.SmallButton("Send test line"))
+                publisher.SendTest();
+        }
+    }
+
+    // -------------------------------------------------------------- Performance tab
+
+    private void DrawPerformanceTab()
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        var detected = PerformancePresets.Detect(config);
+        var est = PerformancePresets.Estimate(config, webView?.PlatformSupported ?? false);
+
+        // 1. Premade Presets (auto-sized height so zero lines clip)
+        using (var card = ConfigStyle.Card("perf-presets", "Performance Presets", ConfigStyle.Primary,
+            badge: detected.ToString().ToUpperInvariant(),
+            badgeColor: detected == PerformancePreset.Custom ? ConfigStyle.Emphasis : ConfigStyle.Primary,
+            subtitle: "Choose a baseline for your hardware. Turn on Show advanced to fine-tune individual cache sizes."))
+        {
+            if (card.IsOpen)
+            {
+                var avail = Math.Max(300f * scale, ImGui.GetContentRegionAvail().X - 12f * scale);
+                var gap = 8f * scale;
+                var tileW = (avail - gap * 2f) / 3f;
+                const string lowSub = "Built-in UI · No anim.\nSmall caches (~25 MB).";
+                const string balSub = "On-demand clips.\nBalanced caches.";
+                const string highSub = "Pre-encoded clips.\nLarge caches · Fast mine.";
+                var rowH = ConfigStyle.MeasurePresetRowHeight(tileW, lowSub, balSub, highSub);
+
+                if (ConfigStyle.PresetTile("##perf-low", "Low / Steam Deck", lowSub,
+                    detected == PerformancePreset.Low, tileW, rowH))
+                {
+                    PerformancePresets.Apply(config, PerformancePreset.Low);
+                    media.ApplyPerformanceSettings();
+                    Changed(true);
+                    resetNotice = "Applied Low / Steam Deck performance preset.";
+                    resetNoticeUntil = DateTime.UtcNow.AddSeconds(4);
+                }
+                ImGui.SameLine(0, gap);
+                if (ConfigStyle.PresetTile("##perf-bal", "Balanced", balSub,
+                    detected == PerformancePreset.Balanced, tileW, rowH))
+                {
+                    PerformancePresets.Apply(config, PerformancePreset.Balanced);
+                    media.ApplyPerformanceSettings();
+                    Changed(true);
+                    resetNotice = "Applied Balanced performance preset.";
+                    resetNoticeUntil = DateTime.UtcNow.AddSeconds(4);
+                }
+                ImGui.SameLine(0, gap);
+                if (ConfigStyle.PresetTile("##perf-high", "High / Instant", highSub,
+                    detected == PerformancePreset.High, tileW, rowH))
+                {
+                    PerformancePresets.Apply(config, PerformancePreset.High);
+                    media.ApplyPerformanceSettings();
+                    Changed(true);
+                    resetNotice = "Applied High / Instant performance preset.";
+                    resetNoticeUntil = DateTime.UtcNow.AddSeconds(4);
+                }
+            }
+        }
+
+        // 2. Live Memory Footprint & Clear Caches
+        var (shots, shotBytes, replays, replayBytes) = media.Timeline.CacheStats();
+        var (clips, clipBytes) = media.ClipCacheStats();
+        using (var card = ConfigStyle.Card("perf-live", "Footprint & Live Caches", ConfigStyle.Secondary,
+            badge: $"~{est.TotalMb} MB EST."))
+        {
+            if (card.IsOpen)
+            {
+                using (var tbl = ImRaii.Table("##perf-summary", 3, ImGuiTableFlags.SizingStretchSame))
+                {
+                    if (tbl.Success)
+                    {
+                        ImGui.TableNextColumn();
+                        ImGui.TextColored(ConfigStyle.Muted, "In-Game Buffers");
+                        ImGui.TextColored(ConfigStyle.Primary, $"~{est.PluginProcessMb} MB");
+                        ImGui.TextDisabled($"Voice {est.VoiceBufferMb} · Anim {est.AnimationBufferMb} · Caches {est.LineCachesMb + est.LookupCachesMb} MB");
+
+                        ImGui.TableNextColumn();
+                        ImGui.TextColored(ConfigStyle.Muted, "WebView2 Process");
+                        ImGui.TextColored(est.WebViewMb > 0 ? ConfigStyle.Secondary : ConfigStyle.Good, est.WebViewMb > 0 ? $"~{est.WebViewMb} MB" : "Off (0 MB)");
+                        ImGui.TextDisabled(est.WebViewMb > 0 ? "Separate OS process" : "Using built-in ImGui");
+
+                        ImGui.TableNextColumn();
+                        ImGui.TextColored(ConfigStyle.Muted, "Live Cached Items");
+                        ImGui.TextUnformatted($"{service.LookupCacheCount} lookups · {service.AudioCacheCount} audio");
+                        ImGui.TextDisabled($"{shots} shots ({FormatBytes(shotBytes)}) · {clips} clips ({FormatBytes(clipBytes)}) · {replays} voices ({FormatBytes(replayBytes)})");
+                    }
+                }
+
+                ImGui.Spacing();
+                if (ConfigStyle.AccentButton("Clear All Caches Now", ConfigStyle.Emphasis))
+                {
+                    service.ClearCache();
+                    media.ClearCaches();
+                    resetNotice = "Cleared lookup, audio, screenshot, voice replay, and clip caches.";
+                    resetNoticeUntil = DateTime.UtcNow.AddSeconds(4);
+                }
+            }
+        }
+
+        // 3. Concise everyday caching & rendering choices (Normal mode)
+        using (var card = ConfigStyle.Card("perf-quick", "Quick Performance Controls", ConfigStyle.Primary))
+        {
+            if (card.IsOpen)
+            {
+                DrawPopupRendererControl();
+                DrawClipEncodingModeControl();
+                ImGui.Spacing();
+                Toggle("Cache line screenshots", config.CacheLineScreenshots, v => { config.CacheLineScreenshots = v; media.ApplyPerformanceSettings(); });
+                ImGui.SameLine(0, 18 * scale);
+                Toggle("Cache voice replays", config.CacheReplayAudio, v => { config.CacheReplayAudio = v; media.ApplyPerformanceSettings(); });
+            }
+        }
+
+        // 4. Granular cache limits & buffer tuning (Advanced only — keeps normal view super clean!)
+        if (Advanced)
+        {
+            using var card = ConfigStyle.Card("perf-adv-caches", "Cache Sizes & Buffer Limits (Advanced)", ConfigStyle.Emphasis,
+                subtitle: "Set any cache size to 0 to disable that cache.");
+            if (card.IsOpen)
+            {
+                ConfigStyle.SubHeading("Dictionary & Pronunciation Caches", ConfigStyle.Primary);
+                DrawLookupCacheSizeControl();
+                DrawSegmentCacheSizeControl();
+                DrawAudioCacheSizeControl();
+
+                ConfigStyle.SubHeading("Dialogue, Voice & Clip Buffers", ConfigStyle.Secondary);
+                if (config.CacheLineScreenshots)
+                    DrawMaxCachedScreenshotsOnlyControl();
+                if (config.CacheReplayAudio)
+                    DrawMaxCachedReplayAudioOnlyControl();
+                DrawMaxCachedClipsControl();
+                DrawMaxConcurrentEncodesControl();
+                DrawVoiceBufferSecondsControl();
+                DrawHistorySizeControl();
+
+                if (config.CaptureGif)
+                {
+                    ConfigStyle.SubHeading("Animation Dimensions", ConfigStyle.Secondary);
+                    DrawGifWidthControl();
+                    DrawGifFpsControl();
+                    DrawGifSecondsControl();
+                }
+            }
+        }
+    }
+
     // -------------------------------------------------------------- Controller tab
 
     private void DrawControllerTab()
     {
+        var scale = ImGuiHelpers.GlobalScale;
         var ps = config.ControllerPlayStationLabels;
-        ImGui.TextDisabled("Read dialogue word by word with a controller. While the mode is on, the game ignores the controller.");
 
-        if (Section("ctrl-activation", "Activation", defaultOpen: true))
+        using (var card = ConfigStyle.Card("ctrl-activation", "Controller Reading Mode", ConfigStyle.Primary,
+            badge: config.ControllerEnabled ? "ON" : "OFF",
+            badgeColor: config.ControllerEnabled ? ConfigStyle.Primary : ConfigStyle.Muted))
         {
-            Toggle("Controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v);
-            if (config.ControllerEnabled)
+            if (card.IsOpen)
             {
-                ImGui.TextUnformatted("Easiest: put this on a cross hotbar macro.");
-                ImGui.SameLine();
-                ImGui.TextUnformatted("/hachidori pad");
-                ImGui.SameLine();
-                if (ImGui.SmallButton("Copy"))
-                    ImGui.SetClipboardText("/hachidori pad");
-
-                DrawControllerHoldButtonControl();
-                if (config.ControllerHoldButton != GamepadButtons.None)
+                Toggle("Enable controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v);
+                if (config.ControllerEnabled)
                 {
-                    DrawControllerTriggerModeControl();
-                    if (config.ControllerTriggerMode == ControllerTriggerMode.Hold)
-                        DrawControllerHoldSecondsControl();
+                    ImGui.SameLine(0, 14 * scale);
+                    ImGui.TextColored(ConfigStyle.Muted, "Macro:");
+                    ImGui.SameLine(0, 4 * scale);
+                    ImGui.TextColored(ConfigStyle.Primary, "/hachidori pad");
+                    ImGui.SameLine(0, 6 * scale);
+                    if (ImGui.SmallButton("Copy")) ImGui.SetClipboardText("/hachidori pad");
+
+                    DrawControllerHoldButtonControl();
+                    if (Advanced)
+                    {
+                        if (config.ControllerHoldButton != GamepadButtons.None)
+                        {
+                            DrawControllerTriggerModeControl();
+                            if (config.ControllerTriggerMode == ControllerTriggerMode.Hold)
+                                DrawControllerHoldSecondsControl();
+                        }
+                        DrawControllerToggleKeyControl();
+                    }
                 }
-                DrawControllerToggleKeyControl();
             }
         }
 
-        if (Section("ctrl-replay", "Voice Line Repeat (Cutscenes & Backlog)", defaultOpen: true))
+        using (var card = ConfigStyle.Card("ctrl-replay", "Cutscene Voice Repeat", ConfigStyle.Secondary,
+            subtitle: "Replay the latest voice line without opening controller mode."))
         {
-            ImGui.TextDisabled("Repeat the cached voice line in cutscenes without opening controller mode, or for any line in the backlog.");
-            DrawControllerQuickReplayButtonControl();
-            if (config.ControllerQuickReplayButton != GamepadButtons.None)
+            if (card.IsOpen)
             {
-                using var indent = ImRaii.PushIndent();
-                DrawControllerQuickReplayTriggerModeControl();
-                if (config.ControllerQuickReplayTriggerMode == ControllerTriggerMode.Hold)
-                    DrawControllerHoldSecondsControl();
-                Checkbox("Only during cutscenes or dialogue", () => config.ControllerQuickReplayCutsceneOnly, v => config.ControllerQuickReplayCutsceneOnly = v);
-                HelpMarker("Prevents accidental repeats during normal gameplay when bound to a single button like R3 or L3.");
+                DrawControllerQuickReplayButtonControl();
+                if (config.ControllerQuickReplayButton != GamepadButtons.None)
+                {
+                    using var indent = ImRaii.PushIndent();
+                    DrawControllerQuickReplayTriggerModeControl();
+                    if (config.ControllerQuickReplayTriggerMode == ControllerTriggerMode.Hold)
+                        DrawControllerHoldSecondsControl();
+                    if (Advanced)
+                        Checkbox("Only during cutscenes / dialogue", () => config.ControllerQuickReplayCutsceneOnly, v => config.ControllerQuickReplayCutsceneOnly = v);
+                }
+                if (Advanced)
+                {
+                    DrawReplayVoiceKeyControl();
+                    if (config.ControllerEnabled)
+                        DrawControllerReplayVoiceButtonControl();
+                }
             }
-            DrawReplayVoiceKeyControl();
-            if (config.ControllerEnabled)
-                DrawControllerReplayVoiceButtonControl();
-            ImGui.TextUnformatted("Macro / chat command:");
-            ImGui.SameLine();
-            ImGui.TextUnformatted("/hachidori replay");
-            ImGui.SameLine();
-            if (ImGui.SmallButton("Copy##copy-replay-cmd"))
-                ImGui.SetClipboardText("/hachidori replay");
         }
 
         if (!config.ControllerEnabled)
             return;
 
-        if (Section("ctrl-behavior", "Behavior & Display", defaultOpen: true))
+        using (var card = ConfigStyle.Card("ctrl-behavior", "Display & Behavior", ConfigStyle.Primary))
         {
-            Checkbox("Scan words automatically under the cursor", () => config.ControllerAutoScan, v => config.ControllerAutoScan = v);
-            HelpMarker("When off, move the cursor freely without popping up definitions, then press the Look up button to open a popup.");
-            if (!config.ControllerAutoScan)
+            if (card.IsOpen)
             {
-                using var indent = ImRaii.PushIndent();
-                DrawControllerScanButtonControl();
-            }
-            Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v);
-            Checkbox("Open dialogue backlog when no dialogue is on screen", () => config.ControllerAutoOpenBacklog, v => config.ControllerAutoOpenBacklog = v);
-            HelpMarker("Entering controller mode right after a cutscene or battle-talk line ends opens the backlog on the latest line with its cached screenshot, voice, and clip.");
-            Checkbox("Pin current line if dialogue advances mid-lookup", () => config.ControllerPinOnAdvance, v => config.ControllerPinOnAdvance = v);
-            HelpMarker("If an auto-advancing cutscene moves to the next line while you are scanning, keeps your word cursor and popup pinned on that line in the backlog.");
-            Checkbox("Include captured chat lines in dialogue backlog", () => config.ControllerBacklogIncludeChat, v => config.ControllerBacklogIncludeChat = v);
-            Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
-            Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
-            Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
-            Checkbox("Move the cursor with the DualSense/DS4 touchpad", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v);
-            HelpMarker("Windows only. Steam Deck trackpads already move the cursor when mapped to mouse in Steam Input.");
-            if (Advanced)
-                DrawControllerCursorSpeedControl();
-        }
-
-        if (Advanced && Section("ctrl-binds", "Button Bindings", defaultOpen: false))
-        {
-            using var bindsId = ImRaii.PushId("ctrl-binds");
-            var bindLabels = BindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
-            void BindCombo(string label, Func<GamepadButtons> get, Action<GamepadButtons> set)
-            {
-                var idx = Math.Max(0, Array.IndexOf(BindChoices, get()));
-                if (ImGui.Combo(label, ref idx, bindLabels, bindLabels.Length))
+                using (var tbl = ImRaii.Table("##ctrl-flags", 2, ImGuiTableFlags.SizingStretchSame))
                 {
-                    set(BindChoices[idx]);
-                    config.Save();
+                    if (tbl.Success)
+                    {
+                        ImGui.TableNextColumn();
+                        Checkbox("Auto-scan under cursor", () => config.ControllerAutoScan, v => config.ControllerAutoScan = v);
+                        Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v);
+                        ImGui.TableNextColumn();
+                        Checkbox("PlayStation labels", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v);
+                        Checkbox("DualSense/DS4 touchpad", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v);
+                    }
+                }
+                if (!config.ControllerAutoScan)
+                    DrawControllerScanButtonControl();
+
+                if (Advanced)
+                {
+                    AdvancedDivider();
+                    using (var tbl = ImRaii.Table("##ctrl-adv-flags", 2, ImGuiTableFlags.SizingStretchSame))
+                    {
+                        if (tbl.Success)
+                        {
+                            ImGui.TableNextColumn();
+                            Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v);
+                            Checkbox("Auto-open backlog", () => config.ControllerAutoOpenBacklog, v => config.ControllerAutoOpenBacklog = v);
+                            Checkbox("Include chat in backlog", () => config.ControllerBacklogIncludeChat, v => config.ControllerBacklogIncludeChat = v);
+                            ImGui.TableNextColumn();
+                            Checkbox("Pin line on auto-advance", () => config.ControllerPinOnAdvance, v => config.ControllerPinOnAdvance = v);
+                            Checkbox("Exit when dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v);
+                        }
+                    }
+                    DrawControllerCursorSpeedControl();
                 }
             }
-
-            BindCombo("Look up word (when auto-scan is off)", () => config.ControllerScanButton, v => config.ControllerScanButton = v);
-            BindCombo("Mine to Anki", () => config.ControllerMineButton, v => config.ControllerMineButton = v);
-            BindCombo("Play audio", () => config.ControllerAudioButton, v => config.ControllerAudioButton = v);
-            BindCombo("Word / char mode", () => config.ControllerWordModeButton, v => config.ControllerWordModeButton = v);
-            BindCombo("Back / exit", () => config.ControllerBackExitButton, v => config.ControllerBackExitButton = v);
-            BindCombo("Previous entry", () => config.ControllerPrevEntryButton, v => config.ControllerPrevEntryButton = v);
-            BindCombo("Next entry", () => config.ControllerNextEntryButton, v => config.ControllerNextEntryButton = v);
-            BindCombo("Look up inside popup", () => config.ControllerDiveButton, v => config.ControllerDiveButton = v);
-            BindCombo("Cycle UI window", () => config.ControllerWindowButton, v => config.ControllerWindowButton = v);
-            BindCombo("Dialogue backlog", () => config.ControllerHistoryButton, v => config.ControllerHistoryButton = v);
-            BindCombo("Replay line voice", () => config.ControllerReplayVoiceButton, v => config.ControllerReplayVoiceButton = v);
-
-            if (ImGui.SmallButton("Reset keybinds only"))
-            {
-                config.ControllerCursorSpeed = Defaults.ControllerCursorSpeed;
-                config.ControllerScanButton = Defaults.ControllerScanButton;
-                config.ControllerMineButton = Defaults.ControllerMineButton;
-                config.ControllerAudioButton = Defaults.ControllerAudioButton;
-                config.ControllerWordModeButton = Defaults.ControllerWordModeButton;
-                config.ControllerBackExitButton = Defaults.ControllerBackExitButton;
-                config.ControllerPrevEntryButton = Defaults.ControllerPrevEntryButton;
-                config.ControllerNextEntryButton = Defaults.ControllerNextEntryButton;
-                config.ControllerDiveButton = Defaults.ControllerDiveButton;
-                config.ControllerWindowButton = Defaults.ControllerWindowButton;
-                config.ControllerHistoryButton = Defaults.ControllerHistoryButton;
-                config.ControllerReplayVoiceButton = Defaults.ControllerReplayVoiceButton;
-                config.Save();
-            }
         }
 
-        if (Section("ctrl-ref", "Controls Reference", defaultOpen: false))
+        if (Advanced)
         {
-            string L(GamepadButtons b) => GamepadNavigator.ButtonLabel(b, ps);
-            var rows = new List<(string Keys, string Action)>
+            using var card = ConfigStyle.Card("ctrl-binds", "Remap Controller Buttons (Advanced)", ConfigStyle.Emphasis, defaultOpen: false);
+            if (card.IsOpen)
             {
-                ("Left stick", "move virtual cursor over any UI or dialogue text"),
-                ("D-pad", "previous / next word and line"),
-                ("Right stick", "scroll the popup"),
-            };
-            if (!config.ControllerAutoScan)
-                rows.Add((L(config.ControllerScanButton), "look up the word under the cursor"));
-            rows.Add((L(config.ControllerMineButton), "add the selected entry to Anki"));
-            rows.Add((L(config.ControllerAudioButton), "play its pronunciation"));
-            rows.Add(($"{L(config.ControllerPrevEntryButton)} / {L(config.ControllerNextEntryButton)}", "previous / next dictionary entry"));
-            rows.Add((L(config.ControllerDiveButton), "move the cursor into the popup to look up a word inside it"));
-            rows.Add((L(config.ControllerWindowButton), "cycle between open UI windows (or return to game UI from the backlog)"));
-            rows.Add((L(config.ControllerHistoryButton), "toggle the dialogue backlog to mine previous lines (or push D-pad up at the top of dialogue)"));
-            rows.Add((L(config.ControllerReplayVoiceButton), "repeat the cached voice clip for the selected dialogue line"));
-            if (config.ControllerQuickReplayButton != GamepadButtons.None)
-            {
-                var qrLabel = GamepadNavigator.ButtonComboLabel(config.ControllerQuickReplayButton, ps);
-                var qrPrefix = config.ControllerQuickReplayTriggerMode == ControllerTriggerMode.Hold ? "Hold " : string.Empty;
-                var qrScope = config.ControllerQuickReplayCutsceneOnly ? " during cutscenes/dialogue" : string.Empty;
-                rows.Add(($"{qrPrefix}{qrLabel}", $"repeat the cached voice line{qrScope} without entering controller mode"));
+                var bindLabels = BindChoices.Select(b => GamepadNavigator.ButtonLabel(b, ps)).ToArray();
+                void BindCombo(string label, Func<GamepadButtons> get, Action<GamepadButtons> set)
+                {
+                    var idx = Math.Max(0, Array.IndexOf(BindChoices, get()));
+                    if (ImGui.Combo(label, ref idx, bindLabels, bindLabels.Length))
+                    {
+                        set(BindChoices[idx]);
+                        config.Save();
+                    }
+                }
+                BindCombo("Look up word", () => config.ControllerScanButton, v => config.ControllerScanButton = v);
+                BindCombo("Mine to Anki", () => config.ControllerMineButton, v => config.ControllerMineButton = v);
+                BindCombo("Play audio", () => config.ControllerAudioButton, v => config.ControllerAudioButton = v);
+                BindCombo("Word / char mode", () => config.ControllerWordModeButton, v => config.ControllerWordModeButton = v);
+                BindCombo("Back / exit", () => config.ControllerBackExitButton, v => config.ControllerBackExitButton = v);
+                BindCombo("Previous entry", () => config.ControllerPrevEntryButton, v => config.ControllerPrevEntryButton = v);
+                BindCombo("Next entry", () => config.ControllerNextEntryButton, v => config.ControllerNextEntryButton = v);
+                BindCombo("Dive into popup", () => config.ControllerDiveButton, v => config.ControllerDiveButton = v);
+                BindCombo("Cycle UI window", () => config.ControllerWindowButton, v => config.ControllerWindowButton = v);
+                BindCombo("Dialogue backlog", () => config.ControllerHistoryButton, v => config.ControllerHistoryButton = v);
+                BindCombo("Replay line voice", () => config.ControllerReplayVoiceButton, v => config.ControllerReplayVoiceButton = v);
             }
-            if (config.ReplayVoiceKey > 0)
-                rows.Add((KeybindFormat.Format(config.ReplayVoiceKey, config.ReplayVoiceKeyCtrl, config.ReplayVoiceKeyShift, config.ReplayVoiceKeyAlt), "repeat the cached voice line anytime (without entering controller mode)"));
-            rows.Add((L(config.ControllerWordModeButton), "switch between words and characters"));
-            rows.Add((L(config.ControllerBackExitButton), config.ControllerAutoScan
-                ? "back out of a nested popup, or leave the mode"
-                : "close the popup, back out of a nested popup, or leave the mode"));
-            if (config.ControllerHoldButton != GamepadButtons.None)
-            {
-                var trigLabel = GamepadNavigator.ButtonComboLabel(config.ControllerHoldButton, ps);
-                rows.Add((config.ControllerTriggerMode == ControllerTriggerMode.Hold ? $"Hold {trigLabel}" : trigLabel, "enter or leave the mode"));
-            }
-            if (config.ControllerToggleKey > 0)
-                rows.Add((KeybindFormat.Format(config.ControllerToggleKey, config.ControllerToggleKeyCtrl, config.ControllerToggleKeyShift, config.ControllerToggleKeyAlt), "enter or leave the mode"));
-            rows.Add((ps ? "Select / Options" : "Back / Start", "leave the mode"));
-            foreach (var (keys, action) in rows)
-                ImGui.BulletText($"{keys}: {action}");
         }
     }
 
-    // -------------------------------------------------------------- Reader & Text tab
+    // -------------------------------------------------------------- Reader tab
 
     private void DrawReaderTab()
     {
         var scale = ImGuiHelpers.GlobalScale;
 
-        if (Section("reader-overlay", "Reader Overlay", defaultOpen: true))
+        using (var card = ConfigStyle.Card("reader-overlay", "Reader Overlay", ConfigStyle.Primary,
+            badge: config.ReaderEnabled ? "ON" : "OFF",
+            badgeColor: config.ReaderEnabled ? ConfigStyle.Primary : ConfigStyle.Muted))
         {
-            Checkbox("Enable reader overlay", () => config.ReaderEnabled, v => config.ReaderEnabled = v);
-            Checkbox("Show only while dialogue is open", () => config.ReaderAutoShowWithDialogue, v => config.ReaderAutoShowWithDialogue = v);
-            Checkbox("Show history", () => config.ReaderShowHistory, v => config.ReaderShowHistory = v);
-            DrawReaderAnchorControl();
-            DrawReaderFontSizeControl();
-            if (Advanced)
+            if (card.IsOpen)
             {
-                AdvancedDivider();
-                Checkbox("Lock (no title bar, click-to-move off)", () => config.ReaderLocked, v => config.ReaderLocked = v);
-                Checkbox("Hide text until hovered", () => config.ReaderHideUntilHovered, v => config.ReaderHideUntilHovered = v);
-                DrawReaderOpacityControl();
-                DrawHistorySizeControl();
-            }
-        }
-
-        if (Section("capture-sources", "Captured Text", defaultOpen: true))
-        {
-            ImGui.TextDisabled("Text the reader, stats and GSM receive.");
-            Checkbox("Dialogue & cutscenes", () => config.CaptureTalk, v => config.CaptureTalk = v);
-            ImGui.SameLine(0, 16 * scale);
-            Checkbox("Battle talk", () => config.CaptureBattleTalk, v => config.CaptureBattleTalk = v);
-            ImGui.SameLine(0, 16 * scale);
-            Checkbox("Chat", () => config.CaptureChat, v => config.CaptureChat = v);
-
-            ImGui.Spacing();
-            Checkbox("Read my character's name as katakana", () => config.KatakanaPlayerName, v => config.KatakanaPlayerName = v);
-            if (Advanced)
-            {
-                using (ImRaii.Disabled(!config.KatakanaPlayerName))
-                using (ImRaii.PushIndent())
+                Checkbox("Enable reader overlay", () => config.ReaderEnabled, v => config.ReaderEnabled = v);
+                ImGui.SameLine(0, 14 * scale);
+                Checkbox("Only during dialogue", () => config.ReaderAutoShowWithDialogue, v => config.ReaderAutoShowWithDialogue = v);
+                ImGui.SameLine(0, 14 * scale);
+                Checkbox("Show history", () => config.ReaderShowHistory, v => config.ReaderShowHistory = v);
+                DrawReaderAnchorControl();
+                DrawReaderFontSizeControl();
+                if (Advanced)
                 {
-                    DrawPlayerNameKatakanaControl();
-                    HelpMarker("Blank uses the automatic reading shown. Separate first and last name with ・ or a space.");
+                    AdvancedDivider();
+                    Checkbox("Lock window", () => config.ReaderLocked, v => config.ReaderLocked = v);
+                    ImGui.SameLine(0, 14 * scale);
+                    Checkbox("Hide text until hovered", () => config.ReaderHideUntilHovered, v => config.ReaderHideUntilHovered = v);
+                    DrawReaderOpacityControl();
                 }
             }
         }
 
-        if (Advanced && Section("capture-channels", "Chat Channels", defaultOpen: false))
+        using (var card = ConfigStyle.Card("reader-capture", "Captured Text & Player Name", ConfigStyle.Secondary))
         {
-            ImGui.TextDisabled("Which channels reach the reader history and stats. Chat hover works on any visible chat.");
-            using var disabled = ImRaii.Disabled(!config.CaptureChat);
-            using var table = ImRaii.Table("##chat-channels-grid", 3, ImGuiTableFlags.SizingStretchSame);
-            if (table.Success)
+            if (card.IsOpen)
             {
-                foreach (var channel in SelectableChannels)
+                Checkbox("Dialogue & cutscenes", () => config.CaptureTalk, v => config.CaptureTalk = v);
+                ImGui.SameLine(0, 14 * scale);
+                Checkbox("Battle talk", () => config.CaptureBattleTalk, v => config.CaptureBattleTalk = v);
+                ImGui.SameLine(0, 14 * scale);
+                Checkbox("Chat", () => config.CaptureChat, v => config.CaptureChat = v);
+
+                ImGui.Spacing();
+                Checkbox("Read character name as katakana", () => config.KatakanaPlayerName, v => config.KatakanaPlayerName = v);
+                if (Advanced && config.KatakanaPlayerName)
                 {
-                    ImGui.TableNextColumn();
-                    var on = config.ChatChannels.Contains(channel);
-                    if (ImGui.Checkbox(channel.ToString(), ref on))
+                    using var indent = ImRaii.PushIndent();
+                    DrawPlayerNameKatakanaControl();
+                }
+
+                if (Advanced && Section("capture-channels", "Captured Chat Channels", defaultOpen: false))
+                {
+                    using var disabled = ImRaii.Disabled(!config.CaptureChat);
+                    using var table = ImRaii.Table("##chat-channels-grid", 3, ImGuiTableFlags.SizingStretchSame);
+                    if (table.Success)
                     {
-                        if (on) config.ChatChannels.Add(channel);
-                        else config.ChatChannels.Remove(channel);
-                        Changed(true);
+                        foreach (var channel in SelectableChannels)
+                        {
+                            ImGui.TableNextColumn();
+                            var on = config.ChatChannels.Contains(channel);
+                            if (ImGui.Checkbox(channel.ToString(), ref on))
+                            {
+                                if (on) config.ChatChannels.Add(channel);
+                                else config.ChatChannels.Remove(channel);
+                                Changed(true);
+                            }
+                        }
                     }
                 }
-            }
-        }
-    }
-
-    // -------------------------------------------------------------- GSM tab
-
-    private void DrawPublishTab()
-    {
-        ImGui.TextDisabled("Sends game text to GameSentenceMiner over a local WebSocket. Nothing leaves this PC.");
-
-        if (Section("gsm-sources", "Feed Sources", defaultOpen: true))
-        {
-            Checkbox("Publish text for GSM", () => config.PublishEnabled, v => config.PublishEnabled = v);
-            using var disabled = ImRaii.Disabled(!config.PublishEnabled);
-
-            var preset = Array.FindIndex(PublishPresets, p => p.Talk == config.PublishTalk && p.Battle == config.PublishBattleTalk && p.Popups == config.PublishPopups && p.Chat == config.PublishChat);
-            var custom = preset < 0 || customPublishSources;
-            var presetNames = PublishPresets.Select(p => p.Name).Append("Custom").ToArray();
-            var selected = custom ? PublishPresets.Length : preset;
-            if (ImGui.Combo("What to send", ref selected, presetNames, presetNames.Length))
-            {
-                customPublishSources = selected >= PublishPresets.Length;
-                if (!customPublishSources)
-                {
-                    var p = PublishPresets[selected];
-                    config.PublishTalk = p.Talk;
-                    config.PublishBattleTalk = p.Battle;
-                    config.PublishPopups = p.Popups;
-                    config.PublishChat = p.Chat;
-                    Changed(true);
-                }
-            }
-
-            // Individual sources only matter for a custom mix.
-            if (Advanced || custom)
-            using (ImRaii.PushIndent())
-            {
-                Checkbox("Dialogue and cutscene subtitles", () => config.PublishTalk, v => config.PublishTalk = v);
-                Checkbox("Battle talk", () => config.PublishBattleTalk, v => config.PublishBattleTalk = v);
-                Checkbox("Interaction popups (yes/no prompts, choice menus)", () => config.PublishPopups, v => config.PublishPopups = v);
-                Checkbox("Chat (channels from the Reader & Text tab)", () => config.PublishChat, v => config.PublishChat = v);
-                if (config.PublishChat)
-                    ImGui.TextColored(AccentAmber, "Sends other players' messages to GSM.");
-            }
-
-            Checkbox("Put the speaker's name before each line", () => config.PublishSpeaker, v => config.PublishSpeaker = v);
-
-            if ((config.PublishTalk && !config.CaptureTalk) || (config.PublishBattleTalk && !config.CaptureBattleTalk) || (config.PublishChat && !config.CaptureChat))
-                ImGui.TextColored(AccentAmber, "A selected source is turned off in the Reader & Text tab, so it won't be sent.");
-        }
-
-        if (Section("gsm-server", "WebSocket Server", defaultOpen: true))
-        {
-            using var disabled = ImRaii.Disabled(!config.PublishEnabled);
-            var portIndex = Array.FindIndex(PublishPorts, p => p.Port == config.PublishPort);
-            var portNames = PublishPorts.Select(p => $"{p.Name} ({p.Port})").Append("Custom").ToArray();
-            var customPort = portIndex < 0 || customPublishPort;
-            var portSelected = customPort ? PublishPorts.Length : portIndex;
-            if (ImGui.Combo("GSM source slot", ref portSelected, portNames, portNames.Length))
-            {
-                customPublishPort = portSelected >= PublishPorts.Length;
-                if (!customPublishPort)
-                {
-                    config.PublishPort = PublishPorts[portSelected].Port;
-                    Changed(true);
-                }
-            }
-            HelpMarker("GSM listens on all three slots by default; the name is only a label. Pick one no other program uses.");
-
-            if (Advanced || customPort)
-                DrawPublishPortControl();
-            ImGui.TextDisabled($"GSM address: localhost:{config.PublishPort}");
-
-            if (publisher.Error is { } error)
-                ImGui.TextColored(AccentRed, error);
-            else if (publisher.Listening)
-                ImGui.TextUnformatted(publisher.ClientCount == 0 ? "Listening. Waiting for GSM to connect…" : $"Connected clients: {publisher.ClientCount}");
-
-            using (ImRaii.Disabled(publisher.ClientCount == 0))
-            {
-                if (ImGui.Button("Send test line"))
-                    publisher.SendTest();
             }
         }
     }
@@ -977,70 +865,228 @@ public sealed partial class ConfigWindow
 
     private void DrawConnectionTab()
     {
-        if (Section("conn-relay", "Hachidori Relay & Host", defaultOpen: true))
-        {
-            if (ImGui.Button("Reconnect"))
-                service.Link.Reconnect();
+        var scale = ImGuiHelpers.GlobalScale;
+        var source = ActiveSource;
 
-            if (Advanced)
-            {
-                ImGui.Spacing();
-                DrawRelayHostControl();
-                DrawRelayPortControl();
-                DrawApiPortControl();
-                DrawAnkiTemplateIdControl();
-                DrawDocumentTitleControl();
-            }
+        // Compact source switcher at top so users only see settings for their active dictionary source
+        var sourceChoices = new[] { "Built-in Dictionaries (local .zip)", "Hachidori Browser Extension" };
+        var sourceIdx = source == DictionarySource.BuiltIn ? 0 : 1;
+        ImGui.SetNextItemWidth(280 * scale);
+        if (ImGui.Combo("Dictionary source", ref sourceIdx, sourceChoices, sourceChoices.Length))
+        {
+            SelectDictionarySource(sourceIdx == 0 ? DictionarySource.BuiltIn : DictionarySource.HachidoriBrowser);
+            source = ActiveSource;
         }
 
-        if (service.Link.Connected)
+        // Only show Built-in Dictionaries card when Built-in mode is active (or Advanced)
+        if (source == DictionarySource.BuiltIn && offline is { } off)
         {
-            var dicts = service.Dictionaries.ToList();
-            if (Section("conn-dicts", $"Host Dictionaries ({dicts.Count})", defaultOpen: false))
+            var localDicts = off.Store.Manifest.Dictionaries.Where(d => string.Equals(d.Source, "local", StringComparison.OrdinalIgnoreCase)).ToList();
+            using var card = ConfigStyle.Card("conn-local", "Built-in Dictionaries", ConfigStyle.Primary,
+                badge: localDicts.Count > 0 ? $"{localDicts.Count} LOADED" : "EMPTY",
+                badgeColor: localDicts.Count > 0 ? ConfigStyle.Good : ConfigStyle.Emphasis);
+            if (card.IsOpen)
             {
-                foreach (var d in dicts)
+                using (ImRaii.Disabled(off.Importing))
                 {
-                    var enabled = d["enabled"] is not System.Text.Json.Nodes.JsonValue e || !e.TryGetValue<bool>(out var en) || en;
-                    ImGui.BulletText($"{LookupResult.Str(d["title"])}{(enabled ? string.Empty : " (disabled)")}");
+                    if (ConfigStyle.AccentButton("Import .zip…", ConfigStyle.Primary))
+                        StartBrowseZipImport();
+                    ImGui.SameLine(0, 6 * scale);
+                    if (ImGui.Button("Install JMdict (EN)"))
+                        _ = off.ImportFromUrlAsync(StandaloneDictionaries.StarterJmdictUrl, "JMdict (English)")
+                            .ContinueWith(_ => { service.ClearCache(); doctor.RunNow(); });
+                    ImGui.SameLine(0, 6 * scale);
+                    if (ImGui.Button("Install FFXIV Dict"))
+                        _ = off.ImportFromUrlAsync(FfxivDictionary.DownloadUrl, FfxivDictionary.Title)
+                            .ContinueWith(_ => { service.ClearCache(); doctor.RunNow(); });
+                }
+
+                if (Advanced)
+                {
+                    ImGui.SetNextItemWidth(Math.Max(200 * scale, ImGui.GetContentRegionAvail().X - 96 * scale));
+                    ImGui.InputTextWithHint("##zip-path", "Or paste path to a .zip dictionary…", ref zipPathInput, 512);
+                    ImGui.SameLine(0, 6 * scale);
+                    using (ImRaii.Disabled(off.Importing || string.IsNullOrWhiteSpace(zipPathInput)))
+                    {
+                        if (ImGui.Button("Import##zip-path-go"))
+                        {
+                            var path = zipPathInput.Trim().Trim('"');
+                            zipPathInput = string.Empty;
+                            _ = off.ImportZipsAsync([path]).ContinueWith(_ => { service.ClearCache(); doctor.RunNow(); });
+                        }
+                    }
+                }
+
+                if (off.Importing && off.ImportProgress is { } prog)
+                    ImGui.TextColored(ConfigStyle.Primary, prog);
+                if (off.LastImportError is { } impErr)
+                    ImGui.TextColored(ConfigStyle.Bad, impErr);
+                else if (off.LastImportSummary is { } impOk)
+                    ImGui.TextColored(ConfigStyle.Good, impOk);
+
+                if (localDicts.Count > 0)
+                {
+                    ImGui.Spacing();
+                    using var tbl = ImRaii.Table("##local-dicts-tbl", 3, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp);
+                    if (tbl.Success)
+                    {
+                        ImGui.TableSetupColumn("Dictionary", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Size", ImGuiTableColumnFlags.WidthFixed, 70 * scale);
+                        ImGui.TableSetupColumn("Order / Remove", ImGuiTableColumnFlags.WidthFixed, 108 * scale);
+
+                        foreach (var d in localDicts)
+                        {
+                            using var id = ImRaii.PushId(d.Id);
+                            ImGui.TableNextRow();
+                            ImGui.TableNextColumn();
+                            var en = d.Enabled;
+                            if (ImGui.Checkbox($"{d.Title}##en", ref en))
+                            {
+                                off.SetLocalDictionaryEnabled(d.Id, en);
+                                service.ClearCache();
+                            }
+
+                            ImGui.TableNextColumn();
+                            ImGui.TextDisabled(FormatBytes(d.Bytes));
+
+                            ImGui.TableNextColumn();
+                            if (ImGui.SmallButton("↑")) { off.MoveLocalDictionary(d.Id, -1); service.ClearCache(); }
+                            ImGui.SameLine(0, 2 * scale);
+                            if (ImGui.SmallButton("↓")) { off.MoveLocalDictionary(d.Id, 1); service.ClearCache(); }
+                            ImGui.SameLine(0, 4 * scale);
+                            if (ImGui.SmallButton("×"))
+                            {
+                                off.RemoveLocalDictionary(d.Id);
+                                service.ClearCache();
+                                doctor.RunNow();
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        var installedFfxivDict = FindInstalledFfxivDictionary();
-        var dictConnTitle = installedFfxivDict is { Enabled: true }
-            ? "Custom FFXIV Dictionary  [Installed]"
-            : installedFfxivDict is not null
-                ? "Custom FFXIV Dictionary  [Disabled]"
-                : "Custom FFXIV Dictionary";
-        var dictConnAccent = installedFfxivDict is { Enabled: true }
-            ? AccentGreen
-            : installedFfxivDict is not null
-                ? AccentAmber
-                : (Vector4?)null;
-        if (Section("conn-ffxiv-dict", dictConnTitle, defaultOpen: installedFfxivDict is null, accent: dictConnAccent))
+        // Only show Hachidori Extension card when Extension mode is active
+        if (source == DictionarySource.HachidoriBrowser)
         {
-            DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, installedFfxivDict, "conn");
+            using var card = ConfigStyle.Card("conn-relay", "Hachidori Browser Extension", ConfigStyle.Primary,
+                badge: service.Link.Connected ? "LINKED" : "OFFLINE",
+                badgeColor: service.Link.Connected ? ConfigStyle.Good : ConfigStyle.Emphasis);
+            if (card.IsOpen)
+            {
+                if (service.Link.Connected)
+                    ImGui.TextColored(ConfigStyle.Good, $"Connected to Hachidori v{service.Link.HostVersion} ({service.Link.DictionaryCount} dictionaries).");
+                else
+                    ImGui.TextColored(ConfigStyle.Muted, service.Link.Error ?? "Waiting for Hachidori Relay in Anki.");
+
+                if (ImGui.Button("Reconnect"))
+                {
+                    service.Link.Reconnect();
+                    doctor.RunNow();
+                }
+
+                if (offline is { } offMode)
+                {
+                    ImGui.SameLine(0, 8 * scale);
+                    if (!config.OfflineMode)
+                    {
+                        using (ImRaii.Disabled(!service.Link.Connected || offMode.Sync.Running))
+                        {
+                            if (ImGui.Button("Enable Offline Sync"))
+                                _ = offMode.SetUpAsync();
+                        }
+                    }
+                    else
+                    {
+                        using (ImRaii.Disabled(!service.Link.Connected || offMode.Sync.Running))
+                        {
+                            if (ImGui.Button("Sync Now"))
+                                _ = offMode.SyncNowAsync();
+                        }
+                        ImGui.SameLine(0, 8 * scale);
+                        using (ImRaii.Disabled(offMode.Sync.Running))
+                        {
+                            if (ImGui.Button(confirmRemoveOffline ? "Confirm delete offline copy" : "Delete Offline Copy"))
+                            {
+                                if (confirmRemoveOffline)
+                                {
+                                    confirmRemoveOffline = false;
+                                    _ = offMode.RemoveAsync().ContinueWith(_ => { service.ClearCache(); doctor.RunNow(); });
+                                }
+                                else
+                                {
+                                    confirmRemoveOffline = true;
+                                }
+                            }
+                            else if (confirmRemoveOffline && !ImGui.IsItemHovered())
+                            {
+                                confirmRemoveOffline = false;
+                            }
+                        }
+                    }
+
+                    if (offMode.Sync.Running)
+                        ImGui.TextColored(ConfigStyle.Primary, offMode.Sync.Progress ?? "Syncing…");
+                    else if (offMode.LastSyncError is { } err)
+                        ImGui.TextColored(ConfigStyle.Bad, err);
+                    else if (offMode.Store.HasDictionaries)
+                        ImGui.TextDisabled($"Offline copy: {offMode.Store.Manifest.Dictionaries.Count} dicts, {FormatBytes(offMode.Store.DiskBytes)} (synced {Ago(offMode.Store.Manifest.SyncedAt)}).");
+
+                    foreach (var w in offMode.Warnings())
+                        ImGui.TextColored(ConfigStyle.Emphasis, $"! {w}");
+                }
+
+                if (service.Link.Connected)
+                {
+                    var dicts = service.Dictionaries.ToList();
+                    if (dicts.Count > 0 && ImGui.TreeNode($"Host dictionaries ({dicts.Count})"))
+                    {
+                        foreach (var d in dicts)
+                        {
+                            var enabled = d["enabled"] is not System.Text.Json.Nodes.JsonValue e || !e.TryGetValue<bool>(out var en) || en;
+                            ImGui.BulletText($"{LookupResult.Str(d["title"])}{(enabled ? string.Empty : " (disabled)")}");
+                        }
+                        ImGui.TreePop();
+                    }
+                }
+
+                if (Advanced)
+                {
+                    AdvancedDivider();
+                    DrawRelayHostControl();
+                    DrawRelayPortControl();
+                    DrawApiPortControl();
+                }
+            }
         }
 
-        if (offline is { } off && Section("conn-offline", config.OfflineMode ? "Offline Mode  [Enabled]" : "Offline Mode", defaultOpen: true, accent: config.OfflineMode ? AccentGreen : null))
+        // Diagnostics & Document Title card (Advanced)
+        if (Advanced)
         {
-            DrawOfflineModeBody(off);
+            using var card = ConfigStyle.Card("conn-diag", "General & Diagnostics (Advanced)", ConfigStyle.Secondary, defaultOpen: false);
+            if (card.IsOpen)
+            {
+                DrawDocumentTitleControl();
+                ImGui.Spacing();
+                if (ImGui.SmallButton("Export Debug Log"))
+                {
+                    try { exportedLog = exportLogs(); }
+                    catch (Exception ex) { exportedLog = $"Export failed: {ex.Message}"; }
+                }
+                if (exportedLog is not null)
+                {
+                    ImGui.SameLine(0, 8 * scale);
+                    if (ImGui.SmallButton("Copy Log Path"))
+                        ImGui.SetClipboardText(exportedLog);
+                    ImGui.TextWrapped(exportedLog);
+                }
+            }
         }
 
-        if (Advanced && Section("conn-diag", "Diagnostics", defaultOpen: false))
-        {
-            if (ImGui.Button("Export debug log"))
-            {
-                try { exportedLog = exportLogs(); }
-                catch (Exception ex) { exportedLog = $"Export failed: {ex.Message}"; }
-            }
-            if (exportedLog is not null)
-            {
-                ImGui.TextWrapped(exportedLog);
-                if (ImGui.Button("Copy log path"))
-                    ImGui.SetClipboardText(exportedLog);
-            }
-        }
+        if (dictionaryNotice is not null && DateTime.UtcNow < dictionaryNoticeUntil)
+            ImGui.TextColored(dictionaryNoticeIsError ? ConfigStyle.Emphasis : ConfigStyle.Muted, dictionaryNotice);
+        else if (dictionaryNotice is not null)
+            dictionaryNotice = null;
     }
 
     private InstalledFfxivDictionary? FindInstalledFfxivDictionary()
@@ -1053,54 +1099,6 @@ public sealed partial class ConfigWindow
         return null;
     }
 
-    private void DrawFfxivDictionaryBody(float scale, InstalledFfxivDictionary? installed, string scopeId)
-    {
-        if (installed is { Enabled: true })
-        {
-            var rev = string.IsNullOrWhiteSpace(installed.Revision) ? string.Empty : $" (rev {installed.Revision})";
-            ImGui.TextColored(AccentGreen, $"Installed: {installed.Title}{rev}");
-            ImGui.TextDisabled("To update, remove the older entry in Hachidori → Settings → Dictionaries, then import the latest ZIP.");
-        }
-        else if (installed is not null)
-        {
-            var rev = string.IsNullOrWhiteSpace(installed.Revision) ? string.Empty : $" (rev {installed.Revision})";
-            ImGui.TextColored(AccentAmber, $"Installed but disabled: {installed.Title}{rev}");
-            ImGui.TextDisabled("Enable it in Hachidori → Settings → Dictionaries to see FFXIV definitions.");
-        }
-        else
-        {
-            ImGui.TextWrapped("37,729 FFXIV Japanese→English entries: NPCs & 190 character/location portraits, enemies, locations, actions, status effects, and JP Party Finder lingo. Import the downloaded ZIP in Hachidori → Settings → Dictionaries.");
-            ImGui.TextDisabled("Note: contains character names and portraits from all expansions (spoilers).");
-        }
-
-        ImGui.Spacing();
-        var downloadLabel = installed is not null
-            ? $"Download latest ({FfxivDictionary.ArchiveFileName})##ffxiv-dict-dl-{scopeId}"
-            : $"Download FFXIV Dictionary (.zip)##ffxiv-dict-dl-{scopeId}";
-        if (ImGui.Button(downloadLabel))
-            OpenDictionaryLink(FfxivDictionary.DownloadUrl, "Opened download in your browser — import the ZIP in Hachidori → Settings → Dictionaries.");
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(FfxivDictionary.DownloadUrl);
-
-        ImGui.SameLine(0, 6 * scale);
-        if (ImGui.Button($"Guide & source##ffxiv-dict-guide-{scopeId}"))
-            OpenDictionaryLink(FfxivDictionary.GuideUrl, "Opened FFXIV dictionary guide and source code in your browser.");
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(FfxivDictionary.GuideUrl);
-
-        ImGui.SameLine(0, 6 * scale);
-        if (ImGui.Button($"Copy link##ffxiv-dict-copy-{scopeId}"))
-        {
-            ImGui.SetClipboardText(FfxivDictionary.DownloadUrl);
-            SetDictionaryNotice("Copied download link to clipboard.", isError: false);
-        }
-
-        if (dictionaryNotice is not null && DateTime.UtcNow < dictionaryNoticeUntil)
-            ImGui.TextColored(dictionaryNoticeIsError ? AccentAmber : MutedText, dictionaryNotice);
-        else if (dictionaryNotice is not null)
-            dictionaryNotice = null;
-    }
-
     private void OpenDictionaryLink(string url, string successMessage)
     {
         if (FfxivDictionary.TryOpenUrl(url, out var error))
@@ -1110,7 +1108,7 @@ public sealed partial class ConfigWindow
         else
         {
             ImGui.SetClipboardText(url);
-            SetDictionaryNotice($"Could not open browser ({error ?? "unknown error"}). Copied link to clipboard instead.", isError: true);
+            SetDictionaryNotice($"Could not open browser ({error ?? "unknown error"}). Copied link to clipboard.", isError: true);
         }
     }
 
@@ -1119,77 +1117,5 @@ public sealed partial class ConfigWindow
         dictionaryNotice = message;
         dictionaryNoticeIsError = isError;
         dictionaryNoticeUntil = DateTime.UtcNow.AddSeconds(6);
-    }
-
-    private void DrawOfflineModeBody(Offline.OfflineMode offline)
-    {
-        ImGui.TextWrapped("Keeps a copy of your Hachidori dictionaries and settings so lookups work with only Anki (and the Hachidori Relay) running. Live Hachidori is always used while linked; the copy updates on every connection.");
-
-        var link = service.Link;
-        var running = offline.Sync.Running;
-        if (!config.OfflineMode)
-        {
-            using (ImRaii.Disabled(!link.Connected || running))
-            {
-                if (ImGui.Button("Set up offline mode"))
-                    _ = offline.SetUpAsync();
-            }
-            if (!link.Connected)
-                ImGui.TextDisabled("Link Hachidori (Chrome with Sharing on) to set up offline mode.");
-        }
-        else
-        {
-            ImGui.TextUnformatted($"Answering lookups: {service.Backend.Name}");
-            var manifest = offline.Store.Manifest;
-            ImGui.TextUnformatted($"{manifest.Dictionaries.Count} dictionaries, {FormatBytes(offline.Store.DiskBytes)} on disk, synced {Ago(manifest.SyncedAt)}.");
-            if (offline.EngineVersion is { } engine)
-                ImGui.TextDisabled(engine.Short);
-
-            using (ImRaii.Disabled(!link.Connected || running))
-            {
-                if (ImGui.Button("Sync now"))
-                    _ = offline.SyncNowAsync();
-            }
-            ImGui.SameLine();
-            using (ImRaii.Disabled(running))
-            {
-                if (ImGui.Button(confirmRemoveOffline ? "Click again to delete the offline copy" : "Turn off and delete offline data"))
-                {
-                    if (confirmRemoveOffline)
-                    {
-                        confirmRemoveOffline = false;
-                        _ = offline.RemoveAsync().ContinueWith(_ => service.ClearCache(), TaskScheduler.Default);
-                    }
-                    else
-                    {
-                        confirmRemoveOffline = true;
-                    }
-                }
-                else if (confirmRemoveOffline && !ImGui.IsItemHovered())
-                {
-                    confirmRemoveOffline = false;
-                }
-            }
-
-            if (manifest.Dictionaries.Count > 0 && ImGui.TreeNode("Offline dictionaries"))
-            {
-                foreach (var d in manifest.Dictionaries)
-                    ImGui.BulletText($"{d.Title} ({d.Revision}, {FormatBytes(d.Bytes)})");
-                ImGui.TreePop();
-            }
-        }
-
-        if (running)
-            ImGui.TextWrapped(offline.Sync.Progress ?? "Syncing…");
-        else if (offline.LastSync is { } last)
-            ImGui.TextDisabled($"Last sync: {last}.");
-        if (offline.LastSyncError is { } error)
-            ImGui.TextColored(AccentRed, error);
-        foreach (var warning in offline.Warnings())
-        {
-            ImGui.TextColored(AccentAmber, "!");
-            ImGui.SameLine();
-            ImGui.TextWrapped(warning);
-        }
     }
 }

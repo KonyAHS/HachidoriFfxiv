@@ -50,8 +50,9 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
         NpcImages = new NpcImageCapture(service);
         Themes = new PopupThemeProvider(config, service);
         service.Link.WordStatusChanged += () => ankiStatusAt = DateTime.MinValue;
-        // Live and offline mining check different things: ask again when the backend changes.
+        // Live and offline mining check different things: ask again when the backend or config changes.
         service.Link.ConnectionChanged += () => ankiStatusAt = DateTime.MinValue;
+        service.CacheCleared += () => ankiStatusAt = DateTime.MinValue;
     }
 
     /// <summary>Optional Hachidori Web (WebView2) popup host; falls back to ImGui popups when inactive.</summary>
@@ -902,6 +903,7 @@ public sealed class PopupManager : IDisposable, Capture.INativeHoverSink
             if (!status.Available)
             {
                 var err = status.Error ?? "Anki mining is unavailable in Hachidori.";
+                DiagnosticLog.Write("anki", $"Anki unavailable: {err}", DiagLevel.Warn);
                 foreach (var entry in entries)
                 {
                     entry.Anki = AnkiState.Error;

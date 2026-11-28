@@ -92,6 +92,7 @@ static class MediaChecks
         CheckOstExtractionAndMixing(check);
         CheckBgmSceneSelectionAndVoiceDetection(check);
         CheckPluginAudioAndScdVoiceExtraction(check);
+        CheckPerformancePresetsAndTimelineCaches(check);
 
         // ------------------------------------------------------------------- GIF
         var frames = Enumerable.Range(0, 3).Select(f =>
@@ -195,6 +196,38 @@ static class MediaChecks
         // ----------------------------------------------- live game-audio capture
         CheckPlatformAndFallbacks(check);
         await LiveLoopbackAsync(check);
+    }
+
+    private static void CheckPerformancePresetsAndTimelineCaches(Action<bool, string> check)
+    {
+        var low = PerformanceModel.ValuesFor(PerformancePreset.Low, supportsWebView2: true);
+        check(!low.UseWebViewPopup && !low.EagerEncodeClips && !low.CaptureGif
+              && PerformanceModel.Detect(low.UseWebViewPopup, low.EagerEncodeClips, low.VoiceBufferSeconds,
+                  low.LookupCacheSize, low.SegmentCacheSize, low.AudioCacheSize,
+                  low.MaxCachedScreenshots, low.MaxCachedReplayAudio, low.MaxCachedClips) == PerformancePreset.Low,
+            "Low / Steam Deck performance preset disables WebView2 and eager clip encoding and round-trips detection");
+
+        var bal = PerformanceModel.ValuesFor(PerformancePreset.Balanced, supportsWebView2: true);
+        check(bal.UseWebViewPopup && !bal.EagerEncodeClips
+              && PerformanceModel.Detect(bal.UseWebViewPopup, bal.EagerEncodeClips, bal.VoiceBufferSeconds,
+                  bal.LookupCacheSize, bal.SegmentCacheSize, bal.AudioCacheSize,
+                  bal.MaxCachedScreenshots, bal.MaxCachedReplayAudio, bal.MaxCachedClips) == PerformancePreset.Balanced,
+            "Balanced performance preset defaults to on-demand clip encoding and round-trips detection");
+
+        var high = PerformanceModel.ValuesFor(PerformancePreset.High, supportsWebView2: true);
+        check(high.EagerEncodeClips && high.LookupCacheSize >= 1024
+              && PerformanceModel.Detect(high.UseWebViewPopup, high.EagerEncodeClips, high.VoiceBufferSeconds,
+                  high.LookupCacheSize, high.SegmentCacheSize, high.AudioCacheSize,
+                  high.MaxCachedScreenshots, high.MaxCachedReplayAudio, high.MaxCachedClips) == PerformancePreset.High,
+            "High / Instant performance preset enables eager clip encoding and large caches");
+
+        var estLow = PerformanceModel.Estimate(true, false, true, false, 45, false, false, 480, 8, 2, 2, true, true, 8, true, 8, 128, 64, 16);
+        var estHigh = PerformanceModel.Estimate(true, true, true, true, 240, true, true, 960, 15, 4, 20, true, true, 60, true, 60, 1024, 256, 128);
+        check(estHigh.TotalMb > estLow.TotalMb && estLow.WebViewMb == 0 && estHigh.WebViewMb == 300,
+            "memory footprint estimator reflects WebView2, voice buffer, and animation cache settings");
+
+        check(Ffmpeg.ManagedPath(@"C:\cfg").EndsWith(@"bin\ffmpeg.exe", StringComparison.OrdinalIgnoreCase),
+            "managed FFmpeg installs under the plugin config bin directory");
     }
 
     private static void CheckOstExtractionAndMixing(Action<bool, string> check)

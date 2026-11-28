@@ -63,68 +63,88 @@ public sealed class AudioPlayer : IDisposable
 
     public void Play(byte[] data)
     {
-        lock (gate)
+        IWavePlayer? oldOutput = null;
+        WinMmWaveOut? oldFallback = null;
+        WaveStream? oldReader = null;
+        try
         {
-            if (disposed)
-                return;
-            Stop();
-            var stream = PronunciationDecoder.Open(data);
-            var vol = Math.Clamp(config.AudioVolume, 0f, 1f);
-            WasapiOut? wasapi = null;
-            try
+            lock (gate)
             {
-                wasapi = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 100);
-                var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = vol };
-                wasapi.Init(volume);
-                var handle = PlaybackTracker?.BeginPlayback() ?? 0;
-                activePlaybackHandle = handle;
-                wasapi.PlaybackStopped += (_, e) =>
-                {
-                    EndTrackedPlayback(handle);
-                    if (e.Exception is not null)
-                    {
-                        LastError = e.Exception.Message;
-                        DiagnosticLog.Write("audio", e.Exception.ToString());
-                    }
-                };
-                wasapi.Play();
-                reader = stream;
-                output = wasapi;
-                DiagnosticLog.Write("audio", $"Playing {stream.WaveFormat}; bytes={data.Length}");
-                LastError = null;
-                return;
+                if (disposed)
+                    return;
+                DetachOutputsLocked(out oldOutput, out oldFallback, out oldReader);
             }
-            catch (Exception wasapiEx)
+            DisposeOutputs(oldOutput, oldFallback, oldReader);
+            oldOutput = null;
+            oldFallback = null;
+            oldReader = null;
+
+            lock (gate)
             {
-                EndActivePlaybackLocked();
-                wasapi?.Dispose();
-                DiagnosticLog.Write("audio", $"WASAPI playback failed ({wasapiEx.Message}); trying WinMM waveOut fallback.");
+                if (disposed)
+                    return;
+                var stream = PronunciationDecoder.Open(data);
+                var vol = Math.Clamp(config.AudioVolume, 0f, 1f);
+                WasapiOut? wasapi = null;
                 try
                 {
-                    if (stream.CanSeek)
-                        stream.Position = 0;
+                    wasapi = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 100);
                     var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = vol };
+                    wasapi.Init(volume);
                     var handle = PlaybackTracker?.BeginPlayback() ?? 0;
-                    activePlaybackHandle = handle;
-                    var winmm = WinMmWaveOut.Start(volume, err =>
+                    Interlocked.Exchange(ref activePlaybackHandle, handle);
+                    wasapi.PlaybackStopped += (_, e) =>
                     {
-                        LastError = err;
-                        DiagnosticLog.Write("audio", $"WinMM playback error: {err}");
-                    }, onFinished: () => EndTrackedPlayback(handle));
-                    fallbackOutput = winmm;
-                    stream.Dispose();
-                    DiagnosticLog.Write("audio", $"Playing via WinMM fallback ({volume.WaveFormat}); bytes={data.Length}");
+                        EndTrackedPlayback(handle);
+                        if (e.Exception is not null)
+                        {
+                            LastError = e.Exception.Message;
+                            DiagnosticLog.Write("audio", e.Exception.ToString());
+                        }
+                    };
+                    wasapi.Play();
+                    reader = stream;
+                    output = wasapi;
+                    DiagnosticLog.Write("audio", $"Playing {stream.WaveFormat}; bytes={data.Length}");
                     LastError = null;
                     return;
                 }
-                catch (Exception winmmEx)
+                catch (Exception wasapiEx)
                 {
-                    EndActivePlaybackLocked();
-                    stream.Dispose();
-                    DiagnosticLog.Write("audio", $"WinMM fallback failed: {winmmEx.Message}");
-                    throw new InvalidOperationException($"Audio playback failed (WASAPI: {wasapiEx.Message}; WinMM: {winmmEx.Message})", wasapiEx);
+                    EndActivePlayback();
+                    wasapi?.Dispose();
+                    DiagnosticLog.Write("audio", $"WASAPI playback failed ({wasapiEx.Message}); trying WinMM waveOut fallback.");
+                    try
+                    {
+                        if (stream.CanSeek)
+                            stream.Position = 0;
+                        var volume = new VolumeSampleProvider(stream.ToSampleProvider()) { Volume = vol };
+                        var handle = PlaybackTracker?.BeginPlayback() ?? 0;
+                        Interlocked.Exchange(ref activePlaybackHandle, handle);
+                        var winmm = WinMmWaveOut.Start(volume, err =>
+                        {
+                            LastError = err;
+                            DiagnosticLog.Write("audio", $"WinMM playback error: {err}");
+                        }, onFinished: () => EndTrackedPlayback(handle));
+                        fallbackOutput = winmm;
+                        stream.Dispose();
+                        DiagnosticLog.Write("audio", $"Playing via WinMM fallback ({volume.WaveFormat}); bytes={data.Length}");
+                        LastError = null;
+                        return;
+                    }
+                    catch (Exception winmmEx)
+                    {
+                        EndActivePlayback();
+                        stream.Dispose();
+                        DiagnosticLog.Write("audio", $"WinMM fallback failed: {winmmEx.Message}");
+                        throw new InvalidOperationException($"Audio playback failed (WASAPI: {wasapiEx.Message}; WinMM: {winmmEx.Message})", wasapiEx);
+                    }
                 }
             }
+        }
+        finally
+        {
+            DisposeOutputs(oldOutput, oldFallback, oldReader);
         }
     }
 
@@ -132,45 +152,59 @@ public sealed class AudioPlayer : IDisposable
     {
         if (handle <= 0)
             return;
-        lock (gate)
-        {
-            if (activePlaybackHandle == handle)
-                activePlaybackHandle = 0;
-        }
+        // Lock-free so PlaybackStopped on NAudio's background thread can never deadlock against Stop/Dispose.
+        Interlocked.CompareExchange(ref activePlaybackHandle, 0, handle);
         PlaybackTracker?.EndPlayback(handle);
     }
 
-    private void EndActivePlaybackLocked()
+    private void EndActivePlayback()
     {
-        if (activePlaybackHandle <= 0)
-            return;
-        var handle = activePlaybackHandle;
-        activePlaybackHandle = 0;
-        PlaybackTracker?.EndPlayback(handle);
+        var handle = Interlocked.Exchange(ref activePlaybackHandle, 0);
+        if (handle > 0)
+            PlaybackTracker?.EndPlayback(handle);
+    }
+
+    private void DetachOutputsLocked(out IWavePlayer? oldOutput, out WinMmWaveOut? oldFallback, out WaveStream? oldReader)
+    {
+        oldOutput = output;
+        oldFallback = fallbackOutput;
+        oldReader = reader;
+        output = null;
+        fallbackOutput = null;
+        reader = null;
+        EndActivePlayback();
+    }
+
+    private static void DisposeOutputs(IWavePlayer? oldOutput, WinMmWaveOut? oldFallback, WaveStream? oldReader)
+    {
+        try { oldOutput?.Stop(); } catch { }
+        try { oldOutput?.Dispose(); } catch { }
+        try { oldFallback?.Dispose(); } catch { }
+        try { oldReader?.Dispose(); } catch { }
     }
 
     public void Stop()
     {
+        IWavePlayer? oldOutput;
+        WinMmWaveOut? oldFallback;
+        WaveStream? oldReader;
         lock (gate)
-        {
-            output?.Stop();
-            output?.Dispose();
-            fallbackOutput?.Dispose();
-            reader?.Dispose();
-            output = null;
-            fallbackOutput = null;
-            reader = null;
-            EndActivePlaybackLocked();
-        }
+            DetachOutputsLocked(out oldOutput, out oldFallback, out oldReader);
+        // Dispose outside gate so WasapiOut.Dispose() joining its playback thread cannot deadlock.
+        DisposeOutputs(oldOutput, oldFallback, oldReader);
     }
 
     public void Dispose()
     {
+        IWavePlayer? oldOutput;
+        WinMmWaveOut? oldFallback;
+        WaveStream? oldReader;
         lock (gate)
         {
             disposed = true;
             Interlocked.Increment(ref sequence);
-            Stop();
+            DetachOutputsLocked(out oldOutput, out oldFallback, out oldReader);
         }
+        DisposeOutputs(oldOutput, oldFallback, oldReader);
     }
 }

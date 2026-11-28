@@ -37,8 +37,23 @@ public static class OfflinePlan
         }
         // Without profiles, packages missing from the state are not in Hachidori's
         // engine either; with them, a package outside Japanese's list is not used.
+        // Standalone locally-imported Yomitan dictionaries ("local") always load in their manifest order.
         if (state is null)
-            plan.AddRange(downloaded.Values.Select(d => ToLocal(store, d, null, true)));
+        {
+            foreach (var d in store.Manifest.Dictionaries)
+            {
+                if (downloaded.Remove(d.Id, out var dict))
+                    plan.Add(ToLocal(store, dict, null, dict.Enabled));
+            }
+        }
+        else
+        {
+            foreach (var d in store.Manifest.Dictionaries)
+            {
+                if (string.Equals(d.Source, "local", StringComparison.OrdinalIgnoreCase) && downloaded.Remove(d.Id, out var dict))
+                    plan.Add(ToLocal(store, dict, null, dict.Enabled));
+            }
+        }
         return plan;
     }
 

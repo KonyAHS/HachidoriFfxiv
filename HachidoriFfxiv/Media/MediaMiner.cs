@@ -23,11 +23,15 @@ public sealed class MediaMiner : IDisposable
     private readonly Configuration config;
     private readonly TextCapture capture;
     private GameAudioRecorder? recorder;
+    private int recorderBufferSeconds;
 
     public MediaMiner(Configuration config, TextCapture capture, Func<string?>? ankiApiKey = null)
     {
         this.config = config;
         this.capture = capture;
+        Timeline = new LineTimeline(
+            () => config.CacheLineScreenshots ? Math.Clamp(config.MaxCachedScreenshots, 0, 100) : 0,
+            () => config.CacheReplayAudio ? Math.Clamp(config.MaxCachedReplayAudio, 0, 100) : 0);
         Frames = new GameFrames(config)
         {
             IsLineStillOpen = id => Timeline.FindById(id) is { } s && Timeline.EndOf(s) is null,
@@ -43,7 +47,7 @@ public sealed class MediaMiner : IDisposable
     }
 
     public GameFrames Frames { get; }
-    public LineTimeline Timeline { get; } = new();
+    public LineTimeline Timeline { get; }
     public VoiceLineTracker Voices { get; }
     public BgmTracker Bgm { get; } = new();
     public PluginAudioTracker PluginAudio { get; } = new();
@@ -81,15 +85,19 @@ public sealed class MediaMiner : IDisposable
         Voices.Update(now);
         if (Tts.Enabled && config.TtsInjectOst)
             Bgm.Update(now);
-        if (config.RecordVoiceLines && recorder is null)
+        var wantedBuffer = Math.Clamp(config.VoiceBufferSeconds, 30, 300);
+        if (config.RecordVoiceLines && (recorder is null || recorderBufferSeconds != wantedBuffer))
         {
-            recorder = new GameAudioRecorder(Math.Clamp(config.VoiceBufferSeconds, 30, 300));
+            recorder?.Dispose();
+            recorder = new GameAudioRecorder(wantedBuffer);
+            recorderBufferSeconds = wantedBuffer;
             recorder.Start();
         }
         else if (!config.RecordVoiceLines && recorder is not null)
         {
             recorder.Dispose();
             recorder = null;
+            recorderBufferSeconds = 0;
         }
     }
 
@@ -624,49 +632,150 @@ public sealed class MediaMiner : IDisposable
         return Translator.TranslateAsync(text, context, span?.Line.Speaker ?? string.Empty, "FINAL FANTASY XIV")!;
     }
 
+    private sealed class CachedClipEntry
+    {
+        public required long Start { get; init; }
+        public List<GifFrame>? RawFrames { get; set; }
+        public Task<(byte[] Data, string Ext, string? Note)>? Encoded { get; set; }
+        public CancellationTokenSource? Cancel { get; set; }
+
+        public long ApproximateBytes()
+        {
+            if (Encoded is { IsCompletedSuccessfully: true })
+                return Encoded.Result.Data.Length;
+            if (RawFrames is { Count: > 0 } raw)
+                return raw.Sum(f => (long)f.Rgba.Length);
+            return 0;
+        }
+    }
+
     private string? ffmpegPath;
     private string? ffmpegConfigured;
-    private const int MaxCachedClips = 20;
-    private readonly LinkedList<(long Start, Task<(byte[] Data, string Ext, string? Note)> Encoded, CancellationTokenSource Cancel)> clips = new();
+    private readonly LinkedList<CachedClipEntry> clips = new();
 
-    // At most this many background clip encodes (each may be an FFmpeg process) run at once.
-    // Clips wait their turn holding only their raw frames, and the cache limit above bounds how many wait.
-    private readonly SemaphoreSlim clipEncodeSlots = new(2, 2);
+    // Bounded background encode pool; effective concurrency respects config.MaxConcurrentEncodes.
+    private readonly object encodeGate = new();
+    private int activeEncodes;
 
-    /// <summary>Encodes each line's clip as soon as it is complete, so only small files are kept and mining is instant.</summary>
-    private void OnClip(long start, List<GifFrame> frames)
+    public (int Clips, long ClipBytes) ClipCacheStats()
     {
-        var cts = new CancellationTokenSource();
-        var task = Task.Run(() => EncodeClipAsync(frames, cts.Token));
         lock (clips)
         {
-            clips.AddLast((start, task, cts));
-            while (clips.Count > MaxCachedClips)
+            long bytes = 0;
+            foreach (var c in clips)
+                bytes += c.ApproximateBytes();
+            return (clips.Count, bytes);
+        }
+    }
+
+    /// <summary>Clears cached screenshots, replay audio, buffered frames, and clips immediately.</summary>
+    public void ClearCaches()
+    {
+        Timeline.ClearMediaCaches();
+        Frames.ClearBuffers();
+        lock (clips)
+        {
+            foreach (var clip in clips)
+                CancelClip(clip);
+            clips.Clear();
+        }
+    }
+
+    /// <summary>Enforces updated cache caps from <see cref="Configuration"/> immediately.</summary>
+    public void ApplyPerformanceSettings()
+    {
+        Timeline.TrimMediaCaches();
+        var cap = Math.Clamp(config.MaxCachedClips, 0, 40);
+        lock (clips)
+        {
+            while (clips.Count > cap)
             {
-                // An evicted clip can no longer be mined: stop its encode (and FFmpeg) and drop its frames.
                 var evicted = clips.First!.Value;
                 clips.RemoveFirst();
-                CancelClip(evicted.Encoded, evicted.Cancel);
+                CancelClip(evicted);
             }
         }
     }
 
-    private static void CancelClip(Task encoded, CancellationTokenSource cts)
+    /// <summary>
+    /// Stores captured clip frames for a completed line. When <see cref="Configuration.EagerEncodeClips"/>
+    /// is off (default), raw frames are kept cheaply and encoded on demand only when the user mines,
+    /// avoiding continuous background FFmpeg CPU spikes during cutscenes.
+    /// </summary>
+    private void OnClip(long start, List<GifFrame> frames)
     {
+        var cap = Math.Clamp(config.MaxCachedClips, 0, 40);
+        if (cap <= 0)
+            return;
+
+        CachedClipEntry entry;
+        if (config.EagerEncodeClips)
+        {
+            var cts = new CancellationTokenSource();
+            entry = new CachedClipEntry
+            {
+                Start = start,
+                Cancel = cts,
+                Encoded = Task.Run(() => EncodeClipAsync(frames, cts.Token)),
+            };
+        }
+        else
+        {
+            entry = new CachedClipEntry
+            {
+                Start = start,
+                RawFrames = frames,
+            };
+        }
+
+        lock (clips)
+        {
+            clips.AddLast(entry);
+            while (clips.Count > cap)
+            {
+                var evicted = clips.First!.Value;
+                clips.RemoveFirst();
+                CancelClip(evicted);
+            }
+        }
+    }
+
+    private static void CancelClip(CachedClipEntry entry)
+    {
+        entry.RawFrames = null;
+        if (entry.Cancel is not { } cts)
+            return;
         try { cts.Cancel(); } catch (ObjectDisposedException) { }
-        _ = encoded.ContinueWith(_ => cts.Dispose(), TaskScheduler.Default);
+        if (entry.Encoded is { } encoded)
+            _ = encoded.ContinueWith(_ => cts.Dispose(), TaskScheduler.Default);
+        else
+            cts.Dispose();
     }
 
     private async Task<(byte[] Data, string Ext, string? Note)> EncodeClipAsync(List<GifFrame> frames, CancellationToken ct)
     {
-        await clipEncodeSlots.WaitAsync(ct).ConfigureAwait(false);
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var limit = Math.Clamp(config.MaxConcurrentEncodes, 1, 4);
+            lock (encodeGate)
+            {
+                if (activeEncodes < limit)
+                {
+                    activeEncodes++;
+                    break;
+                }
+            }
+            await Task.Delay(50, ct).ConfigureAwait(false);
+        }
         try
         {
             return await EncodeAsync(frames, ct).ConfigureAwait(false);
         }
         finally
         {
-            clipEncodeSlots.Release();
+            lock (encodeGate)
+                activeEncodes = Math.Max(0, activeEncodes - 1);
         }
     }
 
@@ -692,13 +801,34 @@ public sealed class MediaMiner : IDisposable
         }
     }
 
+    /// <summary>Forces FFmpeg path re-detection (e.g. after managed FFmpeg download).</summary>
+    public void RefreshFfmpegPath()
+    {
+        ffmpegConfigured = null;
+        ffmpegPath = null;
+    }
+
     private async Task<(byte[] Data, string Ext, string? Note)?> AnimationAsync(LineSpan? span)
     {
         if (span is not null)
         {
             Task<(byte[] Data, string Ext, string? Note)>? encoded = null;
             lock (clips)
-                encoded = clips.FirstOrDefault(c => c.Start == span.Start).Encoded;
+            {
+                var entry = clips.FirstOrDefault(c => c.Start == span.Start);
+                if (entry is not null)
+                {
+                    if (entry.Encoded is null && entry.RawFrames is { Count: >= 2 } raw)
+                    {
+                        var cts = new CancellationTokenSource();
+                        entry.Cancel = cts;
+                        entry.Encoded = Task.Run(() => EncodeClipAsync(raw, cts.Token));
+                        // Release raw uncompressed frames once the encode completes.
+                        _ = entry.Encoded.ContinueWith(_ => entry.RawFrames = null, TaskScheduler.Default);
+                    }
+                    encoded = entry.Encoded;
+                }
+            }
             if (encoded is not null)
             {
                 try
@@ -736,7 +866,7 @@ public sealed class MediaMiner : IDisposable
         lock (clips)
         {
             foreach (var clip in clips)
-                CancelClip(clip.Encoded, clip.Cancel);
+                CancelClip(clip);
             clips.Clear();
         }
         recorder?.Dispose();

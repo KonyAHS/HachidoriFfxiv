@@ -21,7 +21,7 @@ public sealed class LocalBackend(OfflineMode offline, HttpClient http, Func<Json
     public string Name => "Offline engine";
     public bool IsLive => false;
     public bool Ready => offline.Ready;
-    public JsonObject? SavedSnapshot => offline.Store.Snapshot;
+    public JsonObject? SavedSnapshot => offline.EffectiveSnapshot;
 
     public event Action? Changed
     {

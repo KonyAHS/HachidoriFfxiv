@@ -1414,7 +1414,7 @@ public sealed class StatsWindow : Window
                             popups.OpenQuery(npc.Speaker);
                     }
                     if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip($"Look up {npc.Speaker} · {npc.SharePercent:0.1}% of NPC dialogue");
+                        ImGui.SetTooltip($"Look up {npc.Speaker} · {npc.SharePercent:F1}% of NPC dialogue");
 
                     ImGui.TableNextColumn();
                     DrawInlineBar((float)npc.JapaneseChars / maxChars, barMaxW + 70 * scale, $"{npc.JapaneseChars:N0}", Lavender);

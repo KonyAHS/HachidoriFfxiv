@@ -62,7 +62,10 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
         CaptureScreenshot = c.CaptureScreenshot,
     };
 
-    public JsonObject Snapshot => service.Snapshot;
+    public JsonObject Snapshot =>
+        service.UseOfflineAnki && offline is not null
+            ? offline.EffectiveSnapshot
+            : service.Snapshot;
     public bool CanCaptureScreenshot => getMedia() is not null;
     public bool CanAttachMedia => getMedia() is { AttachesMedia: true };
     public bool NpcPicturesAvailable => npcAvailable();
@@ -106,7 +109,7 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
         if (!string.IsNullOrWhiteSpace(config.AnkiTemplateId) && string.IsNullOrEmpty(prepared["templateId"]?.ToString()))
             prepared["templateId"] = config.AnkiTemplateId;
 
-        if (service.UsingOffline)
+        if (service.UseOfflineAnki)
         {
             var decision = await service.AnkiSubmitAsync(prepared, screenshot).ConfigureAwait(false);
             return DecisionToJson(decision);
@@ -136,7 +139,7 @@ public sealed class HachidoriWebAdapter : IHachidoriWebBackend
     }
 
     public Task<JsonObject> SendRuntimeMessageAsync(string target, string type, JsonObject message, CancellationToken ct) =>
-        service.UsingOffline
+        service.UsingOffline || (target == "hachidori-anki" && service.UseOfflineAnki)
             ? HandleOfflineAsync(target, type, message, ct)
             : HandleLiveAsync(target, type, message, ct);
 

@@ -70,9 +70,18 @@ public sealed class OfflineMode : IDisposable
 
     public SyncResult? LastSync { get; private set; }
 
+    public bool Importing { get; private set; }
+    public string? ImportProgress { get; private set; }
+    public string? LastImportSummary { get; private set; }
+    public string? LastImportError { get; private set; }
+
     public NativeVersion? EngineVersion => Engine()?.Version;
 
     public IReadOnlyList<(LocalDictionary Dictionary, string Error)> LoadFailures => engine?.Failures ?? [];
+
+    /// <summary>Effective offline snapshot including locally imported Yomitan dicts and standalone Anki template.</summary>
+    public JsonObject EffectiveSnapshot => StandaloneDictionaries.BuildEffectiveSnapshot(
+        Store, config.StandaloneAnki, config.CaptureScreenshot, config.AnkiConnectUrl, config.AnkiConnectApiKey);
 
     private int NewestFormat => Engine()?.Version.DictionaryFormat ?? 0;
 
@@ -107,7 +116,7 @@ public sealed class OfflineMode : IDisposable
         var local = Engine() ?? throw new OfflineEngineException(EngineError ?? "The offline engine is unavailable.");
         lock (gate)
         {
-            var snapshot = Store.Snapshot ?? link.Snapshot;
+            var snapshot = EffectiveSnapshot;
             var plan = OfflinePlan.For(Store, snapshot);
             var state = string.Join("\n", plan.Select(d => $"{d.Path}|{d.Enabled}"));
             if (loaded && state == loadedState) return local;
@@ -208,6 +217,112 @@ public sealed class OfflineMode : IDisposable
         Store.Clear();
         LastSync = null;
         LastSyncError = null;
+    }
+
+    // --------------------------------------------------- standalone zip import
+
+    /// <summary>Imports one or more Yomitan .zip archives directly into the offline engine (no Chrome required).</summary>
+    public Task ImportZipsAsync(IReadOnlyList<string> zipPaths) => Task.Run(() =>
+    {
+        if (zipPaths.Count == 0 || Importing)
+            return;
+        if (Engine() is null || native is null)
+        {
+            LastImportError = EngineError ?? "The offline dictionary engine could not load.";
+            return;
+        }
+        Importing = true;
+        LastImportError = null;
+        LastImportSummary = null;
+        try
+        {
+            var imported = new List<string>();
+            for (var i = 0; i < zipPaths.Count; i++)
+            {
+                var path = zipPaths[i];
+                var entry = StandaloneDictionaries.ImportZip(native, Store, path,
+                    msg => ImportProgress = zipPaths.Count > 1 ? $"[{i + 1}/{zipPaths.Count}] {msg}" : msg);
+                imported.Add(entry.Title);
+            }
+            config.OfflineMode = true;
+            config.Save();
+            Invalidate();
+            LastImportSummary = imported.Count == 1
+                ? $"Imported “{imported[0]}”."
+                : $"Imported {imported.Count} dictionaries: {string.Join(", ", imported)}.";
+            DiagnosticLog.Milestone("offline", $"Standalone import completed: {LastImportSummary}");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LastImportError = ex.Message;
+            DiagnosticLog.Fault("offline", ex, "Standalone ZIP dictionary import failed");
+        }
+        finally
+        {
+            ImportProgress = null;
+            Importing = false;
+        }
+    });
+
+    /// <summary>Downloads a Yomitan .zip dictionary from a URL and imports it directly into offline mode.</summary>
+    public Task ImportFromUrlAsync(string url, string label) => Task.Run(async () =>
+    {
+        if (Importing)
+            return;
+        if (Engine() is null || native is null)
+        {
+            LastImportError = EngineError ?? "The offline dictionary engine could not load.";
+            return;
+        }
+        Importing = true;
+        LastImportError = null;
+        LastImportSummary = null;
+        try
+        {
+            var entry = await StandaloneDictionaries.ImportFromUrlAsync(
+                native, Store, http, url, label, msg => ImportProgress = msg, lifetime.Token).ConfigureAwait(false);
+            config.OfflineMode = true;
+            config.Save();
+            Invalidate();
+            LastImportSummary = $"Installed “{entry.Title}” ({entry.Revision}).";
+            DiagnosticLog.Milestone("offline", $"Standalone URL import completed: {LastImportSummary}");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LastImportError = ex.Message;
+            DiagnosticLog.Fault("offline", ex, $"Standalone URL import failed ({label})");
+        }
+        finally
+        {
+            ImportProgress = null;
+            Importing = false;
+        }
+    });
+
+    public bool RemoveLocalDictionary(string id)
+    {
+        if (!StandaloneDictionaries.RemoveLocal(Store, id, out var retired))
+            return false;
+        Invalidate();
+        if (retired is not null)
+            OfflineStore.TryDelete(retired);
+        return true;
+    }
+
+    public bool SetLocalDictionaryEnabled(string id, bool enabled)
+    {
+        if (!StandaloneDictionaries.SetLocalEnabled(Store, id, enabled))
+            return false;
+        Invalidate();
+        return true;
+    }
+
+    public bool MoveLocalDictionary(string id, int delta)
+    {
+        if (!StandaloneDictionaries.MoveLocal(Store, id, delta))
+            return false;
+        Invalidate();
+        return true;
     }
 
     // ------------------------------------------------------- following the host

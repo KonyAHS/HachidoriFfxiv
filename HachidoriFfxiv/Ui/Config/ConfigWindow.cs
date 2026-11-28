@@ -13,20 +13,22 @@ using Dalamud.Interface.Windowing;
 using HachidoriFfxiv.Capture;
 using HachidoriFfxiv.Hachidori;
 using HachidoriFfxiv.Media;
+using HachidoriFfxiv.Offline;
 using HachidoriFfxiv.Publishing;
 using HachidoriFfxiv.Rendering.Css;
 using HachidoriFfxiv.WebView;
 
 namespace HachidoriFfxiv.Ui;
 
-public sealed partial class ConfigWindow : Window
+public sealed partial class ConfigWindow : Window, IDisposable
 {
     private static readonly Configuration Defaults = new();
 
-    private static readonly Vector4 AccentGreen = new(0.42f, 0.86f, 0.56f, 1f);
-    private static readonly Vector4 AccentAmber = new(0.96f, 0.76f, 0.36f, 1f);
-    private static readonly Vector4 AccentRed = new(0.96f, 0.48f, 0.48f, 1f);
-    private static readonly Vector4 MutedText = new(0.68f, 0.70f, 0.76f, 1f);
+    // Unified StatsWindow palette aliases
+    private static readonly Vector4 AccentGreen = ConfigStyle.Good;
+    private static readonly Vector4 AccentAmber = ConfigStyle.Emphasis;
+    private static readonly Vector4 AccentRed = ConfigStyle.Bad;
+    private static readonly Vector4 MutedText = ConfigStyle.Muted;
 
     private static readonly XivChatType[] SelectableChannels =
     [
@@ -38,8 +40,8 @@ public sealed partial class ConfigWindow : Window
     private static readonly (string Name, bool Talk, bool Battle, bool Popups, bool Chat)[] PublishPresets =
     [
         ("Dialogue only", true, true, false, false),
-        ("Dialogue and popups (recommended)", true, true, true, false),
-        ("Everything, including chat", true, true, true, true),
+        ("Dialogue & popups (recommended)", true, true, true, false),
+        ("Everything including chat", true, true, true, true),
     ];
 
     private static readonly (string Name, int Port)[] PublishPorts =
@@ -115,7 +117,7 @@ public sealed partial class ConfigWindow : Window
 
     private readonly Configuration config;
     private readonly HachidoriService service;
-    private readonly Offline.OfflineMode? offline;
+    private readonly OfflineMode? offline;
     private readonly Fonts fonts;
     private readonly NativeTextHover nativeHover;
     private readonly TextPublisher publisher;
@@ -129,11 +131,16 @@ public sealed partial class ConfigWindow : Window
     private readonly WebViewPopupController? webView;
     private readonly Action? triggerFreezeFrame;
     private readonly GamepadNavigator? gamepad;
+    private readonly Action? clearStats;
+    private readonly ConnectionDoctor doctor;
+    private readonly AnkiFieldMapper ankiMapper;
     private readonly List<SettingEntry> catalog = new();
 
     private string searchQuery = string.Empty;
     private string? pendingSelectTab;
     private string? confirmResetTab;
+    private bool confirmResetSetup;
+    private bool confirmClearStats;
     private string? resetNotice;
     private DateTime resetNoticeUntil = DateTime.MinValue;
     private string? mediaTest;
@@ -141,18 +148,23 @@ public sealed partial class ConfigWindow : Window
     private string? dictionaryNotice;
     private bool dictionaryNoticeIsError;
     private DateTime dictionaryNoticeUntil = DateTime.MinValue;
+    private string zipPathInput = string.Empty;
+    private bool ffmpegDownloading;
+    private string? ffmpegDownloadStatus;
     private bool confirmRemoveOffline;
     private bool customPublishSources;
     private bool customPublishPort;
-    private bool ankiConnectedHint;
     private bool firstDraw = true;
     private KeybindRecordTarget recordingKeyTarget;
     private readonly bool[] recorderPrevKeys = new bool[256];
 
+    private const string SetupTab = "Setup";
+    private const string ReaderTab = "Reader";
+
     public ConfigWindow(
         Configuration config,
         HachidoriService service,
-        Offline.OfflineMode? offline,
+        OfflineMode? offline,
         Fonts fonts,
         NativeTextHover nativeHover,
         TextPublisher publisher,
@@ -165,7 +177,8 @@ public sealed partial class ConfigWindow : Window
         Action? openPictures = null,
         WebViewPopupController? webView = null,
         Action? triggerFreezeFrame = null,
-        GamepadNavigator? gamepad = null)
+        GamepadNavigator? gamepad = null,
+        Action? clearStats = null)
         : base("Hachidori Settings##hachidori-ffxiv-config")
     {
         this.config = config;
@@ -184,21 +197,23 @@ public sealed partial class ConfigWindow : Window
         this.webView = webView;
         this.triggerFreezeFrame = triggerFreezeFrame;
         this.gamepad = gamepad;
+        this.clearStats = clearStats;
+        doctor = new ConnectionDoctor(config, service, offline, media, webView);
+        ankiMapper = new AnkiFieldMapper(config, service, media, () => Changed(true));
 
-        Size = new Vector2(660, 620);
+        Size = new Vector2(720, 660);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(520, 440),
+            MinimumSize = new Vector2(560, 460),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
 
         BuildSearchCatalog();
     }
 
-    private const string ReaderTab = "Reader & Text";
-
     private bool Advanced => config.AdvancedSettings;
+    private DictionarySource ActiveSource => doctor.EffectiveSource();
 
     public override void OnClose()
     {
@@ -207,6 +222,8 @@ public sealed partial class ConfigWindow : Window
             gamepad.SuppressToggleKey = false;
     }
 
+    public void Dispose() => doctor.Dispose();
+
     public override void Draw()
     {
         var scale = ImGuiHelpers.GlobalScale;
@@ -214,9 +231,8 @@ public sealed partial class ConfigWindow : Window
         if (firstDraw)
         {
             firstDraw = false;
-            // Open Quick Guide automatically on first launch if not connected and not dismissed.
             if (!config.QuickGuideDismissed && !service.Link.Connected && !service.UsingOffline)
-                pendingSelectTab = "Quick Guide";
+                pendingSelectTab = SetupTab;
             else
                 pendingSelectTab = "Popup";
         }
@@ -225,7 +241,7 @@ public sealed partial class ConfigWindow : Window
         DrawSearchAndToolbar(scale);
 
         if (resetNotice is not null && DateTime.UtcNow < resetNoticeUntil)
-            ImGui.TextColored(AccentGreen, resetNotice);
+            ImGui.TextColored(ConfigStyle.Good, resetNotice);
         else if (resetNotice is not null)
             resetNotice = null;
 
@@ -241,14 +257,13 @@ public sealed partial class ConfigWindow : Window
         if (!tabs.Success)
             return;
 
-        DrawTab("Quick Guide", null, DrawQuickGuideTab, scale);
+        DrawTab(SetupTab, null, DrawSetupTab, scale);
         DrawTab("Popup", () => { config.ResetPopupDefaults(); config.ResetThemeDefaults(); Changed(true); }, DrawPopupTab, scale);
         DrawTab("Mining", () => { config.ResetMiningDefaults(); config.Save(); }, DrawMiningTab, scale);
-        DrawTab(ReaderTab, () => { config.ResetReaderDefaults(); config.ResetCaptureDefaults(); Changed(true); }, DrawReaderTab, scale);
+        DrawTab("Performance", () => { config.ResetPerformanceDefaults(); media.ApplyPerformanceSettings(); Changed(true); }, DrawPerformanceTab, scale);
         DrawTab("Controller", () => { config.ResetControllerDefaults(); config.Save(); }, DrawControllerTab, scale);
+        DrawTab(ReaderTab, () => { config.ResetReaderDefaults(); config.ResetCaptureDefaults(); Changed(true); }, DrawReaderTab, scale);
         DrawTab("Connection", () => { config.ResetConnectionDefaults(); Changed(true); }, DrawConnectionTab, scale);
-        if (Advanced || config.PublishEnabled || pendingSelectTab == "GSM")
-            DrawTab("GSM", () => { config.ResetPublishDefaults(); Changed(true); }, DrawPublishTab, scale);
 
         pendingSelectTab = null;
     }
@@ -261,47 +276,48 @@ public sealed partial class ConfigWindow : Window
         var pos = ImGui.GetCursorScreenPos();
         var avail = ImGui.GetContentRegionAvail().X;
         var bannerH = ImGui.GetFrameHeight();
-        Vector4 dotCol;
+
+        Vector4 pillCol;
+        string pillText;
         string statusText;
-        if (link.Connected)
+        if (!service.UsingOffline && link.Connected)
         {
-            dotCol = AccentGreen;
-            statusText = $"Linked to Hachidori ({link.HostName} v{link.HostVersion}) · {link.DictionaryCount} dicts";
+            pillCol = ConfigStyle.Primary;
+            pillText = "CONNECTED";
+            statusText = $"Hachidori v{link.HostVersion} · {link.DictionaryCount} dicts";
         }
         else if (service.UsingOffline && offline is { } off)
         {
-            dotCol = AccentAmber;
-            statusText = $"Offline mode · {off.Store.Manifest.Dictionaries.Count} local dicts (synced {Ago(off.Store.Manifest.SyncedAt)})";
+            pillCol = ConfigStyle.Secondary;
+            pillText = "BUILT-IN";
+            statusText = $"{off.Store.Manifest.Dictionaries.Count} local dict{(off.Store.Manifest.Dictionaries.Count == 1 ? "" : "s")} ready";
         }
         else
         {
-            dotCol = AccentRed;
-            statusText = link.Error ?? "Not linked — open Quick Guide to connect";
+            pillCol = ConfigStyle.Emphasis;
+            pillText = "SETUP";
+            statusText = "Choose a dictionary source in Setup";
         }
 
-        ImGui.SetCursorScreenPos(pos + new Vector2(0, ImGui.GetStyle().FramePadding.Y));
-        ImGui.TextColored(dotCol, "●");
-        ImGui.SameLine(0, 6 * scale);
+        ImGui.SetCursorScreenPos(pos + new Vector2(0, 1f * scale));
+        ConfigStyle.StatusPill(pillText, pillCol);
+        ImGui.SameLine(0, 8 * scale);
 
         var buttonsW = 248 * scale;
-        var textMaxW = Math.Max(100 * scale, avail - buttonsW - 32 * scale);
+        var textMaxW = Math.Max(80 * scale, avail - buttonsW - 110 * scale);
+        ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(TruncateToWidth(statusText, textMaxW));
 
-        // Quick window launchers on the right side of the status strip
         ImGui.SetCursorScreenPos(new Vector2(pos.X + avail - buttonsW, pos.Y + ImGui.GetStyle().FramePadding.Y));
-        if (openStats is not null && ImGui.SmallButton("Stats"))
-            openStats();
+        if (openStats is not null && ImGui.SmallButton("Stats")) openStats();
         if (openStats is not null) ImGui.SameLine(0, 4 * scale);
-        if (openSearchSample is not null && ImGui.SmallButton("Search"))
-            openSearchSample(null);
+        if (openSearchSample is not null && ImGui.SmallButton("Search")) openSearchSample(null);
         if (openSearchSample is not null) ImGui.SameLine(0, 4 * scale);
-        if (openReader is not null && ImGui.SmallButton("Reader"))
-            openReader();
+        if (openReader is not null && ImGui.SmallButton("Reader")) openReader();
         if (openReader is not null) ImGui.SameLine(0, 4 * scale);
-        if (openPictures is not null && ImGui.SmallButton("Pictures"))
-            openPictures();
+        if (openPictures is not null && ImGui.SmallButton("Pictures")) openPictures();
 
-        ImGui.SetCursorScreenPos(pos + new Vector2(0, bannerH + 5 * scale));
+        ImGui.SetCursorScreenPos(pos + new Vector2(0, bannerH + 6 * scale));
         ImGui.Dummy(Vector2.Zero);
     }
 
@@ -313,14 +329,12 @@ public sealed partial class ConfigWindow : Window
         var searchW = Math.Max(140 * scale, avail - advWidth - clearW - (clearW > 0 ? 12 * scale : 8 * scale));
 
         ImGui.SetNextItemWidth(searchW);
-        ImGui.InputTextWithHint("##settings-search", "Search settings…", ref searchQuery, 128);
+        ImGui.InputTextWithHint("##settings-search", "Search all settings…", ref searchQuery, 128);
         if (clearW > 0)
         {
             ImGui.SameLine(0, 4 * scale);
             if (ImGui.Button("×##clear-search", new Vector2(clearW, 0)))
                 searchQuery = string.Empty;
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Clear search");
         }
 
         ImGui.SameLine(0, 8 * scale);
@@ -331,7 +345,7 @@ public sealed partial class ConfigWindow : Window
             config.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Show fine-tuning options in every tab. Search always finds every setting.");
+            ImGui.SetTooltip("Show fine-tuning controls in every tab. Search always finds every setting.");
     }
 
     private void DrawSearchResults(float scale)
@@ -370,11 +384,11 @@ public sealed partial class ConfigWindow : Window
                 }
 
                 lastGroup = group;
-                ImGui.TextUnformatted(group);
+                ImGui.TextColored(ConfigStyle.Primary, group);
                 ImGui.SameLine(0, 10 * scale);
                 using (ImRaii.PushId($"jump-{i}"))
                 {
-                    if (ImGui.SmallButton($"Open {entry.Tab} tab"))
+                    if (ImGui.SmallButton($"Open {entry.Tab}"))
                     {
                         pendingSelectTab = entry.Tab;
                         searchQuery = string.Empty;
@@ -389,7 +403,7 @@ public sealed partial class ConfigWindow : Window
                 if (entry.IsAdvanced && !Advanced)
                 {
                     ImGui.SameLine(0, 8 * scale);
-                    ImGui.TextDisabled("advanced");
+                    ImGui.TextColored(ConfigStyle.Emphasis, "advanced");
                 }
             }
         }
@@ -435,7 +449,7 @@ public sealed partial class ConfigWindow : Window
             ImGui.Separator();
             var confirming = confirmResetTab == name;
             using var col = ImRaii.PushColor(ImGuiCol.Button, confirming ? new Vector4(0.75f, 0.25f, 0.25f, 0.95f) : new Vector4(0.22f, 0.22f, 0.27f, 0.9f));
-            var btnLabel = confirming ? "Click again to confirm" : $"Reset {name} to defaults";
+            var btnLabel = confirming ? "Click again to confirm" : $"Reset {name} defaults";
             if (ImGui.SmallButton($"{btnLabel}##reset-{name}"))
             {
                 if (confirming)
@@ -455,7 +469,7 @@ public sealed partial class ConfigWindow : Window
                 confirmResetTab = null;
             }
             if (ImGui.IsItemHovered() && !confirming)
-                ImGui.SetTooltip("Right-click any slider to reset just that value.");
+                ImGui.SetTooltip("Right-click any slider to reset just that single value.");
         }
     }
 
@@ -472,205 +486,150 @@ public sealed partial class ConfigWindow : Window
         Add("Popup", "Hover & Scanning", "Include chat", "native chat hover logbox", false,
             () => Checkbox("Include chat", () => config.NativeChatHover, v => config.NativeChatHover = v));
         Add("Popup", "Hover & Scanning", "Scan key", "modifier shift ctrl alt trigger hotkey", false, DrawScanModifierControl);
-        Add("Popup", "Hover & Scanning", "Freeze frame (tooltips)", "freeze frame tooltip item action skill snapshot hotkey", false, DrawFreezeHotkeyControl);
-        Add("Popup", "Hover & Scanning", "Hover whole words (tokenizer)", "tokenized hover word segment", true,
-            () => Checkbox("Hover whole words (Hachidori tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v));
-        Add("Popup", "Hover & Scanning", "Other native windows (experimental)", "experimental addons ui windows", true,
+        Add("Popup", "Hover & Scanning", "Freeze tooltips hotkey", "freeze frame tooltip item action skill snapshot", false, DrawFreezeHotkeyControl);
+        Add("Popup", "Hover & Scanning", "Whole-word hover (tokenizer)", "tokenized hover word segment", true,
+            () => Checkbox("Whole-word hover (tokenizer)", () => config.TokenizedHover, v => config.TokenizedHover = v));
+        Add("Popup", "Hover & Scanning", "Other native windows", "experimental addons ui windows", true,
             () => Checkbox("Other native windows (experimental)", () => config.NativeOtherTextHover, v => config.NativeOtherTextHover = v));
-        Add("Popup", "Hover & Scanning", "Show native hover targets (debug)", "debug boxes overlay hitbox", true,
-            () => Checkbox("Show native hover targets (debug)", () => config.NativeHoverDebug, v => config.NativeHoverDebug = v));
+        Add("Popup", "Hover & Scanning", "Show hover target boxes (debug)", "debug boxes overlay hitbox", true,
+            () => Checkbox("Show hover target boxes (debug)", () => config.NativeHoverDebug, v => config.NativeHoverDebug = v));
         Add("Popup", "Hover & Scanning", "Scan length", "characters max length lookup", true, DrawScanLengthControl);
         Add("Popup", "Hover & Scanning", "Max results", "entries limit count", true, DrawMaxResultsControl);
         Add("Popup", "Hover & Scanning", "Nested popups", "depth recursive inside popup", true, DrawMaxPopupDepthControl);
-        Add("Popup", "Hover & Scanning", "Only start scans on Japanese characters", "japanese kana kanji filter", true,
+        Add("Popup", "Hover & Scanning", "Japanese characters only", "japanese kana kanji filter", true,
             () => Checkbox("Only start scans on Japanese characters", () => config.ScanOnlyJapanese, v => config.ScanOnlyJapanese = v));
-        Add("Popup", "Hover & Scanning", "Use the personal dictionary", "custom personal dict", true,
-            () => Checkbox("Use the personal dictionary", () => config.UsePersonalDictionary, v => config.UsePersonalDictionary = v));
+        Add("Popup", "Hover & Scanning", "Personal dictionary", "custom personal dict", true,
+            () => Checkbox("Use personal dictionary", () => config.UsePersonalDictionary, v => config.UsePersonalDictionary = v));
 
-        Add("Popup", "Size & Behavior", "Popup width", "size px wide window", false, DrawPopupWidthControl);
-        Add("Popup", "Size & Behavior", "Popup max height", "size px tall scroll window", false, DrawPopupMaxHeightControl);
-        Add("Popup", "Size & Behavior", "Popup font size", "text scale bigger smaller px", false, DrawPopupFontSizeControl);
-        Add("Popup", "Size & Behavior", "Popup opacity", "alpha transparency background", false, DrawPopupOpacityControl);
-        Add("Popup", "Size & Behavior", "Hide delay (s)", "close timeout linger seconds", true, DrawHideDelayControl);
-        Add("Popup", "Size & Behavior", "Hide the popup when the mouse leaves", "auto hide root close", true,
-            () => Checkbox("Hide the popup when the mouse leaves", () => config.AutoHideRootPopup, v => config.AutoHideRootPopup = v));
+        Add("Popup", "Look & Renderer", "Popup renderer", "webview2 browser imgui theme renderer", false, DrawPopupRendererControl);
+        Add("Popup", "Look & Renderer", "Theme override", "palette crystal nazeka jl bee default", false, DrawThemeOverrideControl);
+        Add("Popup", "Look & Renderer", "Color variant", "grey beige retro blue crystal scheme", false, DrawVariantOverrideControl);
+        Add("Popup", "Look & Renderer", "Popup width", "size px wide window", false, DrawPopupWidthControl);
+        Add("Popup", "Look & Renderer", "Popup max height", "size px tall scroll window", false, DrawPopupMaxHeightControl);
+        Add("Popup", "Look & Renderer", "Popup font size", "text scale bigger smaller px", false, DrawPopupFontSizeControl);
+        Add("Popup", "Look & Renderer", "Popup opacity", "alpha transparency background", true, DrawPopupOpacityControl);
+        Add("Popup", "Look & Renderer", "Hide delay", "close timeout linger seconds", true, DrawHideDelayControl);
+        Add("Popup", "Look & Renderer", "Auto-hide on mouse leave", "auto hide root close", true,
+            () => Checkbox("Hide popup when mouse leaves", () => config.AutoHideRootPopup, v => config.AutoHideRootPopup = v));
+        Add("Popup", "Look & Renderer", "Extra popup CSS", "custom css colors border style", true, DrawExtraCssControl);
 
-        Add("Popup", "Popup Contents", "Frequencies", "show freq rank jpdb bccwj", false,
+        Add("Popup", "Contents & Audio", "Frequencies", "show freq rank jpdb bccwj", false,
             () => Checkbox("Frequencies", () => config.ShowFrequencies, v => config.ShowFrequencies = v));
-        Add("Popup", "Popup Contents", "Pitch accent", "show accent downstep heiban odaka", false,
+        Add("Popup", "Contents & Audio", "Pitch accent", "show accent downstep heiban odaka", false,
             () => Checkbox("Pitch accent", () => config.ShowPitchAccent, v => config.ShowPitchAccent = v));
-        Add("Popup", "Popup Contents", "Dictionary names", "show dict badge label", false,
+        Add("Popup", "Contents & Audio", "Dictionary names", "show dict badge label", false,
             () => Checkbox("Dictionary names", () => config.ShowDictionaryNames, v => config.ShowDictionaryNames = v));
-        Add("Popup", "Popup Contents", "Deinflection", "show conjugation inflection trace grammar", true,
-            () => Checkbox("Deinflection", () => config.ShowInflections, v => config.ShowInflections = v));
-        Add("Popup", "Popup Contents", "Definition tags", "show pos tags noun verb", true,
+        Add("Popup", "Contents & Audio", "Auto-play audio", "audio sound speak pronunciation automatic", false,
+            () => Checkbox("Auto-play audio", () => config.AutoPlayAudio, v => config.AutoPlayAudio = v));
+        Add("Popup", "Contents & Audio", "Audio volume", "audio loudness sound", false, DrawAudioVolumeControl);
+        Add("Popup", "Contents & Audio", "Deinflection", "conjugation trace grammar", true,
+            () => Checkbox("Deinflection trace", () => config.ShowInflections, v => config.ShowInflections = v));
+        Add("Popup", "Contents & Audio", "Definition tags", "pos tags noun verb", true,
             () => Checkbox("Definition tags", () => config.ShowDefinitionTags, v => config.ShowDefinitionTags = v));
-        Add("Popup", "Popup Contents", "Attribution", "show credits copyright source", true,
-            () => Checkbox("Attribution", () => config.ShowAttribution, v => config.ShowAttribution = v));
-        Add("Popup", "Popup Contents", "Lookup counts", "show statistics times looked up", true,
-            () => Checkbox("Lookup counts (Hachidori statistics)", () => config.ShowLookupCounts, v => config.ShowLookupCounts = v));
-        Add("Popup", "Popup Contents", "Honour Hachidori's lookup blur", "recall blur hide definition", true,
-            () => Checkbox("Honour Hachidori's lookup blur", () => config.HonourDefinitionBlur, v => config.HonourDefinitionBlur = v));
-
-        Add("Popup", "Pronunciation Audio", "Auto-play pronunciation", "audio sound speak automatic", false,
-            () => Checkbox("Auto-play pronunciation", () => config.AutoPlayAudio, v => config.AutoPlayAudio = v));
-        Add("Popup", "Pronunciation Audio", "Volume", "audio loudness sound", false, DrawAudioVolumeControl);
-
-        // Theme
-        Add("Popup", "Appearance", "Render popups with Hachidori Web (WebView2)", "webview2 browser parity upstream themes renderer", false, DrawUseWebViewControl);
-        Add("Popup", "Appearance", "Use Hachidori's popup theme", "crystal nazeka jl bee default appearance style", false, DrawFollowThemeControl);
-        Add("Popup", "Appearance", "Theme override", "palette renderer dark light crystal", false, DrawThemeOverrideControl);
-        Add("Popup", "Appearance", "Colours / variant", "grey beige retro blue crystal scheme", false, DrawVariantOverrideControl);
-        Add("Popup", "Appearance", "Use Hachidori's popup opacity", "alpha transparency theme", true, DrawFollowOpacityControl);
-        Add("Popup", "Appearance", "Apply Hachidori's custom popup CSS", "custom stylesheet userscript", true, DrawApplyCustomCssControl);
-        Add("Popup", "Appearance", "Extra CSS for the game popup", "custom css colors border style", true, DrawExtraCssControl);
-        Add("Popup", "Appearance", "Auto-sync Hachidori Web when Hachidori updates", "webview bundle update github chrome sync", true, DrawAutoSyncWebViewControl);
-        Add("Popup", "Appearance", "Custom Hachidori extension folder", "webview bundle unpacked extension path", true, DrawWebViewBundlePathControl);
+        Add("Popup", "Contents & Audio", "Lookup counts", "statistics times looked up", true,
+            () => Checkbox("Lookup counts", () => config.ShowLookupCounts, v => config.ShowLookupCounts = v));
+        Add("Popup", "Contents & Audio", "Lookup blur", "recall blur hide definition", true,
+            () => Checkbox("Honour lookup blur", () => config.HonourDefinitionBlur, v => config.HonourDefinitionBlur = v));
 
         // Mining
-        Add("Mining", "Notifications", "Show notification when a card is created", "anki notification toast popup card created mined", false, DrawAnkiNotifyToggleControl);
-        Add("Mining", "Screenshots & Animation", "Screenshot", "picture image capture anki", false, DrawScreenshotToggleControl);
-        Add("Mining", "Screenshots & Animation", "Screenshot max width", "resolution size px", true, DrawScreenshotMaxWidthControl);
-        Add("Mining", "Screenshots & Animation", "Screenshot JPEG quality", "compression image", true, DrawScreenshotQualityControl);
-        Add("Mining", "Screenshots & Animation", "Animation of the line", "gif avif webp video clip", false, DrawGifToggleControl);
-        Add("Mining", "Screenshots & Animation", "Animation format", "avif webp gif encoder", false, DrawAnimationFormatControl);
-        Add("Mining", "Screenshots & Animation", "Animation width", "gif avif resolution px", true, DrawGifWidthControl);
-        Add("Mining", "Screenshots & Animation", "Animation FPS", "frames per second gif avif", true, DrawGifFpsControl);
-        Add("Mining", "Screenshots & Animation", "Animation length (s)", "duration seconds clip", true, DrawGifSecondsControl);
-        Add("Mining", "Screenshots & Animation", "AVIF quality (CRF)", "avif crf compression", true, DrawAvifCrfControl);
-        Add("Mining", "Screenshots & Animation", "WebP quality", "webp compression", true, DrawWebpQualityControl);
-        Add("Mining", "Screenshots & Animation", "FFmpeg path", "ffmpeg binary exe encoder", true, DrawFfmpegPathControl);
-
-        Add("Mining", "Voice Recording & TTS", "Voice line from the game", "record audio wasapi game sound", false, DrawVoiceRecordToggleControl);
-        Add("Mining", "Voice Recording & TTS", "Voice detection", "ratio bgm music threshold", true, DrawVoiceRatioControl);
-        Add("Mining", "Voice Recording & TTS", "Longest voice line (s)", "max clip duration seconds", true, DrawMaxLineSecondsControl);
-        Add("Mining", "Voice Recording & TTS", "Voice ring buffer (s)", "audio memory buffer history seconds", true, DrawVoiceBufferSecondsControl);
-        Add("Mining", "Voice Recording & TTS", "TTS for unvoiced lines", "voicevox aivisspeech speech synthesis", false, DrawTtsModeControl);
-        Add("Mining", "Voice Recording & TTS", "TTS engine address / URL", "voicevox url port endpoint", false, DrawTtsUrlControl);
-        Add("Mining", "Voice Recording & TTS", "TTS speaker / voice", "voicevox speaker id", false, DrawTtsSpeakerControl);
-        Add("Mining", "Voice Recording & TTS", "Mix current playing OST into TTS", "ost bgm music tts inject background dragon", false, DrawTtsInjectOstControl);
-        Add("Mining", "Voice Recording & TTS", "OST background level", "ost bgm music volume mix tts", false, DrawTtsOstVolumeControl);
-        Add("Mining", "Voice Recording & TTS", "Skip OST when game BGM is muted", "ost bgm mute silent tts", true, DrawTtsOstRespectMuteControl);
-
-        Add("Mining", "Sentence Translation", "Sentence translation", "ai llm translate gemini groq openai deepl claude codex", false,
-            () => Toggle("Sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v));
+        Add("Mining", "Card Media", "Visual capture mode", "screenshot picture animation gif avif webp video", false, DrawVisualCaptureControl);
+        Add("Mining", "Card Media", "Sentence audio mode", "record voice wasapi tts voicevox aivisspeech audio", false, DrawSentenceAudioControl);
+        Add("Mining", "Card Media", "Toast on mine", "anki notification toast card created", false, DrawAnkiNotifyToggleControl);
+        Add("Mining", "Card Media", "Screenshot max width", "resolution size px", true, DrawScreenshotMaxWidthControl);
+        Add("Mining", "Card Media", "Screenshot JPEG quality", "compression image", true, DrawScreenshotQualityControl);
+        Add("Mining", "Card Media", "FFmpeg path", "ffmpeg binary exe encoder", true, DrawFfmpegPathControl);
+        Add("Mining", "Card Media", "Voice detection ratio", "bgm music threshold", true, DrawVoiceRatioControl);
+        Add("Mining", "Card Media", "Longest voice line", "max clip duration seconds", true, DrawMaxLineSecondsControl);
+        Add("Mining", "Card Media", "TTS address", "voicevox url port endpoint", false, DrawTtsUrlControl);
+        Add("Mining", "Card Media", "TTS speaker", "voicevox speaker id", false, DrawTtsSpeakerControl);
+        Add("Mining", "Card Media", "Mix OST into TTS", "ost bgm music tts inject", false, DrawTtsInjectOstControl);
+        Add("Mining", "Card Media", "OST background level", "ost bgm volume mix tts", false, DrawTtsOstVolumeControl);
+        Add("Mining", "Sentence Translation", "Enable AI translation", "ai llm translate gemini groq openai deepl claude codex", false,
+            () => Toggle("Enable AI sentence translation", config.TranslationEnabled, v => config.TranslationEnabled = v));
         Add("Mining", "Sentence Translation", "Translation provider", "gemini groq openai ollama lmstudio deepl codex claude", false, DrawTranslationProviderControl);
-        Add("Mining", "Sentence Translation", "Translation Anki field", "anki field SentenceTranslation", false, DrawTranslationFieldControl);
-        Add("Mining", "Sentence Translation", "Translate into language", "target language english", true, DrawTranslationLanguageControl);
-        Add("Mining", "Sentence Translation", "Dialogue context lines", "context window history lines", true, DrawDialogueContextControl);
-        Add("Mining", "Sentence Translation", "Temperature", "llm sampling creativity", true, DrawTemperatureControl);
-        Add("Mining", "Sentence Translation", "Top P", "llm nucleus sampling", true, DrawTopPControl);
-        Add("Mining", "Sentence Translation", "Max output tokens", "llm token limit", true, DrawMaxTokensControl);
+        Add("Mining", "GSM Bridge", "Publish text for GSM", "gamesentenceminer websocket texthooker feed 6677", false,
+            () => Checkbox("Publish text to GSM", () => config.PublishEnabled, v => config.PublishEnabled = v));
+        Add("Mining", "AnkiConnect", "AnkiConnect address", "url port 8765 anki", true, DrawAnkiConnectUrlControl);
+        Add("Mining", "AnkiConnect", "AnkiConnect API key", "anki key auth token", true, DrawAnkiConnectApiKeyControl);
 
-        Add("Mining", "AnkiConnect & Fields", "Sentence audio field", "anki field name sound", true, DrawSentenceAudioFieldControl);
-        Add("Mining", "AnkiConnect & Fields", "GIF field", "anki field name picture image", true, DrawGifFieldControl);
-        Add("Mining", "AnkiConnect & Fields", "Animation may replace screenshot", "gif overwrite picture", true,
-            () => Toggle("The animation may replace the screenshot", config.GifReplacesScreenshot, v => config.GifReplacesScreenshot = v));
-        Add("Mining", "AnkiConnect & Fields", "AnkiConnect address", "url port 8765 anki", true, DrawAnkiConnectUrlControl);
-        Add("Mining", "AnkiConnect & Fields", "AnkiConnect API key", "anki key auth token", true, DrawAnkiConnectApiKeyControl);
+        // Performance
+        Add("Performance", "Quick Tuning", "Clip encoding mode", "lazy eager on-demand ffmpeg cpu animation", false, DrawClipEncodingModeControl);
+        Add("Performance", "Quick Tuning", "Cache line screenshots", "memory cache backlog jpeg screenshots", false,
+            () => Toggle("Cache line screenshots", config.CacheLineScreenshots, v => { config.CacheLineScreenshots = v; media.ApplyPerformanceSettings(); }));
+        Add("Performance", "Quick Tuning", "Cache voice replays", "memory cache backlog replay audio", false,
+            () => Toggle("Cache voice replays", config.CacheReplayAudio, v => { config.CacheReplayAudio = v; media.ApplyPerformanceSettings(); }));
+        Add("Performance", "Cache Sizes & Buffers", "Lookup cache size", "memory cache lookup results", true, DrawLookupCacheSizeControl);
+        Add("Performance", "Cache Sizes & Buffers", "Word segment cache size", "memory cache tokenizer segment", true, DrawSegmentCacheSizeControl);
+        Add("Performance", "Cache Sizes & Buffers", "Pronunciation audio cache", "memory cache audio pronunciation", true, DrawAudioCacheSizeControl);
+        Add("Performance", "Cache Sizes & Buffers", "Max cached screenshots", "memory cache screenshots count", true, DrawMaxCachedScreenshotsOnlyControl);
+        Add("Performance", "Cache Sizes & Buffers", "Max cached voice replays", "memory cache replay audio count", true, DrawMaxCachedReplayAudioOnlyControl);
+        Add("Performance", "Cache Sizes & Buffers", "Cached clips count", "memory cache animation clips", true, DrawMaxCachedClipsControl);
+        Add("Performance", "Cache Sizes & Buffers", "Parallel FFmpeg encodes", "cpu threads concurrent ffmpeg", true, DrawMaxConcurrentEncodesControl);
+        Add("Performance", "Cache Sizes & Buffers", "Voice ring buffer (s)", "audio memory buffer history seconds", true, DrawVoiceBufferSecondsControl);
+        Add("Performance", "Cache Sizes & Buffers", "Animation width", "gif avif resolution px", true, DrawGifWidthControl);
+        Add("Performance", "Cache Sizes & Buffers", "Animation FPS", "frames per second gif avif", true, DrawGifFpsControl);
+        Add("Performance", "Cache Sizes & Buffers", "Animation length (s)", "duration seconds clip", true, DrawGifSecondsControl);
+        Add("Performance", "Cache Sizes & Buffers", "Line history size", "backlog line limit count", true, DrawHistorySizeControl);
 
         // Controller
         Add("Controller", "Activation", "Controller reading mode", "gamepad pad xbox playstation dualsense", false,
-            () => Toggle("Controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v));
-        Add("Controller", "Activation", "Controller trigger", "select start l3 r3 trigger hold press toggle", false, DrawControllerHoldButtonControl);
-        Add("Controller", "Activation", "Trigger style (hold / press)", "hold press instant toggle extra button paddle", false, DrawControllerTriggerModeControl);
-        Add("Controller", "Activation", "Hold for (s)", "duration seconds hold", false, DrawControllerHoldSecondsControl);
-        Add("Controller", "Activation", "Toggle keybind", "keyboard hotkey keybind press f13 paddle extra button controller", false, DrawControllerToggleKeyControl);
-        Add("Controller", "Voice Line Repeat", "Cutscene repeat button", "replay repeat voice line cached audio cutscene gamepad controller r3 l3", false, DrawControllerQuickReplayButtonControl);
-        Add("Controller", "Voice Line Repeat", "Cutscene repeat trigger style", "hold press instant repeat voice cutscene", false, DrawControllerQuickReplayTriggerModeControl);
-        Add("Controller", "Voice Line Repeat", "Only during cutscenes or dialogue", "cutscene dialogue scope guard repeat replay voice", false,
-            () => Checkbox("Only during cutscenes or dialogue", () => config.ControllerQuickReplayCutsceneOnly, v => config.ControllerQuickReplayCutsceneOnly = v));
-        Add("Controller", "Voice Line Repeat", "Repeat line keybind", "keyboard hotkey keybind paddle repeat replay voice cached line cutscene", false, DrawReplayVoiceKeyControl);
-        Add("Controller", "Voice Line Repeat", "Backlog / controller mode repeat button", "backlog repeat replay voice button r3 controller", false, DrawControllerReplayVoiceButtonControl);
-        Add("Controller", "Behavior & Display", "Scan words automatically under the cursor", "auto scan manual button press popup lookup immediately", false,
-            () => Checkbox("Scan words automatically under the cursor", () => config.ControllerAutoScan, v => config.ControllerAutoScan = v));
-        Add("Controller", "Behavior & Display", "Look up button", "manual scan button press lookup popup controller", false, DrawControllerScanButtonControl);
-        Add("Controller", "Behavior & Display", "Start in word mode", "word character snap", false,
-            () => Checkbox("Start in word mode", () => config.ControllerStartInWordMode, v => config.ControllerStartInWordMode = v));
-        Add("Controller", "Behavior & Display", "Leave mode when dialogue closes", "auto exit talk", false,
-            () => Checkbox("Leave the mode when the dialogue closes", () => config.ControllerExitWhenDialogueCloses, v => config.ControllerExitWhenDialogueCloses = v));
-        Add("Controller", "Behavior & Display", "Show button hints", "hud overlay prompts", false,
-            () => Checkbox("Show button hints", () => config.ControllerShowHints, v => config.ControllerShowHints = v));
-        Add("Controller", "Behavior & Display", "PlayStation button names", "cross circle square triangle xbox", false,
-            () => Checkbox("PlayStation button names", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v));
-        Add("Controller", "Behavior & Display", "DualSense/DS4 touchpad cursor", "touchpad virtual cursor ps5 ps4", false,
-            () => Checkbox("Move the cursor with the DualSense/DS4 touchpad", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v));
-        Add("Controller", "Behavior & Display", "Left stick cursor speed", "sensitivity speed px", true, DrawControllerCursorSpeedControl);
+            () => Toggle("Enable controller reading mode", config.ControllerEnabled, v => config.ControllerEnabled = v));
+        Add("Controller", "Activation", "Controller trigger", "select start l3 r3 hold press toggle", false, DrawControllerHoldButtonControl);
+        Add("Controller", "Activation", "Toggle keybind", "keyboard hotkey f13 paddle", true, DrawControllerToggleKeyControl);
+        Add("Controller", "Voice Repeat", "Cutscene repeat button", "replay repeat voice cutscene gamepad r3 l3", false, DrawControllerQuickReplayButtonControl);
+        Add("Controller", "Voice Repeat", "Repeat trigger style", "hold press repeat voice", false, DrawControllerQuickReplayTriggerModeControl);
+        Add("Controller", "Voice Repeat", "Repeat line keybind", "keyboard hotkey repeat replay voice", true, DrawReplayVoiceKeyControl);
+        Add("Controller", "Behavior", "Auto-scan under cursor", "auto scan manual button lookup", false,
+            () => Checkbox("Auto-scan under cursor", () => config.ControllerAutoScan, v => config.ControllerAutoScan = v));
+        Add("Controller", "Behavior", "PlayStation labels", "cross circle square triangle xbox", false,
+            () => Checkbox("PlayStation labels", () => config.ControllerPlayStationLabels, v => config.ControllerPlayStationLabels = v));
+        Add("Controller", "Behavior", "DualSense touchpad", "touchpad virtual cursor ps5 ps4", false,
+            () => Checkbox("DualSense/DS4 touchpad", () => config.ControllerUseTouchpad, v => config.ControllerUseTouchpad = v));
 
         // Reader
         Add(ReaderTab, "Reader Overlay", "Enable reader overlay", "texthooker window dialogue", false,
             () => Checkbox("Enable reader overlay", () => config.ReaderEnabled, v => config.ReaderEnabled = v));
-        Add(ReaderTab, "Reader Overlay", "Show only while dialogue is open", "auto show hide talk", false,
-            () => Checkbox("Show only while dialogue is open", () => config.ReaderAutoShowWithDialogue, v => config.ReaderAutoShowWithDialogue = v));
-        Add(ReaderTab, "Reader Overlay", "Show history", "backlog scroll lines", false,
-            () => Checkbox("Show history", () => config.ReaderShowHistory, v => config.ReaderShowHistory = v));
-        Add(ReaderTab, "Reader Overlay", "Lock reader window", "no title bar click move", true,
-            () => Checkbox("Lock (no title bar, click-to-move off)", () => config.ReaderLocked, v => config.ReaderLocked = v));
-        Add(ReaderTab, "Reader Overlay", "Hide text until hovered", "reveal hover invisible", true,
-            () => Checkbox("Hide text until hovered", () => config.ReaderHideUntilHovered, v => config.ReaderHideUntilHovered = v));
         Add(ReaderTab, "Reader Overlay", "Reader position", "anchor above below free", false, DrawReaderAnchorControl);
         Add(ReaderTab, "Reader Overlay", "Reader font size", "text scale px", false, DrawReaderFontSizeControl);
-        Add(ReaderTab, "Reader Overlay", "Reader opacity", "alpha transparency background", true, DrawReaderOpacityControl);
-        Add(ReaderTab, "Reader Overlay", "History size", "backlog line limit count", true, DrawHistorySizeControl);
-
-        // Capture
-        Add(ReaderTab, "Captured Text", "Capture dialogue & cutscenes", "talk cutscene subtitles msq", false,
-            () => Checkbox("Dialogue & cutscenes", () => config.CaptureTalk, v => config.CaptureTalk = v));
-        Add(ReaderTab, "Captured Text", "Capture battle talk", "boss combat dialogue", false,
-            () => Checkbox("Battle talk", () => config.CaptureBattleTalk, v => config.CaptureBattleTalk = v));
-        Add(ReaderTab, "Captured Text", "Capture chat", "chat channels log", false,
-            () => Checkbox("Chat", () => config.CaptureChat, v => config.CaptureChat = v));
-        Add(ReaderTab, "Captured Text", "Read character's name as katakana", "player name furigana katakana", false,
-            () => Checkbox("Read my character's name as katakana", () => config.KatakanaPlayerName, v => config.KatakanaPlayerName = v));
-        Add(ReaderTab, "Captured Text", "Custom katakana name", "override player name reading", true, DrawPlayerNameKatakanaControl);
-
-        // GSM
-        Add("GSM", "Feed Sources", "Publish text for GSM", "gamesentenceminer websocket texthooker feed", true,
-            () => Checkbox("Publish text for GSM", () => config.PublishEnabled, v => config.PublishEnabled = v));
-        Add("GSM", "WebSocket Server", "GSM WebSocket port", "textractor lunatranslator agent 6677", true, DrawPublishPortControl);
+        Add(ReaderTab, "Captured Text", "Katakana character name", "player name furigana katakana", false,
+            () => Checkbox("Read character name as katakana", () => config.KatakanaPlayerName, v => config.KatakanaPlayerName = v));
 
         // Connection
-        Add("Connection", "Hachidori Relay & Host", "Relay host", "ip address localhost 127.0.0.1", true, DrawRelayHostControl);
-        Add("Connection", "Hachidori Relay & Host", "Relay port", "8771 websocket relay", true, DrawRelayPortControl);
-        Add("Connection", "Hachidori Relay & Host", "Yomitan API port (audio)", "19633 audio pronunciation port", true, DrawApiPortControl);
-        Add("Connection", "Hachidori Relay & Host", "Anki Template ID", "template deck model", true, DrawAnkiTemplateIdControl);
-        Add("Connection", "Hachidori Relay & Host", "{document-title}", "anki document title ffxiv", true, DrawDocumentTitleControl);
-        Add("Connection", "Custom FFXIV Dictionary", "Download custom FFXIV dictionary", "ffxiv dictionary download zip portraits lingo yomitan hachidori custom glossary", false, () =>
-            DrawFfxivDictionaryBody(ImGuiHelpers.GlobalScale, FindInstalledFfxivDictionary(), "search"));
-        Add("Connection", "Offline Mode", "Offline mode", "local dictionaries sync hdw_native", false, () =>
-        {
-            if (offline is { } off)
-                DrawOfflineModeBody(off);
-        });
+        Add("Connection", "Hachidori Extension", "Relay host", "ip address localhost 127.0.0.1", true, DrawRelayHostControl);
+        Add("Connection", "Hachidori Extension", "Relay port", "8771 websocket relay", true, DrawRelayPortControl);
+        Add("Connection", "Hachidori Extension", "Audio API port", "19633 audio pronunciation port", true, DrawApiPortControl);
+        Add("Connection", "Hachidori Extension", "{document-title}", "anki document title ffxiv", true, DrawDocumentTitleControl);
     }
+
+    private void DrawMaxCachedScreenshotsOnlyControl() =>
+        NumberInt("Max cached screenshots", () => config.MaxCachedScreenshots, v => config.MaxCachedScreenshots = v, 0, 100, Defaults.MaxCachedScreenshots,
+            deferSave: () => { config.PerformancePreset = PerformancePresets.Detect(config); config.Save(); media.ApplyPerformanceSettings(); });
+
+    private void DrawMaxCachedReplayAudioOnlyControl() =>
+        NumberInt("Max cached voice replays", () => config.MaxCachedReplayAudio, v => config.MaxCachedReplayAudio = v, 0, 100, Defaults.MaxCachedReplayAudio,
+            deferSave: () => { config.PerformancePreset = PerformancePresets.Detect(config); config.Save(); media.ApplyPerformanceSettings(); });
 
     // -------------------------------------------------------------- reusable UI primitives
 
-    /// <summary>Collapsible section; the optional accent colours the title to show a status (ready, needs action).</summary>
     private static bool Section(string id, string title, bool defaultOpen = true, Vector4? accent = null)
     {
         var flags = defaultOpen ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None;
         using var textCol = accent is { } a ? ImRaii.PushColor(ImGuiCol.Text, a) : null;
-
         ImGui.Spacing();
         var open = ImGui.CollapsingHeader($"{title}###sec-{id}", flags);
-        if (open)
-            ImGui.Spacing();
+        if (open) ImGui.Spacing();
         return open;
     }
 
-    /// <summary>Small amber "Advanced" label that separates fine-tuning options inside a section.</summary>
     private static void AdvancedDivider()
     {
-        ImGui.Spacing();
-        ImGui.TextColored(AccentAmber, "Advanced");
+        ConfigStyle.SubHeading("Advanced", ConfigStyle.Emphasis);
     }
 
-    /// <summary>Slider for ints (Ctrl+click to type), with right-click reset to default.</summary>
     private void NumberInt(string label, Func<int> get, Action<int> set, int min, int max, int defaultValue, string? help = null, Action? deferSave = null)
     {
         var val = get();
-        ImGui.SetNextItemWidth(Math.Max(180 * ImGuiHelpers.GlobalScale, ImGui.CalcItemWidth()));
+        ImGui.SetNextItemWidth(Math.Max(180 * ImGuiHelpers.GlobalScale, Math.Min(260 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X * 0.55f)));
         var changed = ImGui.SliderInt(label, ref val, min, max);
         var deactivated = ImGui.IsItemDeactivatedAfterEdit();
         var reset = ImGui.IsItemClicked(ImGuiMouseButton.Right);
@@ -694,14 +653,13 @@ public sealed partial class ConfigWindow : Window
             deferSave();
     }
 
-    /// <summary>Slider for floats (Ctrl+click to type), with right-click reset to default.</summary>
     private void NumberFloat(string label, Func<float> get, Action<float> set, float min, float max, float defaultValue, string format = "%.2f", string? unit = null, string? help = null, Action? deferSave = null)
     {
         var val = get();
         var sliderFormat = unit is not null ? $"{format} {unit}" : format;
         var defaultText = defaultValue.ToString(format.Contains(".0") ? "0" : format.Contains(".1") ? "0.0" : "0.00", CultureInfo.InvariantCulture);
 
-        ImGui.SetNextItemWidth(Math.Max(180 * ImGuiHelpers.GlobalScale, ImGui.CalcItemWidth()));
+        ImGui.SetNextItemWidth(Math.Max(180 * ImGuiHelpers.GlobalScale, Math.Min(260 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X * 0.55f)));
         var changed = ImGui.SliderFloat(label, ref val, min, max, sliderFormat);
         var deactivated = ImGui.IsItemDeactivatedAfterEdit();
         var reset = ImGui.IsItemClicked(ImGuiMouseButton.Right);
@@ -725,7 +683,6 @@ public sealed partial class ConfigWindow : Window
             deferSave();
     }
 
-    /// <summary>Plain number box for ports and other values a slider makes no sense for.</summary>
     private void PortInput(string label, Func<int> get, Action<int> set, int defaultValue)
     {
         var val = get();
@@ -742,6 +699,7 @@ public sealed partial class ConfigWindow : Window
     {
         if (!changed)
             return;
+        config.PerformancePreset = PerformancePresets.Detect(config);
         config.Save();
         fonts.Refresh();
         service.ClearCache();
@@ -763,6 +721,7 @@ public sealed partial class ConfigWindow : Window
         if (ImGui.Checkbox(label, ref value))
         {
             set(value);
+            config.PerformancePreset = PerformancePresets.Detect(config);
             config.Save();
         }
     }
@@ -791,7 +750,52 @@ public sealed partial class ConfigWindow : Window
         return text[..len] + "…";
     }
 
-    // -------------------------------------------------------------- async tests
+    // -------------------------------------------------------------- async helpers
+
+    private void StartBrowseZipImport()
+    {
+        if (offline is null || offline.Importing)
+            return;
+        _ = Task.Run(async () =>
+        {
+            var picked = FilePicker.PickZipFiles();
+            if (picked.Count > 0)
+            {
+                await offline.ImportZipsAsync(picked).ConfigureAwait(false);
+                service.ClearCache();
+                doctor.RunNow();
+            }
+        });
+    }
+
+    private void StartManagedFfmpegDownload()
+    {
+        if (ffmpegDownloading)
+            return;
+        ffmpegDownloading = true;
+        ffmpegDownloadStatus = "Starting FFmpeg download…";
+        var dir = DalamudServices.PluginInterface.GetPluginConfigDirectory();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var exe = await Ffmpeg.DownloadManagedAsync(dir, msg => ffmpegDownloadStatus = msg).ConfigureAwait(false);
+                config.FfmpegPath = exe;
+                config.Save();
+                media.RefreshFfmpegPath();
+                ffmpegDownloadStatus = "FFmpeg installed and ready.";
+                doctor.RunNow();
+            }
+            catch (Exception ex)
+            {
+                ffmpegDownloadStatus = $"FFmpeg download failed: {ex.Message}";
+            }
+            finally
+            {
+                ffmpegDownloading = false;
+            }
+        });
+    }
 
     private async Task TestTranslationAsync()
     {
@@ -799,7 +803,7 @@ public sealed partial class ConfigWindow : Window
         {
             var result = await media.Translator.TranslateAsync("冒険者さん、ちょっと手を貸してもらえないかな？",
                 ["この辺りで魔物が増えているらしい。"], "村人", "FINAL FANTASY XIV").ConfigureAwait(false);
-            mediaTest = $"Translation works: {result}";
+            mediaTest = $"Translation OK: {result}";
         }
         catch (Exception ex)
         {
@@ -816,11 +820,11 @@ public sealed partial class ConfigWindow : Window
             {
                 var mins = (int)(bgm.ElapsedSeconds / 60);
                 var secs = (int)(bgm.ElapsedSeconds % 60);
-                mediaTest = $"TTS + OST works: {audio.Length / 1024} KB of {ext} audio (mixed with {bgm.DisplayName} @ {mins}:{secs:00}).";
+                mediaTest = $"TTS + OST OK: {audio.Length / 1024} KB {ext} ({bgm.DisplayName} @ {mins}:{secs:00}).";
             }
             else
             {
-                mediaTest = $"TTS works: {audio.Length / 1024} KB of {ext} audio.";
+                mediaTest = $"TTS OK: {audio.Length / 1024} KB {ext}.";
             }
         }
         catch (Exception ex)
@@ -829,27 +833,7 @@ public sealed partial class ConfigWindow : Window
         }
     }
 
-    private async Task TestAnkiConnectAsync()
-    {
-        try
-        {
-            var version = await media.Anki.InvokeAsync("version").ConfigureAwait(false);
-            ankiConnectedHint = true;
-            mediaTest = $"AnkiConnect works (version {version}).";
-        }
-        catch (Exception ex)
-        {
-            ankiConnectedHint = false;
-            mediaTest = ex.Message;
-        }
-    }
-
-    private static string FormatBytes(long bytes) => bytes switch
-    {
-        >= 1L << 30 => $"{bytes / (double)(1L << 30):0.0} GB",
-        >= 1L << 20 => $"{bytes / (double)(1L << 20):0} MB",
-        _ => $"{bytes / 1024.0:0} KB",
-    };
+    private static string FormatBytes(long bytes) => ConfigStyle.FormatBytes(bytes);
 
     private static string Ago(DateTimeOffset? time)
     {
